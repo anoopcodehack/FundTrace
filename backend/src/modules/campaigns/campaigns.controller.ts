@@ -24,6 +24,6 @@ export class CampaignsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get campaign details by ID or on-chain ID, including tamper-check' })
   async findOne(@Param('id') id: string) {
-    return this.campaignsService.findOne(id);
+    return this.campaignsService.findOne(Number(id));
   }
 }

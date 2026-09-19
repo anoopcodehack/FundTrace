@@ -1,9 +1,6 @@
-import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabase";
-import { computeCanonicalMetadataHash, verifyHashMatch } from "../lib/canonical";
 import { CampaignMetadata, IntegrityVerificationResult } from "../types";
 
-// In-memory cache fallback for resilience during hackathon demos
-const memoryCampaigns = new Map<number, CampaignMetadata>();
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export async function saveCampaignMetadata(data: {
   onChainId: number;
@@ -14,110 +11,94 @@ export async function saveCampaignMetadata(data: {
   location?: string;
   coverImageUrl?: string;
 }): Promise<CampaignMetadata> {
-  const canonicalHash = computeCanonicalMetadataHash({
-    title: data.title,
-    story: data.story,
-    category: data.category,
-    location: data.location || "Global",
+  const response = await fetch(`${API_URL}/campaigns`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      onChainId: data.onChainId,
+      title: data.title,
+      tagline: data.tagline,
+      category: data.category,
+      description: data.story, // Backend DTO expects description
+      location: data.location,
+      imageUrl: data.coverImageUrl, // Backend DTO expects imageUrl
+    }),
   });
 
-  const record: CampaignMetadata = {
-    onChainId: data.onChainId,
-    title: data.title,
-    tagline: data.tagline || "",
-    category: data.category,
-    story: data.story,
-    location: data.location || "Global",
-    coverImageUrl: data.coverImageUrl || "",
-    canonicalHash,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  memoryCampaigns.set(data.onChainId, record);
-
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = getSupabaseClient();
-      await supabase.from("campaigns").upsert(
-        {
-          on_chain_id: data.onChainId,
-          title: data.title,
-          tagline: data.tagline || "",
-          category: data.category,
-          story: data.story,
-          location: data.location || "Global",
-          cover_image_url: data.coverImageUrl || "",
-          canonical_hash: canonicalHash,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "on_chain_id" }
-      );
-    } catch (e) {
-      console.warn("Supabase campaign save fallback:", e);
-    }
+  if (!response.ok) {
+    throw new Error('Failed to save campaign metadata');
   }
 
-  return record;
+  const result = await response.json();
+  
+  // Map backend response back to frontend interface
+  return {
+    onChainId: result.on_chain_id,
+    title: result.title,
+    tagline: result.tagline,
+    category: result.category,
+    story: result.story,
+    location: result.location,
+    coverImageUrl: result.cover_image_url,
+    canonicalHash: result.canonical_hash,
+    createdAt: result.created_at,
+    updatedAt: result.updated_at,
+  };
 }
 
 export async function getCampaignMetadata(onChainId: number): Promise<CampaignMetadata | null> {
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = getSupabaseClient();
-      const { data, error } = await supabase
-        .from("campaigns")
-        .select("*")
-        .eq("on_chain_id", onChainId)
-        .single();
-
-      if (data && !error) {
-        return {
-          onChainId: data.on_chain_id,
-          title: data.title,
-          tagline: data.tagline,
-          category: data.category,
-          story: data.story,
-          location: data.location,
-          coverImageUrl: data.cover_image_url,
-          canonicalHash: data.canonical_hash,
-          createdAt: data.created_at || new Date().toISOString(),
-          updatedAt: data.updated_at || new Date().toISOString(),
-        };
-      }
-    } catch (e) {
-      console.warn("Supabase campaign get fallback:", e);
+  try {
+    const response = await fetch(`${API_URL}/campaigns/${onChainId}`);
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error('Failed to fetch campaign metadata');
     }
-  }
 
-  return memoryCampaigns.get(onChainId) || null;
+    const { metadata } = await response.json();
+    return {
+      onChainId: metadata.on_chain_id,
+      title: metadata.title,
+      tagline: metadata.tagline,
+      category: metadata.category,
+      story: metadata.story,
+      location: metadata.location,
+      coverImageUrl: metadata.cover_image_url,
+      canonicalHash: metadata.canonical_hash,
+      createdAt: metadata.created_at,
+      updatedAt: metadata.updated_at,
+    };
+  } catch (error) {
+    console.error("Error fetching campaign metadata:", error);
+    return null;
+  }
 }
 
 export async function getAllCampaignsMetadata(): Promise<CampaignMetadata[]> {
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = getSupabaseClient();
-      const { data, error } = await supabase.from("campaigns").select("*");
-      if (data && !error && data.length > 0) {
-        return data.map((d: any) => ({
-          onChainId: d.on_chain_id,
-          title: d.title,
-          tagline: d.tagline,
-          category: d.category,
-          story: d.story,
-          location: d.location,
-          coverImageUrl: d.cover_image_url,
-          canonicalHash: d.canonical_hash,
-          createdAt: d.created_at || new Date().toISOString(),
-          updatedAt: d.updated_at || new Date().toISOString(),
-        }));
-      }
-    } catch (e) {
-      console.warn("Supabase get all campaigns fallback:", e);
+  try {
+    const response = await fetch(`${API_URL}/campaigns`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch all campaigns metadata');
     }
-  }
 
-  return Array.from(memoryCampaigns.values());
+    const results = await response.json();
+    return results.map((result: any) => ({
+      onChainId: result.on_chain_id,
+      title: result.title,
+      tagline: result.tagline,
+      category: result.category,
+      story: result.story,
+      location: result.location,
+      coverImageUrl: result.cover_image_url,
+      canonicalHash: result.canonical_hash,
+      createdAt: result.created_at,
+      updatedAt: result.updated_at,
+    }));
+  } catch (error) {
+    console.error("Error fetching all campaigns:", error);
+    return [];
+  }
 }
 
 /**
@@ -127,35 +108,29 @@ export async function verifyCampaignIntegrity(
   onChainId: number,
   onChainHash: string
 ): Promise<IntegrityVerificationResult> {
-  const metadata = await getCampaignMetadata(onChainId);
-  if (!metadata) {
+  try {
+    const response = await fetch(`${API_URL}/campaigns/${onChainId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch campaign integrity data');
+    }
+
+    const { integrity } = await response.json();
+    return {
+      target: "campaign_metadata",
+      onChainHash: integrity.onChainHash,
+      computedHash: integrity.calculatedHash,
+      isMatch: !integrity.isTampered,
+      status: integrity.status || (integrity.isTampered ? "TAMPER_DETECTED" : "TAMPER_FREE"),
+      details: integrity.details,
+    };
+  } catch (error) {
     return {
       target: "campaign_metadata",
       onChainHash,
       computedHash: "",
       isMatch: false,
       status: "TAMPER_DETECTED",
-      details: "Metadata record missing from Supabase database",
+      details: "Failed to verify integrity with backend.",
     };
   }
-
-  const computedHash = computeCanonicalMetadataHash({
-    title: metadata.title,
-    story: metadata.story,
-    category: metadata.category,
-    location: metadata.location,
-  });
-
-  const { isMatch } = verifyHashMatch(onChainHash, computedHash);
-
-  return {
-    target: "campaign_metadata",
-    onChainHash,
-    computedHash,
-    isMatch,
-    status: isMatch ? "TAMPER_FREE" : "TAMPER_DETECTED",
-    details: isMatch
-      ? "Canonical Keccak-256 hash matches immutable on-chain record exactly."
-      : "CRITICAL: Off-chain story or metadata has been altered after campaign verification!",
-  };
 }

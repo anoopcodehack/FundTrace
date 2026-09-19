@@ -317,8 +317,8 @@ fundtrace/
 ├── test/           Hardhat tests
 ├── scripts/        deploy, demo:reset, demo:live
 ├── deployments/    deployed address and block per network
-├── api/            NestJS backend (Swagger, uploads, event indexer)
-├── web/            Next.js frontend
+├── backend/        NestJS backend (Swagger, uploads, event indexer)
+├── src/            Next.js frontend services and UI
 └── demo-files/     quotes, invoices, tampered invoice
 ```
 
@@ -352,7 +352,7 @@ npx hardhat node
 npm run demo:reset
 
 # Terminal 3: NestJS API
-npm run api:dev
+npm run backend:dev
 
 # Terminal 4: web app
 npm run dev
@@ -375,7 +375,7 @@ Have Sepolia test ETH ready before the event; faucets can be slow. Test event qu
 | `npx hardhat test` | Run the contract test suite |
 | `npm run demo:reset` | Reset the local chain and the Supabase demo data (tables and storage), deploy, seed campaigns (with matching `metadataHash`), donations, requests and proof files, write deployment info. Requires `npx hardhat node` to be running |
 | `npm run demo:live` | Create the live spending request with a fresh 10+ minute voting window |
-| `npm run api:dev` | Start the NestJS API |
+| `npm run backend:dev` | Start the NestJS API |
 | `npm run dev` | Start the Next.js app |
 
 ## Demo Walkthrough
