@@ -10,7 +10,8 @@
 ![Hardhat](https://img.shields.io/badge/Hardhat-tested-FFF100)
 ![Next.js](https://img.shields.io/badge/Next.js-App_Router-000000?logo=nextdotjs)
 ![ethers.js](https://img.shields.io/badge/ethers.js-v6-2535A0)
-![MongoDB](https://img.shields.io/badge/MongoDB-off--chain_data-47A248?logo=mongodb&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-API-E0234E?logo=nestjs&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Postgres_%2B_Storage-3ECF8E?logo=supabase&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
 Built for **Versathon 2.0** (24-hour hackathon), Problem Statement **F4: Transparent Crowdfunding & Fund Ledger**.
@@ -28,6 +29,7 @@ Built for **Versathon 2.0** (24-hour hackathon), Problem Statement **F4: Transpa
 - [How It Works](#how-it-works)
 - [Key Features](#key-features)
 - [Architecture](#architecture)
+- [How Each Technology Is Used](#how-each-technology-is-used)
 - [Governance: Snapshot Voting](#governance-snapshot-voting)
 - [Proof Integrity](#proof-integrity)
 - [Smart Contract Design](#smart-contract-design)
@@ -75,12 +77,12 @@ Donations are held by a smart contract, not by the campaign creator. Money leave
 | Step | Action | What the contract enforces |
 |---|---|---|
 | 1 | **Create campaign**: creator submits metadata, goal and deadline | A canonical `metadataHash` is recorded on-chain |
-| 2 | **Verify campaign**: an institutional verifier approves or rejects | Verifier cannot be the creator; only verified campaigns accept funds |
+| 2 | **Verify campaign**: an institutional verifier approves or rejects | Verifier cannot be the creator; verification only before the campaign deadline; only verified campaigns accept funds |
 | 3 | **Fund**: contributors donate from their wallets | Before the deadline; creator address cannot donate |
 | 4 | **Close funding**: the donation that reaches or exceeds the goal closes funding | No top-ups afterwards; raised may end above 100% |
 | 5 | **Request spending**: creator submits purpose, amount, recipient, quote and `requestHash` | Amount ≤ available balance; only one open request; voting window within configured bounds |
 | 6 | **Vote**: donors approve using their contribution as weight | One vote per donor; passes when `approvalWeight × 2 > totalRaised`; creator cannot vote |
-| 7 | **Release**: anyone can trigger release once approved | State updated before transfer; reentrancy guarded |
+| 7 | **Release**: anyone can trigger release once approved, even after the voting deadline | State updated before transfer; reentrancy guarded |
 | 8 | **Submit proof**: creator submits the receipt hash | Within the fixed proof deadline; `receiptHash` recorded on-chain |
 | 9 | **Check proof**: anyone re-uploads the file and the browser re-hashes it | Match means unchanged since submission |
 | 10 | **Audit**: public ledger built from contract events | No login required |
@@ -112,7 +114,7 @@ stateDiagram-v2
 
 `FAILED` and `PROOF OVERDUE` are computed statuses, not transactions. A campaign is failed once its deadline has passed without reaching the goal. A released request with no proof after the proof deadline is flagged in red on the dashboard.
 
-A request is **open** while it is `PENDING`, `APPROVED`, or `RELEASED` without proof. Only one request may be open at a time, so an unresolved request also blocks any new spending request.
+A request is **open** while it is `PENDING`, `APPROVED`, or `RELEASED` without proof; an expired `PENDING` request is no longer open and can be closed by anyone. Only one request may be open at a time, so an unresolved request also blocks any new spending request.
 
 ## Key Features
 
@@ -142,13 +144,25 @@ A request is **open** while it is `PENDING`, `APPROVED`, or `RELEASED` without p
 flowchart TB
     FE["Frontend<br/>Next.js + Tailwind + ethers.js"] --> WAL["MetaMask or demo wallet"]
     WAL --> SC["FundLedger.sol<br/>campaigns, donations, votes, releases, hashes, events"]
-    FE --> API["Next.js API routes"]
-    API --> DB["MongoDB<br/>stories, cover images, original proof files"]
+    FE --> API["NestJS API<br/>content, uploads, event indexer"]
+    API --> DB["Supabase<br/>PostgreSQL + Storage<br/>campaign content, cached events, original proof files"]
+    SC -->|"events indexed for caching"| API
     SC -->|"contract events"| LEDGER["Public ledger<br/>no login required"]
     FE --> LEDGER
 ```
 
-**Blockchain is the financial source of truth.** The contract holds money, authorization, votes, deadlines and hashes. MongoDB only stores presentation data (title, story, images, original receipt files), and anything important in it is committed on-chain by hash.
+**Blockchain is the financial source of truth.** The contract holds money, authorization, votes, deadlines and hashes. The NestJS backend and Supabase only handle presentation data (title, story, images, original receipt files) and a cache of contract events, and anything important in them is committed on-chain by hash. The backend cannot move funds or change on-chain state, and the public ledger can be checked directly against the chain even if the backend is unavailable.
+
+## How Each Technology Is Used
+
+- **Solidity smart contract:** holds the funds and enforces the rules: campaign verification status, donations, locked funds, spending requests, contribution-weighted voting, releases, refunds, and request/receipt/metadata hashes. It emits the events behind the public ledger and is the source of truth for all financial state.
+- **NestJS backend:** serves off-chain APIs: campaign content, receipt upload and storage (original bytes preserved), and an event indexer that caches contract events for fast queries. It cannot move funds or change on-chain state. Swagger documents every endpoint.
+- **Supabase:** PostgreSQL stores campaign content and cached events. Storage keeps the original invoices, receipts and cover images.
+- **Next.js:** the campaign dashboard, donation and voting interface, spending workflow, verifier panel, proof upload and check, and the public ledger.
+- **MetaMask + ethers.js:** wallet connection and transaction signing, contract reads, and Keccak-256 hashing in the browser for proof and metadata checks.
+- **Hardhat + OpenZeppelin:** local blockchain, tests and deployment, plus the audited `ReentrancyGuard`.
+
+> **The blockchain holds the financial truth; databases hold only presentation data and caches.**
 
 ## Governance: Snapshot Voting
 
@@ -196,11 +210,11 @@ async function hashFile(file: File): Promise<string> {
 
 > **What this proves, and what it doesn't.** A hash proves a document has not changed since its hash was recorded. It does **not** prove the underlying receipt is genuine. FundTrace pairs the hash with verifier review and states this limit openly.
 
-Original receipts are stored as untouched bytes (GridFS or server storage). Cover images use Cloudinary; receipts never pass through image optimization.
+Original receipts are stored as untouched bytes in Supabase Storage. The backend performs no compression, image optimization or re-encoding on receipts, since any change to the bytes would break the hash check.
 
 ### Metadata integrity
 
-Campaign details in MongoDB are serialized in a **canonical form** (sorted keys, deterministic serialization), hashed with Keccak-256, and committed on-chain at creation. The hash is locked when the campaign is verified. If the stored story is later altered, recomputing the hash no longer matches and the UI shows a metadata integrity warning. The funding goal lives only on-chain, so the two copies cannot disagree.
+Campaign details in Supabase (PostgreSQL) are serialized in a **canonical form** (sorted keys, deterministic serialization), hashed with Keccak-256, and committed on-chain at creation. The hash is locked when the campaign is verified. If the stored story is later altered, recomputing the hash no longer matches and the UI shows a metadata integrity warning. The funding goal lives only on-chain, so the two copies cannot disagree.
 
 ## Smart Contract Design
 
@@ -245,7 +259,7 @@ See `contracts/FundLedger.sol` for exact signatures and custom errors.
 | `ProofSubmitted` | A `receiptHash` is recorded |
 | `Refunded` | A donor withdraws from a failed campaign |
 
-The ledger UI reads events starting from the **contract deployment block** rather than scanning the whole chain. Free RPC providers can limit event ranges, so the backend can cache indexed events while the blockchain remains the source of truth.
+The ledger UI reads events starting from the **contract deployment block** rather than scanning the whole chain. Free RPC providers can limit event ranges, so the NestJS indexer caches events in Supabase for fast queries while the blockchain remains the source of truth.
 
 ## Security Considerations
 
@@ -260,6 +274,7 @@ The ledger UI reads events starting from the **contract deployment block** rathe
 | Fake campaigns | Institutional verifier approval before any funding |
 | Refund safety | Donors pull their own refund; a failed campaign accepts no more funding |
 | Metadata tampering | `metadataHash` committed on creation and locked at verification |
+| Backend or database compromise | The backend cannot move funds or change contract state; metadata and receipts are checked against on-chain hashes; the Supabase service key stays server-side |
 
 This is a hackathon prototype and has **not** been independently audited.
 
@@ -267,11 +282,11 @@ This is a hackathon prototype and has **not** been independently audited.
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js, Tailwind CSS, ethers.js v6, Recharts |
+| Frontend | Next.js, Tailwind CSS, Lucide React, Recharts, ethers.js v6 |
 | Wallet | MetaMask, pre-funded demo wallets |
 | Smart contracts | Solidity, Hardhat, OpenZeppelin `ReentrancyGuard` |
-| Backend | Next.js API routes, MongoDB |
-| File storage | Original receipts in GridFS / server storage; cover images on Cloudinary |
+| Backend | NestJS (REST API, Swagger docs, Multer uploads, event indexer) |
+| Database and storage | Supabase: PostgreSQL for campaign content and cached events; Storage for original receipts and cover images |
 | Hashing | Keccak-256 via ethers.js (requests, receipts, metadata) |
 | Testing | Hardhat, Chai |
 | Networks | Local Hardhat (primary demo), Ethereum Sepolia (public backup) |
@@ -282,7 +297,7 @@ This is a hackathon prototype and has **not** been independently audited.
 
 - Node.js 22 or newer
 - npm
-- MongoDB (local instance or Atlas connection string)
+- A Supabase project (project URL and service-role key)
 - MetaMask (optional: demo mode signs with pre-funded local accounts)
 
 ### Install
@@ -294,18 +309,38 @@ npm install
 cp .env.example .env
 ```
 
+### Project structure (suggested)
+
+```
+fundtrace/
+├── contracts/      FundLedger.sol
+├── test/           Hardhat tests
+├── scripts/        deploy, demo:reset, demo:live
+├── deployments/    deployed address and block per network
+├── api/            NestJS backend (Swagger, uploads, event indexer)
+├── web/            Next.js frontend
+└── demo-files/     quotes, invoices, tampered invoice
+```
+
+Adjust to match the real repository layout.
+
 ### Environment variables
 
 | Variable | Description |
 |---|---|
-| `MONGODB_URI` | MongoDB connection string |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key, **server-side only** |
+| `SUPABASE_STORAGE_BUCKET` | Bucket for receipts and cover images |
+| `API_PORT` | NestJS API port (for example `4000`) |
+| `NEXT_PUBLIC_API_URL` | Base URL of the NestJS API |
 | `NEXT_PUBLIC_CHAIN_ID` | `31337` for local Hardhat, `11155111` for Sepolia |
 | `NEXT_PUBLIC_RPC_URL` | RPC endpoint (`http://127.0.0.1:8545` locally) |
 | `SEPOLIA_RPC_URL` | Sepolia RPC URL (backup deployment only) |
 | `DEPLOYER_PRIVATE_KEY` | **Test-only** key for Sepolia deploys. Never commit a real key. |
-| `CLOUDINARY_URL` | Cover image storage |
 
 The contract address and deployment block are written by the deploy script to `deployments/<network>.json` and read by the app, so a redeploy does not require restarting the dev server (`NEXT_PUBLIC_*` variables are only read at startup).
+
+`SUPABASE_SERVICE_ROLE_KEY` is used only by the NestJS server. Never expose it to the frontend or commit it to git.
 
 ### Run locally (primary demo setup)
 
@@ -313,14 +348,17 @@ The contract address and deployment block are written by the deploy script to `d
 # Terminal 1: local blockchain
 npx hardhat node
 
-# Terminal 2: deploy contracts and seed the demo
+# Terminal 2: deploy contracts and seed the demo (chain and Supabase)
 npm run demo:reset
 
-# Terminal 3: web app
+# Terminal 3: NestJS API
+npm run api:dev
+
+# Terminal 4: web app
 npm run dev
 ```
 
-Open `http://localhost:3000`. To use MetaMask instead of demo mode, add a network with RPC `http://127.0.0.1:8545`, chain ID `31337`, and import one of the pre-funded Hardhat accounts.
+Open `http://localhost:3000`. To use MetaMask instead of demo mode, add a network with RPC `http://127.0.0.1:8545`, chain ID `31337`, and import one of the pre-funded Hardhat accounts. The NestJS app serves Swagger API docs (for example at `http://localhost:4000/api/docs`).
 
 ### Public backup deployment (Sepolia)
 
@@ -335,8 +373,9 @@ Have Sepolia test ETH ready before the event; faucets can be slow. Test event qu
 | Command | What it does |
 |---|---|
 | `npx hardhat test` | Run the contract test suite |
-| `npm run demo:reset` | Reset the local chain and MongoDB demo data, deploy, seed campaigns (with matching `metadataHash`), donations, requests and proof files, write deployment info. Requires `npx hardhat node` to be running |
+| `npm run demo:reset` | Reset the local chain and the Supabase demo data (tables and storage), deploy, seed campaigns (with matching `metadataHash`), donations, requests and proof files, write deployment info. Requires `npx hardhat node` to be running |
 | `npm run demo:live` | Create the live spending request with a fresh 10+ minute voting window |
+| `npm run api:dev` | Start the NestJS API |
 | `npm run dev` | Start the Next.js app |
 
 ## Demo Walkthrough
@@ -357,7 +396,7 @@ Have Sepolia test ETH ready before the event; faucets can be slow. Test event qu
 - **Verifier demo campaign**: a separate campaign in `PENDING VERIFICATION` for the approve/reject demo.
 - **Overdue demo campaign**: a small campaign with a `RELEASED` request whose proof deadline has passed, showing **PROOF OVERDUE** and a blocked new request.
 
-Dashboard figures use test ETH throughout. No real money is involved.
+Dashboard figures use test ETH throughout. No real money is involved. If the backend is unreachable, the public ledger still reads directly from the contract; keep a recorded run of the demo as a fallback.
 
 ### Three-minute judge flow
 
@@ -406,6 +445,8 @@ Run `npx hardhat test`. The suite covers the rules that matter most:
 - **Proof status is checked in the UI, not stored as a "verified" state.** A hash match is an honest claim about file integrity, so the contract stops at `PROOF_SUBMITTED`.
 - **Overdue is computed on read.** Contracts cannot run on their own, so the status is derived from timestamps.
 - **ETH-denominated prototype.** Everything shown is test ETH. A production system would settle through compliant payment rails or stablecoins.
+- **The backend is a content and cache layer, not a trust layer.** It stores presentation data and cached events; every important claim is anchored on-chain by hash.
+- **NestJS + Supabase.** NestJS gives a structured API with Swagger docs that are easy to test; Supabase provides managed PostgreSQL and file storage. The trade-off is a hosted dependency (see limitations).
 - **No DAO, token or NFT layer.** The goal is a focused accountability loop, not a governance framework.
 
 ## Limitations and Future Scope
@@ -419,6 +460,7 @@ Run `npx hardhat test`. The suite covers the rules that matter most:
 - **Creator abandonment:** remaining funds may need a future recovery mechanism.
 - **Test ETH only:** prototype funds have no monetary value.
 - **Regulation:** a real deployment would require appropriate payment, crowdfunding and crypto compliance.
+- **Hosted backend dependency:** off-chain content and cached events depend on Supabase availability. On-chain state and hashes remain verifiable directly from the contract.
 - **Not audited.**
 
 **Roadmap**
@@ -435,16 +477,16 @@ Run `npx hardhat test`. The suite covers the rules that matter most:
 
 - All application and smart-contract code in this repository was written during Versathon 2.0; the commit history reflects the development process.
 - The architecture was planned in advance; no code from that planning was carried into the repository.
-- Third-party libraries (OpenZeppelin Contracts, ethers.js, Hardhat, Next.js and others) are used as dependencies; see `package.json`. Any adapted snippet is credited with a link in a code comment.
+- Third-party libraries (OpenZeppelin Contracts, ethers.js, Hardhat, Next.js, NestJS, Supabase and others) are used as dependencies; see `package.json`. Any adapted snippet is credited with a link in a code comment.
 - AI assistance: _state here whether AI tools were used and how, if the organizers permit it._
 
 ## Team
 
-| Stack Blaze |
-
-| Tharun Rai  | 
-| Anoop  | 
-| Pranathi R Shetty  | 
+| Name | Role |
+|---|---|
+| _Your name_ | _e.g. Smart contracts, architecture_ |
+| _Teammate_ | _e.g. Frontend_ |
+| _Teammate_ | _e.g. Backend and demo tooling_ |
 
 Built at **Versathon 2.0**.
 
@@ -454,4 +496,4 @@ Released under the [MIT License](LICENSE).
 
 ## Acknowledgements
 
-Ethereum, Solidity, OpenZeppelin Contracts, Hardhat, ethers.js, Next.js and the Versathon 2.0 organizers.
+Ethereum, Solidity, OpenZeppelin Contracts, Hardhat, ethers.js, Next.js, NestJS, Supabase and the Versathon 2.0 organizers.
