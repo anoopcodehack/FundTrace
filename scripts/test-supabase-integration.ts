@@ -1,24 +1,24 @@
 import * as fs from "fs";
 import * as path from "path";
-import { computeCanonicalMetadataHash, computeFileKeccak256, verifyHashMatch } from "../src/lib/canonical";
-import { saveCampaignMetadata, getCampaignMetadata, verifyCampaignIntegrity } from "../src/services/campaignService";
-import { storeProofDocument, getProofDocument, verifyCandidateFileHash } from "../src/services/proofService";
+import { computeCanonicalMetadataHash, verifyHashMatch } from "../src/lib/canonical";
+import { saveCampaignMetadata, verifyCampaignIntegrity } from "../src/services/campaignService";
+import { storeProofDocument, verifyCandidateFileHash } from "../src/services/proofService";
 
-async function runMongoDBPhase8Demo() {
+async function runSupabasePhase8Demo() {
   console.log("\n============================================================");
-  console.log("   🍃 FUNDTRACE PHASE 8: MONGODB & ARCHITECTURAL TRUTH      ");
+  console.log("   ⚡ FUNDTRACE PHASE 8: SUPABASE & ARCHITECTURAL TRUTH     ");
   console.log("============================================================\n");
 
   console.log("--- ARCHITECTURAL RESPONSIBILITY SPLIT ---");
   console.log("┌──────────────────────────┬───────────────────────────────┐");
-  console.log("│ BLOCKCHAIN (FINANCIAL)   │ MONGODB (PRESENTATION)        │");
+  console.log("│ BLOCKCHAIN (FINANCIAL)   │ SUPABASE (CONTENT & STORAGE)  │");
   console.log("├──────────────────────────┼───────────────────────────────┤");
   console.log("│ • Exact Wei Amounts      │ • Rich Story & Vision         │");
   console.log("│ • Donor Wallet Addresses │ • Campaign Title & Category   │");
   console.log("│ • Recipient Addresses    │ • Cover Images & Media        │");
   console.log("│ • Approval Weight (Votes)│ • Quotation PDF Documents     │");
   console.log("│ • Release Execution      │ • Original Invoice Proof PDFs │");
-  console.log("│ • Keccak-256 Hashes      │ • Itemized Vendor Details     │");
+  console.log("│ • Keccak-256 Hashes      │ • Untouched Raw File Bytes    │");
   console.log("└──────────────────────────┴───────────────────────────────┘\n");
 
   // Step 1: Canonical Metadata Hash Test
@@ -32,7 +32,7 @@ async function runMongoDBPhase8Demo() {
   const onChainMetadataHash = computeCanonicalMetadataHash(originalStory);
   console.log(`Original Metadata Canonical Hash: ${onChainMetadataHash}`);
 
-  // Save to MongoDB layer
+  // Save to Supabase layer
   await saveCampaignMetadata({
     onChainId: 1,
     title: originalStory.title,
@@ -40,7 +40,7 @@ async function runMongoDBPhase8Demo() {
     category: originalStory.category as any,
     location: originalStory.location,
   });
-  console.log("✔ Campaign #1 presentation data stored in MongoDB layer.");
+  console.log("✔ Campaign #1 presentation data stored in Supabase layer.");
 
   // Test integrity check with unchanged story
   const check1 = await verifyCampaignIntegrity(1, onChainMetadataHash);
@@ -57,14 +57,14 @@ async function runMongoDBPhase8Demo() {
   console.log(`  Expected on-chain hash: ${onChainMetadataHash}`);
   console.log(`  Tampered story hash   : ${tamperedHash}`);
 
-  // Step 2: Proof of Expenditure Documents in MongoDB
+  // Step 2: Proof of Expenditure Documents in Supabase Storage
   console.log("\n--- Step 2: Document Storage & Cryptographic Verification ---");
   const demoFilesDir = path.join(__dirname, "..", "demo-files");
   const quote1Buffer = fs.readFileSync(path.join(demoFilesDir, "request-01-quote.pdf"));
   const invoiceOriginalBuffer = fs.readFileSync(path.join(demoFilesDir, "request-01-invoice-original.pdf"));
   const invoiceTamperedBuffer = fs.readFileSync(path.join(demoFilesDir, "request-01-invoice-tampered.pdf"));
 
-  // Store quote in MongoDB
+  // Store quote in Supabase
   const quoteDoc = await storeProofDocument({
     campaignId: 1,
     requestId: 1,
@@ -72,9 +72,9 @@ async function runMongoDBPhase8Demo() {
     fileName: "request-01-quote.pdf",
     fileBuffer: quote1Buffer,
   });
-  console.log(`✔ Quote PDF stored in MongoDB (Hash: ${quoteDoc.fileHash})`);
+  console.log(`✔ Quote PDF stored in Supabase Storage (Hash: ${quoteDoc.fileHash})`);
 
-  // Store original invoice in MongoDB
+  // Store original invoice in Supabase
   const originalDoc = await storeProofDocument({
     campaignId: 1,
     requestId: 1,
@@ -82,7 +82,7 @@ async function runMongoDBPhase8Demo() {
     fileName: "request-01-invoice-original.pdf",
     fileBuffer: invoiceOriginalBuffer,
   });
-  console.log(`✔ Original Invoice PDF stored in MongoDB (Hash: ${originalDoc.fileHash})`);
+  console.log(`✔ Original Invoice PDF stored in Supabase Storage (Hash: ${originalDoc.fileHash})`);
 
   // Simulate on-chain hash commitment:
   const onChainReceiptHash = originalDoc.fileHash;
@@ -103,14 +103,11 @@ async function runMongoDBPhase8Demo() {
   console.log(`  Detail : ${testTampered.details}`);
 
   console.log("\n============================================================");
-  console.log("   ✅ PHASE 8: MONGODB & OFF-CHAIN INTEGRITY VERIFIED!      ");
+  console.log("   ✅ PHASE 8: SUPABASE & OFF-CHAIN INTEGRITY VERIFIED!     ");
   console.log("============================================================\n");
-  const mongoose = require("mongoose");
-  await mongoose.disconnect();
-  process.exit(0);
 }
 
-runMongoDBPhase8Demo().catch((err) => {
+runSupabasePhase8Demo().catch((err) => {
   console.error(err);
   process.exit(1);
 });

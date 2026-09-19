@@ -1,5 +1,4 @@
-import { connectToDatabase } from "../lib/mongodb";
-import { ProofDocumentModel, IProofDocumentDoc } from "../models/ProofDocument";
+import { getSupabaseClient, isSupabaseConfigured, STORAGE_BUCKET } from "../lib/supabase";
 import { computeFileKeccak256, verifyHashMatch } from "../lib/canonical";
 import { ProofDocumentRecord, IntegrityVerificationResult } from "../types";
 
@@ -21,6 +20,7 @@ export async function storeProofDocument(params: {
 }): Promise<ProofDocumentRecord> {
   const fileHash = computeFileKeccak256(params.fileBuffer);
   const base64Content = Buffer.from(params.fileBuffer).toString("base64");
+  const storagePath = `${params.campaignId}/${params.requestId}/${params.fileName}`;
 
   const record: ProofDocumentRecord = {
     campaignId: params.campaignId,
@@ -31,6 +31,7 @@ export async function storeProofDocument(params: {
     fileSizeBytes: params.fileBuffer.length,
     fileHash,
     fileContentBase64: base64Content,
+    storagePath,
     uploadedAt: new Date().toISOString(),
     isTamperedDemo: params.isTamperedDemo || false,
   };
@@ -38,23 +39,35 @@ export async function storeProofDocument(params: {
   const key = getDocKey(params.campaignId, params.requestId, params.documentType);
   memoryDocuments.set(key, record);
 
-  const { isConnected } = await connectToDatabase();
-  if (isConnected) {
+  if (isSupabaseConfigured()) {
     try {
-      await ProofDocumentModel.findOneAndUpdate(
+      const supabase = getSupabaseClient();
+
+      // 1. Upload untouched bytes to Supabase Storage
+      await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(storagePath, params.fileBuffer, {
+          contentType: params.mimeType || "application/pdf",
+          upsert: true,
+        });
+
+      // 2. Upsert metadata record in Supabase PostgreSQL
+      await supabase.from("proof_documents").upsert(
         {
-          campaignId: params.campaignId,
-          requestId: params.requestId,
-          documentType: params.documentType,
+          campaign_id: params.campaignId,
+          request_id: params.requestId,
+          document_type: params.documentType,
+          file_name: params.fileName,
+          mime_type: params.mimeType || "application/pdf",
+          file_size_bytes: params.fileBuffer.length,
+          file_hash: fileHash,
+          storage_path: storagePath,
+          uploaded_at: new Date().toISOString(),
         },
-        {
-          ...record,
-          uploadedAt: new Date(record.uploadedAt),
-        },
-        { upsert: true, new: true }
+        { onConflict: "campaign_id,request_id,document_type" }
       );
     } catch (e) {
-      console.warn("MongoDB document save fallback:", e);
+      console.warn("Supabase document save fallback:", e);
     }
   }
 
@@ -68,30 +81,32 @@ export async function getProofDocument(
 ): Promise<ProofDocumentRecord | null> {
   const key = getDocKey(campaignId, requestId, documentType);
 
-  const { isConnected } = await connectToDatabase();
-  if (isConnected) {
+  if (isSupabaseConfigured()) {
     try {
-      const doc = await ProofDocumentModel.findOne({
-        campaignId,
-        requestId,
-        documentType,
-      }).lean();
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("proof_documents")
+        .select("*")
+        .eq("campaign_id", campaignId)
+        .eq("request_id", requestId)
+        .eq("document_type", documentType)
+        .single();
 
-      if (doc) {
+      if (data && !error) {
         return {
-          campaignId: doc.campaignId,
-          requestId: doc.requestId,
-          documentType: doc.documentType as any,
-          fileName: doc.fileName,
-          mimeType: doc.mimeType,
-          fileSizeBytes: doc.fileSizeBytes,
-          fileHash: doc.fileHash,
-          fileContentBase64: doc.fileContentBase64,
-          uploadedAt: doc.uploadedAt.toISOString(),
+          campaignId: data.campaign_id,
+          requestId: data.request_id,
+          documentType: data.document_type as any,
+          fileName: data.file_name,
+          mimeType: data.mime_type,
+          fileSizeBytes: data.file_size_bytes,
+          fileHash: data.file_hash,
+          storagePath: data.storage_path,
+          uploadedAt: data.uploaded_at,
         };
       }
     } catch (e) {
-      console.warn("MongoDB document get fallback:", e);
+      console.warn("Supabase document get fallback:", e);
     }
   }
 

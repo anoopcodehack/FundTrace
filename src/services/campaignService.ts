@@ -1,5 +1,4 @@
-import { connectToDatabase } from "../lib/mongodb";
-import { CampaignModel, ICampaignDoc } from "../models/Campaign";
+import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabase";
 import { computeCanonicalMetadataHash, verifyHashMatch } from "../lib/canonical";
 import { CampaignMetadata, IntegrityVerificationResult } from "../types";
 
@@ -37,16 +36,25 @@ export async function saveCampaignMetadata(data: {
 
   memoryCampaigns.set(data.onChainId, record);
 
-  const { isConnected } = await connectToDatabase();
-  if (isConnected) {
+  if (isSupabaseConfigured()) {
     try {
-      await CampaignModel.findOneAndUpdate(
-        { onChainId: data.onChainId },
-        { ...record },
-        { upsert: true, new: true }
+      const supabase = getSupabaseClient();
+      await supabase.from("campaigns").upsert(
+        {
+          on_chain_id: data.onChainId,
+          title: data.title,
+          tagline: data.tagline || "",
+          category: data.category,
+          story: data.story,
+          location: data.location || "Global",
+          cover_image_url: data.coverImageUrl || "",
+          canonical_hash: canonicalHash,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "on_chain_id" }
       );
     } catch (e) {
-      console.warn("MongoDB write fallback:", e);
+      console.warn("Supabase campaign save fallback:", e);
     }
   }
 
@@ -54,26 +62,31 @@ export async function saveCampaignMetadata(data: {
 }
 
 export async function getCampaignMetadata(onChainId: number): Promise<CampaignMetadata | null> {
-  const { isConnected } = await connectToDatabase();
-  if (isConnected) {
+  if (isSupabaseConfigured()) {
     try {
-      const doc = await CampaignModel.findOne({ onChainId }).lean();
-      if (doc) {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("campaigns")
+        .select("*")
+        .eq("on_chain_id", onChainId)
+        .single();
+
+      if (data && !error) {
         return {
-          onChainId: doc.onChainId,
-          title: doc.title,
-          tagline: doc.tagline,
-          category: doc.category as any,
-          story: doc.story,
-          location: doc.location,
-          coverImageUrl: doc.coverImageUrl,
-          canonicalHash: doc.canonicalHash,
-          createdAt: doc.createdAt.toISOString(),
-          updatedAt: doc.updatedAt.toISOString(),
+          onChainId: data.on_chain_id,
+          title: data.title,
+          tagline: data.tagline,
+          category: data.category,
+          story: data.story,
+          location: data.location,
+          coverImageUrl: data.cover_image_url,
+          canonicalHash: data.canonical_hash,
+          createdAt: data.created_at || new Date().toISOString(),
+          updatedAt: data.updated_at || new Date().toISOString(),
         };
       }
     } catch (e) {
-      console.warn("MongoDB read fallback:", e);
+      console.warn("Supabase campaign get fallback:", e);
     }
   }
 
@@ -81,26 +94,26 @@ export async function getCampaignMetadata(onChainId: number): Promise<CampaignMe
 }
 
 export async function getAllCampaignsMetadata(): Promise<CampaignMetadata[]> {
-  const { isConnected } = await connectToDatabase();
-  if (isConnected) {
+  if (isSupabaseConfigured()) {
     try {
-      const docs = await CampaignModel.find().lean();
-      if (docs && docs.length > 0) {
-        return docs.map((doc: any) => ({
-          onChainId: doc.onChainId,
-          title: doc.title,
-          tagline: doc.tagline,
-          category: doc.category,
-          story: doc.story,
-          location: doc.location,
-          coverImageUrl: doc.coverImageUrl,
-          canonicalHash: doc.canonicalHash,
-          createdAt: doc.createdAt.toISOString(),
-          updatedAt: doc.updatedAt.toISOString(),
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase.from("campaigns").select("*");
+      if (data && !error && data.length > 0) {
+        return data.map((d: any) => ({
+          onChainId: d.on_chain_id,
+          title: d.title,
+          tagline: d.tagline,
+          category: d.category,
+          story: d.story,
+          location: d.location,
+          coverImageUrl: d.cover_image_url,
+          canonicalHash: d.canonical_hash,
+          createdAt: d.created_at || new Date().toISOString(),
+          updatedAt: d.updated_at || new Date().toISOString(),
         }));
       }
     } catch (e) {
-      console.warn("MongoDB read all fallback:", e);
+      console.warn("Supabase get all campaigns fallback:", e);
     }
   }
 
@@ -108,7 +121,7 @@ export async function getAllCampaignsMetadata(): Promise<CampaignMetadata[]> {
 }
 
 /**
- * Validates off-chain MongoDB campaign story against the immutable on-chain metadataHash.
+ * Validates off-chain Supabase PostgreSQL campaign story against immutable on-chain metadataHash.
  */
 export async function verifyCampaignIntegrity(
   onChainId: number,
@@ -122,7 +135,7 @@ export async function verifyCampaignIntegrity(
       computedHash: "",
       isMatch: false,
       status: "TAMPER_DETECTED",
-      details: "Metadata record missing from off-chain database",
+      details: "Metadata record missing from Supabase database",
     };
   }
 

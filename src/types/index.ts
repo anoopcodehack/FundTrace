@@ -11,11 +11,10 @@
  *    - Release execution: immutable transfers directly to vendor recipients.
  *    - Cryptographic commitments: Keccak-256 hashes of metadata, quotes, and receipts.
  * 
- * 2. MONGODB (The Presentation & Supporting Layer):
- *    - Rich storytelling: campaign titles, detailed stories, categories, updates.
- *    - Visual media: cover images, photos of progress.
- *    - Documents: original quote PDFs, invoice PDFs, supplier specs.
- *    - Tamper-evident link: Every MongoDB document is bound to on-chain financial
+ * 2. SUPABASE (The Presentation & Storage Layer):
+ *    - PostgreSQL: campaign titles, detailed stories, categories, itemized breakdown.
+ *    - Storage: untouched original quote PDFs, invoice PDFs, cover images in 'receipts' bucket.
+ *    - Tamper-evident link: Every Supabase document/record is bound to on-chain financial
  *      truth via deterministic Keccak-256 canonical hashing.
  * ============================================================================
  */
@@ -94,7 +93,7 @@ export interface LedgerEvent {
   args: Record<string, any>;
 }
 
-// --- 2. MONGODB (PRESENTATION & SUPPORTING DATA) ---
+// --- 2. SUPABASE (PRESENTATION & SUPPORTING DATA) ---
 
 export interface CampaignMetadata {
   onChainId: number;
@@ -135,7 +134,8 @@ export interface ProofDocumentRecord {
   mimeType: string;
   fileSizeBytes: number;
   fileHash: string; // Keccak-256 of the raw file buffer
-  fileContentBase64?: string; // Stored file content
+  fileContentBase64?: string; // Stored file content or Storage path
+  storagePath?: string; // Supabase Storage key
   uploadedAt: string;
   isTamperedDemo?: boolean;
 }
