@@ -21,7 +21,7 @@ describe("FundTrace", function () {
 
     await expect(fundTrace.connect(creator).createCampaign(goal, deadline, metadataHash, verifier.address))
       .to.emit(fundTrace, "CampaignCreated")
-      .withArgs(1, creator.address, goal, deadline, metadataHash);
+      .withArgs(1, creator.address, verifier.address, goal, deadline, metadataHash);
 
     await expect(fundTrace.connect(verifier).verifyCampaign(1))
       .to.emit(fundTrace, "CampaignVerified")
