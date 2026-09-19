@@ -23,7 +23,7 @@ export default function VerifierPortalPage() {
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
       <Navbar />
 
-      <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-10">
+      <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-14 sm:pt-20">
         
         {/* Header */}
         <div className="pb-8 border-b border-stone-300">
@@ -56,7 +56,7 @@ export default function VerifierPortalPage() {
 
             <button
               onClick={handleSwitchToVerifier}
-              className="py-2.5 px-5 rounded-full bg-[#181816] text-white text-xs font-bold uppercase tracking-wider hover:bg-black transition-all self-start sm:self-center"
+              className="py-2 px-4 rounded-lg bg-[#181816] text-white text-xs font-semibold hover:bg-black transition-colors self-start sm:self-center shadow-xs"
             >
               Switch to Verifier Role
             </button>
@@ -65,28 +65,35 @@ export default function VerifierPortalPage() {
 
         {/* Pending Campaigns List */}
         <div className="mt-8 space-y-6">
-          <h3 className="text-2xl font-black font-bebas uppercase text-stone-900">
-            PENDING AUDIT QUEUE (1 CAMPAIGN)
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-bold text-stone-900">
+              Pending Audit Queue
+            </h3>
+            <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+              1 Campaign
+            </span>
+          </div>
 
           {/* Campaign #2 Card */}
-          <div className="bg-white rounded-3xl p-8 border border-stone-300 shadow-md space-y-6">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 border border-stone-200 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="px-2.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-[10px] uppercase">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-mono font-medium text-[10px] uppercase">
                     Sanitation · Campaign #2
                   </span>
                   <span className="text-xs font-mono text-stone-500">Creator: 0x15d3...6A65</span>
                 </div>
-                <h4 className="text-3xl font-black font-bebas uppercase text-stone-900">
-                  Clean Water Well & Community Filtration
+                <h4 className="text-xl font-bold text-stone-900 leading-snug">
+                  Clean Water Well &amp; Community Filtration
                 </h4>
               </div>
 
-              <div className="text-right">
-                <div className="text-2xl font-black font-bebas text-stone-900">Target: 5.00 ETH</div>
-                <div className="text-[11px] font-mono text-stone-500">Duration: 30 Days</div>
+              <div className="text-left sm:text-right">
+                <div className="text-xl font-bold font-sans tracking-tight text-stone-900 tabular-nums">
+                  Target: 5.00 ETH
+                </div>
+                <div className="text-xs font-mono text-stone-500">Duration: 30 Days</div>
               </div>
             </div>
 
@@ -95,7 +102,7 @@ export default function VerifierPortalPage() {
             </p>
 
             {/* Audit Details */}
-            <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 text-xs font-mono space-y-1">
+            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 text-xs font-mono space-y-1">
               <div className="flex justify-between">
                 <span className="text-stone-500">On-Chain Metadata Hash:</span>
                 <span className="text-stone-800">0x3b18c91827401928471928471928471928471928471928471928471928471928</span>
@@ -108,16 +115,16 @@ export default function VerifierPortalPage() {
 
             {/* Status & Actions */}
             <div className="pt-2 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="text-xs">
+              <div className="text-xs font-medium">
                 Status:{" "}
                 {campaign2Status === "PENDING" && (
-                  <strong className="text-amber-600">Pending Auditor Signoff</strong>
+                  <span className="text-amber-700 font-semibold">Pending Auditor Signoff</span>
                 )}
                 {campaign2Status === "VERIFIED" && (
-                  <strong className="text-emerald-600">✓ Verified & Funding Open</strong>
+                  <span className="text-emerald-700 font-semibold">✓ Verified &amp; Funding Open</span>
                 )}
                 {campaign2Status === "REJECTED" && (
-                  <strong className="text-red-600">✗ Rejected ({rejectReason || "Unverified credentials"})</strong>
+                  <span className="text-rose-700 font-semibold">✗ Rejected ({rejectReason || "Unverified credentials"})</span>
                 )}
               </div>
 
@@ -126,7 +133,7 @@ export default function VerifierPortalPage() {
                 <button
                   onClick={() => setShowRejectModal(true)}
                   disabled={campaign2Status !== "PENDING" || !isVerifier}
-                  className="py-3 px-5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-red-600 text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                  className="py-2.5 px-4 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold uppercase tracking-wider transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   Reject
                 </button>
@@ -134,7 +141,7 @@ export default function VerifierPortalPage() {
                 <button
                   onClick={() => setCampaign2Status("VERIFIED")}
                   disabled={campaign2Status !== "PENDING" || !isVerifier}
-                  className="py-3 px-6 rounded-2xl bg-[#FF5023] hover:bg-[#ff5d32] text-white text-xs font-black uppercase tracking-wider shadow-md transition-all disabled:opacity-40"
+                  className="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold uppercase tracking-wider shadow-sm transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   {campaign2Status === "VERIFIED" ? "✓ Verified" : "Verify & Unlock Funding"}
                 </button>

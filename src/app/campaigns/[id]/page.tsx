@@ -34,7 +34,7 @@ export default function CampaignDetailPage() {
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-6 sm:px-12 pt-10">
+      <main className="max-w-7xl mx-auto px-6 sm:px-12 pt-14 sm:pt-20">
         
         {/* Breadcrumb Navigation */}
         <div className="flex items-center gap-2 text-xs font-bold text-stone-500 mb-4 uppercase tracking-wider">
@@ -110,153 +110,181 @@ export default function CampaignDetailPage() {
 
           {/* Financial Metrics Summary Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200">
-              <div className="text-[10px] uppercase font-bold text-stone-500">Target Goal</div>
-              <div className="text-2xl font-black font-bebas text-stone-900 mt-1">{id === 1 ? "3.00 ETH" : id === 2 ? "5.00 ETH" : "1.00 ETH"}</div>
+            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200/80">
+              <div className="text-[11px] font-medium text-stone-500">Target Goal</div>
+              <div className="text-xl sm:text-2xl font-bold font-sans tracking-tight text-stone-900 mt-1 tabular-nums">
+                {id === 1 ? "3.00 ETH" : id === 2 ? "5.00 ETH" : "1.00 ETH"}
+              </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200">
-              <div className="text-[10px] uppercase font-bold text-stone-500">Total Donated</div>
-              <div className="text-2xl font-black font-bebas text-[#FF5023] mt-1">{id === 1 ? "3.20 ETH (107%)" : id === 2 ? "0.00 ETH" : "1.00 ETH"}</div>
+            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200/80">
+              <div className="text-[11px] font-medium text-stone-500">Total Donated</div>
+              <div className="text-xl sm:text-2xl font-bold font-sans tracking-tight text-stone-900 mt-1 tabular-nums flex items-baseline gap-2">
+                <span>{id === 1 ? "3.20 ETH" : id === 2 ? "0.00 ETH" : "1.00 ETH"}</span>
+                {id === 1 && (
+                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                    107%
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200">
-              <div className="text-[10px] uppercase font-bold text-stone-500">Released to Vendors</div>
-              <div className="text-2xl font-black font-bebas text-stone-900 mt-1">{id === 1 ? "1.20 ETH" : id === 2 ? "0.00 ETH" : "0.80 ETH"}</div>
+            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200/80">
+              <div className="text-[11px] font-medium text-stone-500">Released to Vendors</div>
+              <div className="text-xl sm:text-2xl font-bold font-sans tracking-tight text-stone-900 mt-1 tabular-nums">
+                {id === 1 ? "1.20 ETH" : id === 2 ? "0.00 ETH" : "0.80 ETH"}
+              </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200">
-              <div className="text-[10px] uppercase font-bold text-stone-500">Remaining in Escrow</div>
-              <div className="text-2xl font-black font-bebas text-emerald-600 mt-1">{id === 1 ? "2.00 ETH" : id === 2 ? "0.00 ETH" : "0.20 ETH"}</div>
+            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200/80">
+              <div className="text-[11px] font-medium text-stone-500">Remaining in Escrow</div>
+              <div className="text-xl sm:text-2xl font-bold font-sans tracking-tight text-stone-900 mt-1 tabular-nums">
+                {id === 1 ? "2.00 ETH" : id === 2 ? "0.00 ETH" : "0.20 ETH"}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* SPENDING REQUESTS SECTION (P0 LIVE JUDGE DEMO) */}
+        {/* SPENDING REQUESTS SECTION */}
         <div className="mt-12 space-y-6">
-          <div className="flex items-end justify-between border-b border-stone-300 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-stone-300 pb-4 gap-2">
             <div>
               <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5023]">
                 MILESTONE GOVERNANCE
               </span>
-              <h2 className="text-3xl sm:text-4xl font-black font-bebas uppercase text-[#141414]">
-                SPENDING REQUESTS & SNAPSHOT VOTING
+              <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 mt-0.5">
+                Spending Requests &amp; Snapshot Voting
               </h2>
             </div>
-            <span className="text-xs text-stone-500 font-semibold">
-              Rule: Only one request open at a time · &gt;50% contribution weight required
+            <span className="text-xs text-stone-500 font-mono">
+              Consensus Rule: &gt;50% contribution weight required
             </span>
           </div>
 
           {/* Request #01: Completed Accountability Loop */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-300 shadow-md space-y-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 border border-stone-200 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded bg-stone-100 text-stone-800 text-[10px] font-black uppercase">
+                  <span className="px-2 py-0.5 rounded bg-stone-100 text-stone-700 text-[11px] font-mono font-medium border border-stone-200">
                     Request #01 · Milestone 1
                   </span>
-                  <span className="px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase">
-                    RELEASED & PROOF SUBMITTED
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Released &amp; Proof Verified
                   </span>
                 </div>
-                <h3 className="text-2xl font-black font-bebas uppercase text-stone-900 mt-1">
-                  Procurement of 50 Arduino Robotics Kits & Sensors
+                <h3 className="text-base sm:text-lg font-bold text-stone-900 mt-1.5 leading-snug">
+                  Procurement of 50 Arduino Robotics Kits &amp; Sensors
                 </h3>
               </div>
 
-              <div className="text-right">
-                <div className="text-2xl font-black font-bebas text-stone-900">1.20 ETH</div>
+              <div className="text-left sm:text-right">
+                <div className="text-xl font-bold font-sans tracking-tight text-stone-900 tabular-nums">1.20 ETH</div>
                 <div className="text-[11px] font-mono text-stone-500">Recipient: 0x976E...0aa9</div>
               </div>
             </div>
 
-            <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 text-xs space-y-1.5 font-mono">
-              <div className="flex justify-between">
+            <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-xs space-y-1.5 font-mono">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                 <span className="text-stone-500">On-Chain Quote Hash:</span>
-                <span className="text-stone-800">0x95df17be098c6cd657e3d3914518ab489eda837e4de234607d47b9d85f696024</span>
+                <span className="text-stone-800 break-all">0x95df17be098c6cd657e3d3914518ab489eda837e4de234607d47b9d85f696024</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                 <span className="text-stone-500">On-Chain Receipt Hash:</span>
-                <span className="text-emerald-700 font-bold">0xb80dd0075275c63869fb31316e6d22a58911ec5896ed2c98bdaf0382ac4925fd (ON-TIME)</span>
+                <span className="text-emerald-700 font-bold break-all">0xb80dd0075275c63869fb31316e6d22a58911ec5896ed2c98bdaf0382ac4925fd (ON-TIME)</span>
               </div>
             </div>
 
-            <div className="pt-2 flex justify-end">
+            <div className="pt-1 flex justify-end">
               <Link
                 href="/verify-proof"
-                className="text-xs font-bold text-[#FF5023] hover:underline flex items-center gap-1"
+                className="text-xs font-semibold text-[#FF5023] hover:underline flex items-center gap-1"
               >
                 Inspect Receipt File in Tamper Demo →
               </Link>
             </div>
           </div>
 
-          {/* Request #02: Live Voting Card for Judges */}
-          <div className="bg-[#181816] rounded-3xl p-6 sm:p-8 text-white shadow-2xl space-y-6">
+          {/* Request #02: Live Voting Card (Senior Developer Layout) */}
+          <div className="bg-[#141613] rounded-2xl p-6 sm:p-8 text-white shadow-xl space-y-6 border border-stone-800">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-stone-800">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded bg-[#FF5023] text-white text-[10px] font-black uppercase tracking-wider">
-                    ACTIVE REQUEST #02 · VOTING OPEN
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/30 text-xs font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    Active Request #02 · Voting Open
                   </span>
                   <span className="text-xs text-stone-400 font-mono">30-Min Window</span>
                 </div>
-                <h3 className="text-2xl sm:text-3xl font-black font-bebas uppercase text-white mt-1">
-                  Solar Battery Inverters & Laboratory Workbenches
+                <h3 className="text-lg sm:text-xl font-bold text-white mt-2 leading-snug">
+                  Solar Battery Inverters &amp; Laboratory Workbenches
                 </h3>
               </div>
 
-              <div className="text-right">
-                <div className="text-3xl font-black font-bebas text-[#FF5023]">0.50 ETH</div>
-                <div className="text-[11px] font-mono text-stone-400">Vendor: 0x14dC...9955</div>
+              <div className="text-left sm:text-right">
+                <div className="text-2xl font-bold font-sans tracking-tight text-white tabular-nums">0.50 ETH</div>
+                <div className="text-xs font-mono text-stone-400">Vendor: 0x14dC...9955</div>
               </div>
             </div>
 
             {/* Voting Bar & Threshold Meter */}
-            <div className="space-y-3">
-              <div className="flex justify-between text-xs font-bold">
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-mono">
                 <span className="text-stone-400">Current Approval Weight:</span>
-                <span className={isApproved ? "text-emerald-400" : "text-[#FF5023]"}>
-                  {currentWeight.toFixed(1)}% / 50.0% Required Threshold
+                <span className="text-stone-300">
+                  <strong className={isApproved ? "text-emerald-400 font-bold" : "text-white font-bold"}>
+                    {currentWeight.toFixed(1)}%
+                  </strong>{" "}
+                  / 50.0% Required Threshold
                 </span>
               </div>
 
-              <div className="w-full bg-stone-800 rounded-full h-4 relative overflow-hidden">
+              <div className="w-full bg-stone-800/80 rounded-full h-2 relative overflow-hidden border border-stone-700/50">
                 <div
-                  className={`h-4 rounded-full transition-all duration-500 ${isApproved ? "bg-emerald-500" : "bg-[#FF5023]"}`}
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    isApproved ? "bg-emerald-500" : "bg-[#FF5023]"
+                  }`}
                   style={{ width: `${Math.min(currentWeight, 100)}%` }}
                 />
                 {/* 50% marker line */}
-                <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/70 shadow" />
+                <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/80" />
               </div>
             </div>
 
-            {/* Live Voting Buttons for Alice & Bob */}
+            {/* Live Voting Cards for Alice & Bob */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              <div className="p-4 rounded-2xl bg-stone-900 border border-stone-800 flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-stone-900/90 border border-stone-800 flex items-center justify-between">
                 <div>
-                  <div className="font-bold text-sm text-white">Alice (Donor)</div>
-                  <div className="text-xs text-purple-300">Donated 1.50 ETH · 46.9% Weight</div>
+                  <div className="font-semibold text-sm text-white">Alice (Donor)</div>
+                  <div className="text-xs text-stone-400 mt-0.5">Donated 1.50 ETH · 46.9% Weight</div>
                 </div>
                 <button
                   onClick={() => setAliceVoted(!aliceVoted)}
                   disabled={requestReleased}
-                  className={`py-2 px-4 rounded-xl text-xs font-bold transition-all ${aliceVoted ? "bg-emerald-600 text-white" : "bg-white text-stone-950 hover:bg-stone-200"}`}
+                  className={`py-1.5 px-3.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    aliceVoted
+                      ? "bg-emerald-600 border border-emerald-500 text-white"
+                      : "bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200"
+                  }`}
                 >
                   {aliceVoted ? "✓ Approved" : "Vote Alice"}
                 </button>
               </div>
 
-              <div className="p-4 rounded-2xl bg-stone-900 border border-stone-800 flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-stone-900/90 border border-stone-800 flex items-center justify-between">
                 <div>
-                  <div className="font-bold text-sm text-white">Bob (Donor)</div>
-                  <div className="text-xs text-blue-300">Donated 1.00 ETH · 31.3% Weight</div>
+                  <div className="font-semibold text-sm text-white">Bob (Donor)</div>
+                  <div className="text-xs text-stone-400 mt-0.5">Donated 1.00 ETH · 31.3% Weight</div>
                 </div>
                 <button
                   onClick={() => setBobVoted(!bobVoted)}
                   disabled={requestReleased}
-                  className={`py-2 px-4 rounded-xl text-xs font-bold transition-all ${bobVoted ? "bg-emerald-600 text-white" : "bg-white text-stone-950 hover:bg-stone-200"}`}
+                  className={`py-1.5 px-3.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    bobVoted
+                      ? "bg-emerald-600 border border-emerald-500 text-white"
+                      : "bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200"
+                  }`}
                 >
                   {bobVoted ? "✓ Approved" : "Vote Bob"}
                 </button>
@@ -266,14 +294,18 @@ export default function CampaignDetailPage() {
             {/* Controlled Release Execution Button */}
             <div className="pt-4 border-t border-stone-800">
               {requestReleased ? (
-                <div className="p-4 rounded-2xl bg-emerald-950 border border-emerald-500 text-emerald-200 text-xs font-bold text-center">
-                  ✓ 0.50 ETH TRANSFERRED DIRECTLY TO VENDOR WALLET (0x14dC...9955). PROOF WINDOW ACTIVATED.
+                <div className="p-4 rounded-xl bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 text-xs font-medium text-center">
+                  ✓ 0.50 ETH Transferred Directly to Vendor (0x14dC...9955). Proof submission window activated.
                 </div>
               ) : (
                 <button
                   onClick={() => setRequestReleased(true)}
                   disabled={!isApproved}
-                  className={`w-full py-4 px-6 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${isApproved ? "bg-[#FF5023] hover:bg-[#ff5d32] text-white shadow-xl cursor-pointer" : "bg-stone-800 text-stone-500 cursor-not-allowed"}`}
+                  className={`w-full py-3.5 px-6 rounded-xl font-semibold text-xs uppercase tracking-wider transition-colors ${
+                    isApproved
+                      ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md cursor-pointer"
+                      : "bg-stone-800/80 text-stone-500 border border-stone-800 cursor-not-allowed"
+                  }`}
                 >
                   {isApproved ? "Execute Controlled Release (0.50 ETH)" : "Locked: Requires >50% Contributor Approval"}
                 </button>

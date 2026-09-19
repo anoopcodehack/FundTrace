@@ -142,5 +142,76 @@ body {
 .animate-deck-4 { animation: waveDeck4 4s ease-in-out 0.6s infinite; }
 .animate-deck-5 { animation: waveDeck5 4s ease-in-out 0.8s infinite; }
 
+/* ============================================================ */
+/* FUNDTRACE LETTER DROP INTRO LOADER                           */
+/* ============================================================ */
+@keyframes letterDrop {
+  0% {
+    transform: translateY(-180px) scale(0.65);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(18px) scale(1.08);
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(-8px) scale(0.97);
+  }
+  85% {
+    transform: translateY(3px) scale(1.01);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-letter-drop {
+  animation: letterDrop 0.65s cubic-bezier(0.25, 1, 0.35, 1) forwards;
+  opacity: 0;
+}
+
+@keyframes dropShadowPulse {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(0.9);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+}
+
+@keyframes shockwaveRing {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.animate-logo-drop {
+  animation: letterDrop 0.8s cubic-bezier(0.25, 1, 0.35, 1) forwards;
+}
+
+.animate-shadow-pulse {
+  animation: dropShadowPulse 0.8s cubic-bezier(0.25, 1, 0.35, 1) forwards;
+}
+
+.animate-shockwave {
+  animation: shockwaveRing 1.4s cubic-bezier(0.15, 0.85, 0.35, 1) 0.45s infinite;
+}
+
 
 

@@ -79,7 +79,7 @@ export default function CampaignsPage() {
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-6 sm:px-12 pt-12">
+      <main className="max-w-7xl mx-auto px-6 sm:px-12 pt-14 sm:pt-20">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-8 border-b border-stone-300">
           <div>
@@ -91,23 +91,35 @@ export default function CampaignsPage() {
             </h1>
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex items-center gap-2">
+          {/* Filter Control: Segmented Developer Tab Bar */}
+          <div className="inline-flex p-1 rounded-xl bg-stone-200/70 border border-stone-300/80 gap-1">
             <button
               onClick={() => setFilter("all")}
-              className={`py-2 px-4 rounded-full text-xs font-bold transition-all ${filter === "all" ? "bg-[#181816] text-white shadow" : "bg-white text-stone-700 border border-stone-300"}`}
+              className={`py-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all ${
+                filter === "all"
+                  ? "bg-white text-stone-900 shadow-xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
             >
               All ({CAMPAIGNS_DATA.length})
             </button>
             <button
               onClick={() => setFilter("verified")}
-              className={`py-2 px-4 rounded-full text-xs font-bold transition-all ${filter === "verified" ? "bg-[#181816] text-white shadow" : "bg-white text-stone-700 border border-stone-300"}`}
+              className={`py-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all ${
+                filter === "verified"
+                  ? "bg-white text-stone-900 shadow-xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
             >
               Verified
             </button>
             <button
               onClick={() => setFilter("pending")}
-              className={`py-2 px-4 rounded-full text-xs font-bold transition-all ${filter === "pending" ? "bg-[#181816] text-white shadow" : "bg-white text-stone-700 border border-stone-300"}`}
+              className={`py-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all ${
+                filter === "pending"
+                  ? "bg-white text-stone-900 shadow-xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
             >
               Pending Audit
             </button>
@@ -121,58 +133,82 @@ export default function CampaignsPage() {
             return (
               <div
                 key={campaign.id}
-                className="bg-white rounded-3xl p-6 border border-stone-300 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between space-y-6 relative overflow-hidden"
+                className="bg-white rounded-2xl p-6 border border-stone-200/90 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between space-y-5 relative"
               >
-                {/* Status Badges */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-stone-100 text-stone-800">
-                    {campaign.category} · #{campaign.id}
+                {/* Header: Category & Status Badges */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 border border-stone-200">
+                    {campaign.category} <span className="text-stone-400">#{campaign.id}</span>
                   </span>
 
                   {campaign.status === "PROOF_OVERDUE" && (
-                    <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-red-600 text-white animate-pulse">
-                      PROOF OVERDUE
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-xs font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                      Proof Overdue
                     </span>
                   )}
                   {campaign.status === "PENDING_VERIFICATION" && (
-                    <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500 text-stone-950">
-                      PENDING AUDIT
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-xs font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      Pending Audit
                     </span>
                   )}
                   {campaign.status === "FUNDING_CLOSED" && (
-                    <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-600 text-white">
-                      107% FUNDED
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Funded ({pct}%)
                     </span>
                   )}
                 </div>
 
                 {/* Title & Description */}
                 <div>
-                  <h3 className="text-2xl font-black font-bebas uppercase text-[#141414] leading-tight hover:text-[#FF5023] transition-colors">
+                  <h3 className="text-base sm:text-lg font-bold text-stone-900 leading-snug tracking-tight hover:text-[#FF5023] transition-colors">
                     <Link href={`/campaigns/${campaign.id}`}>
                       {campaign.title}
                     </Link>
                   </h3>
-                  <p className="text-xs text-stone-600 mt-2 line-clamp-2">
+                  <p className="text-xs text-stone-600 mt-2 line-clamp-2 leading-relaxed">
                     {campaign.description}
                   </p>
                 </div>
 
-                {/* Progress Bar & Balances */}
-                <div className="space-y-2 bg-stone-50 p-4 rounded-2xl border border-stone-200">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-stone-800">Raised: {campaign.raisedEth.toFixed(2)} ETH</span>
-                    <span className="text-[#FF5023]">Goal: {campaign.goalEth.toFixed(2)} ETH ({pct}%)</span>
+                {/* Financial Metrics (Clean Senior Developer Layout) */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <span className="text-xl font-bold tracking-tight text-stone-900 font-sans tabular-nums">
+                        {campaign.raisedEth.toFixed(2)} ETH
+                      </span>
+                      <span className="text-xs text-stone-500 ml-1.5 font-normal">
+                        raised of {campaign.goalEth.toFixed(2)} ETH
+                      </span>
+                    </div>
+                    <span className="text-xs font-semibold text-stone-700 tabular-nums font-mono">
+                      {pct}%
+                    </span>
                   </div>
-                  <div className="w-full bg-stone-200 rounded-full h-2.5 overflow-hidden">
+
+                  {/* Sleek Minimal Progress Track */}
+                  <div className="w-full bg-stone-100 rounded-full h-1.5 overflow-hidden border border-stone-200/60">
                     <div
-                      className={`h-2.5 rounded-full ${campaign.status === "PROOF_OVERDUE" ? "bg-red-500" : pct >= 100 ? "bg-[#FF5023]" : "bg-emerald-500"}`}
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        campaign.status === "PROOF_OVERDUE" ? "bg-rose-500" : "bg-stone-900"
+                      }`}
                       style={{ width: `${Math.min(pct, 100)}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-[11px] text-stone-500 pt-1 font-mono">
-                    <span>In Escrow: <strong>{campaign.balanceEth.toFixed(2)} ETH</strong></span>
-                    <span>Released: <strong>{campaign.releasedEth.toFixed(2)} ETH</strong></span>
+
+                  {/* Accounting Escrow Breakdown */}
+                  <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
+                    <div className="bg-stone-50 p-2.5 rounded-lg border border-stone-200/60">
+                      <span className="text-[10px] uppercase font-medium tracking-wider text-stone-400 block">In Escrow</span>
+                      <span className="font-semibold text-stone-800 tabular-nums">{campaign.balanceEth.toFixed(2)} ETH</span>
+                    </div>
+                    <div className="bg-stone-50 p-2.5 rounded-lg border border-stone-200/60">
+                      <span className="text-[10px] uppercase font-medium tracking-wider text-stone-400 block">Released</span>
+                      <span className="font-semibold text-stone-800 tabular-nums">{campaign.releasedEth.toFixed(2)} ETH</span>
+                    </div>
                   </div>
                 </div>
 
@@ -180,13 +216,13 @@ export default function CampaignsPage() {
                 <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
                   <Link
                     href={`/campaigns/${campaign.id}`}
-                    className="flex-1 py-3 px-4 rounded-2xl bg-[#181816] hover:bg-black text-white text-center font-bold text-xs uppercase tracking-wider transition-all"
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-stone-900 hover:bg-black text-white text-center font-semibold text-xs transition-colors shadow-xs"
                   >
                     View Campaign
                   </Link>
                   <Link
                     href={`/campaigns/${campaign.id}/ledger`}
-                    className="py-3 px-4 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-center font-bold text-xs uppercase tracking-wider transition-all"
+                    className="py-2.5 px-4 rounded-xl bg-white hover:bg-stone-50 text-stone-700 text-center font-mono font-semibold text-xs transition-colors border border-stone-200 shadow-xs"
                     title="Inspect Public Ledger"
                   >
                     Ledger

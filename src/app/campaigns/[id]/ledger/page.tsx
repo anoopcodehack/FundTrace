@@ -129,13 +129,13 @@ export default function CampaignLedgerPage() {
             </h1>
           </div>
 
-          <span className="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold font-mono">
-            Direct Contract Event Feed (Chain ID: 31337)
+          <span className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-mono font-medium">
+            Contract Event Feed · Chain ID 31337
           </span>
         </div>
 
         {/* Immutable Audit Ledger Table */}
-        <div className="mt-8 bg-white rounded-3xl border border-stone-300 shadow-md overflow-hidden">
+        <div className="mt-8 bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-sans">
               <thead className="bg-[#181816] text-stone-300 uppercase tracking-wider font-bold">
@@ -172,7 +172,7 @@ export default function CampaignLedgerPage() {
                     </td>
 
                     <td className="py-4 px-5">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-stone-100 text-stone-800">
+                      <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-stone-100 text-stone-700 border border-stone-200">
                         {item.badge}
                       </span>
                     </td>

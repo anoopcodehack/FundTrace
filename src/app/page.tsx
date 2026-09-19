@@ -5,12 +5,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useWallet } from "@/context/WalletContext";
 import { DEMO_PRESET_ACCOUNTS, formatAddress } from "@/lib/wallet";
+import IntroLoader from "@/components/IntroLoader";
 
-// Precision Mathematical 4-Pointed Curved Star (Astroid)
-function StarIcon({ className = "w-10 h-10 text-[#FF5023]" }: { className?: string }) {
+// Clean Verification & Cryptographic Shield Icon
+function ShieldCheckIcon({ className = "w-10 h-10 text-[#FF5023]" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 100 100" fill="currentColor" className={className}>
-      <path d="M50 0 C50 27.614 27.614 50 0 50 C27.614 50 50 72.386 50 100 C50 72.386 72.386 50 100 50 C72.386 50 50 27.614 50 0 Z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
     </svg>
   );
 }
@@ -65,6 +67,9 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] selection:bg-[#FF5023] selection:text-white antialiased">
       
+      {/* Intro Brand Logo Drop Physics Loader */}
+      <IntroLoader />
+
       {/* ============================================================ */}
       {/* 1. TOP HEADER & DIRECT ROUTE ACCESS                          */}
       {/* ============================================================ */}
@@ -195,7 +200,7 @@ export default function HomePage() {
                 if (alice) selectDemoRole(alice);
               }}
               className={`w-full h-[30%] rounded-xl transition-all cursor-pointer ${
-                activeTab === "personal" ? "ring-2 ring-white/80 bg-white/10" : "hover:bg-black/10"
+                activeTab === "personal" ? "bg-black/10" : "hover:bg-black/10"
               }`}
               title="Personal Tab: Switch to Alice Donor (46.9%)"
             />
@@ -206,7 +211,7 @@ export default function HomePage() {
                 if (creator) selectDemoRole(creator);
               }}
               className={`w-full h-[30%] rounded-xl transition-all cursor-pointer ${
-                activeTab === "team" ? "ring-2 ring-white/80 bg-white/10" : "hover:bg-black/10"
+                activeTab === "team" ? "bg-black/10" : "hover:bg-black/10"
               }`}
               title="Team Tab: Switch to Campaign Creator"
             />
@@ -217,7 +222,7 @@ export default function HomePage() {
                 if (verifier) selectDemoRole(verifier);
               }}
               className={`w-full h-[30%] rounded-xl transition-all cursor-pointer ${
-                activeTab === "business" ? "ring-2 ring-white/80 bg-white/10" : "hover:bg-black/10"
+                activeTab === "business" ? "bg-black/10" : "hover:bg-black/10"
               }`}
               title="Business Tab: Switch to Auditor Verifier"
             />
@@ -331,7 +336,7 @@ export default function HomePage() {
                   </div>
                   {openAccordion === 1 && (
                     <p className="text-xs text-stone-300 mt-2.5 pl-6 leading-relaxed">
-                      Understand how AI, blockchain, and data analytics are revolutionizing private equity. Donors vote with their exact contribution weight. Spending requires strictly &gt;50% donor approval before any fund leaves escrow.
+                      Understand how smart contracts, cryptographic ledgers, and on-chain governance are revolutionizing private equity. Donors vote with their exact contribution weight. Spending requires strictly &gt;50% donor approval before any fund leaves escrow.
                     </p>
                   )}
                 </button>
@@ -528,34 +533,45 @@ export default function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mt-12 items-center">
           <div className="lg:col-span-6 space-y-6">
             <div className="flex items-center gap-3">
-              <StarIcon className="w-12 h-12 text-[#FF5023]" />
+              <ShieldCheckIcon className="w-10 h-10 text-[#FF5023]" />
               <h3 className="text-3xl sm:text-4xl font-black font-bebas uppercase text-[#141414] tracking-wide">
-                Streamlining Investments with Cutting-Edge Technology
+                Streamlining Investments with Cryptographic Transparency
               </h3>
             </div>
 
             <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-              In the evolving world of private equity, technology is key to speeding up and simplifying investment processes. Through AI and advanced data analytics, we quickly identify the best opportunities with unmatched precision. Blockchain and smart contracts enhance security and transparency, reducing costs and eliminating barriers.
+              In decentralized crowdfunding, cryptographic integrity guarantees that donor funds are spent precisely as promised. Through deterministic Keccak-256 byte hashing and on-chain milestones, spending proofs are permanently verifiable. Donors retain democratic voting power before escrow releases, completely eliminating phantom disbursements.
             </p>
           </div>
 
-          {/* Layered 3D Isometric Cards Graphic with Continuous Floating Wave */}
+          {/* Telemetry Stat Cards */}
           <div className="lg:col-span-6 flex flex-col items-center sm:items-end">
-            <div className="space-y-4 text-center sm:text-right">
-              <div className="flex items-center justify-center sm:justify-end gap-2.5">
-                <div className="w-14 sm:w-16 h-28 rounded-2xl bg-[#FF5023] shadow-xl animate-deck-1 cursor-pointer transition-transform" />
-                <div className="w-14 sm:w-16 h-28 rounded-2xl bg-[#FF7043] shadow-xl animate-deck-2 cursor-pointer transition-transform" />
-                <div className="w-14 sm:w-16 h-28 rounded-2xl bg-[#161813] shadow-xl animate-deck-3 cursor-pointer transition-transform" />
-                <div className="w-14 sm:w-16 h-28 rounded-2xl bg-stone-300 shadow-xl animate-deck-4 cursor-pointer transition-transform" />
-                <div className="w-14 sm:w-16 h-28 rounded-2xl bg-[#FED74C] shadow-xl animate-deck-5 cursor-pointer transition-transform" />
+            <div className="space-y-4 text-center sm:text-right w-full max-w-md">
+              <div className="grid grid-cols-2 gap-3 text-left">
+                <div className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm">
+                  <div className="text-[10px] font-mono uppercase text-stone-500">Hash Algorithm</div>
+                  <div className="text-sm font-mono font-bold text-stone-900 mt-0.5">Keccak-256</div>
+                </div>
+                <div className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm">
+                  <div className="text-[10px] font-mono uppercase text-stone-500">Consensus Rule</div>
+                  <div className="text-sm font-mono font-bold text-stone-900 mt-0.5">&gt;50% Donor Vote</div>
+                </div>
+                <div className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm">
+                  <div className="text-[10px] font-mono uppercase text-stone-500">Smart Contracts</div>
+                  <div className="text-sm font-mono font-bold text-emerald-600 mt-0.5">Audited &amp; Locked</div>
+                </div>
+                <div className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm">
+                  <div className="text-[10px] font-mono uppercase text-stone-500">Receipt Verification</div>
+                  <div className="text-sm font-mono font-bold text-[#FF5023] mt-0.5">Byte-for-Byte</div>
+                </div>
               </div>
 
-              <div className="pt-4">
-                <div className="text-7xl sm:text-8xl font-black font-bebas tracking-tight text-[#141414]">
-                  516<span className="text-5xl text-[#FF5023]">K</span>
+              <div className="pt-2">
+                <div className="text-6xl sm:text-7xl font-black font-bebas tracking-tight text-[#141414]">
+                  516<span className="text-4xl text-[#FF5023]">K</span>
                 </div>
-                <div className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                  Data Delivered & Audited
+                <div className="text-xs font-mono font-semibold uppercase tracking-wider text-stone-500">
+                  Data Delivered &amp; Audited On-Chain
                 </div>
               </div>
             </div>
@@ -654,37 +670,41 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setTamperTestState("original")}
-              className={`py-2 px-4 rounded-full text-xs font-bold uppercase transition-all cursor-pointer ${
+              className={`py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors cursor-pointer border ${
                 tamperTestState === "original"
-                  ? "bg-emerald-600 text-white shadow"
-                  : "bg-stone-100 hover:bg-stone-200 text-stone-800"
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                  : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200"
               }`}
             >
-              Test Original (Match)
+              fixtures/invoice-valid.pdf
             </button>
             <button
               onClick={() => setTamperTestState("tampered")}
-              className={`py-2 px-4 rounded-full text-xs font-bold uppercase transition-all cursor-pointer ${
+              className={`py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors cursor-pointer border ${
                 tamperTestState === "tampered"
-                  ? "bg-red-600 text-white shadow"
-                  : "bg-stone-100 hover:bg-stone-200 text-stone-800"
+                  ? "bg-rose-50 text-rose-800 border-rose-300"
+                  : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200"
               }`}
             >
-              Test Tampered (Mismatch)
+              fixtures/invoice-tampered.pdf
             </button>
           </div>
         </div>
 
         {tamperTestState === "original" && (
-          <div className="p-4 rounded-2xl bg-emerald-100 border border-emerald-400 text-emerald-900 text-xs font-semibold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-600" />
-            <span>TAMPER FREE: Keccak-256 hash matches the on-chain commitment (0xb80dd...25fd). File is 100% authentic!</span>
+          <div className="p-3.5 rounded-xl bg-white border-l-4 border-l-emerald-600 border border-stone-200 text-stone-800 text-xs flex items-center gap-2.5 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span>
+              <strong>INTEGRITY VERIFIED:</strong> Keccak-256 byte stream matches the on-chain commitment (<code className="font-mono text-stone-700 bg-stone-100 px-1 py-0.5 rounded">0xb80dd...25fd</code>). File is 100% authentic.
+            </span>
           </div>
         )}
         {tamperTestState === "tampered" && (
-          <div className="p-4 rounded-2xl bg-red-100 border border-red-400 text-red-900 text-xs font-semibold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-600" />
-            <span>TAMPER DETECTED: Hash mismatch! The document has been modified or altered. Verification failed.</span>
+          <div className="p-3.5 rounded-xl bg-white border-l-4 border-l-rose-600 border border-stone-200 text-stone-800 text-xs flex items-center gap-2.5 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+            <span>
+              <strong>TAMPER DETECTED:</strong> Cryptographic hash mismatch! Document bytes do not match the on-chain commitment. Audit flag raised.
+            </span>
           </div>
         )}
 
@@ -703,7 +723,7 @@ export default function HomePage() {
               THE PATH IS FORWARD
             </h2>
             <div className="self-start lg:self-center">
-              <StarIcon className="w-16 h-16 sm:w-20 sm:h-20 text-[#FF5023]" />
+              <ShieldCheckIcon className="w-16 h-16 sm:w-20 sm:h-20 text-[#FF5023]" />
             </div>
           </div>
 
@@ -723,19 +743,19 @@ export default function HomePage() {
               <a href="#" className="hover:text-white transition-colors">md</a>
             </div>
 
-            {/* Coordinates / Chain Details in Orange */}
-            <div className="flex flex-wrap items-center gap-6 font-mono text-[11px]">
-              <div>
-                <span className="text-stone-400">Latitude</span>{" "}
-                <span className="text-[#FF5023] font-bold">37.7749</span>
+            {/* Real Web3 Telemetry / System Details */}
+            <div className="flex flex-wrap items-center gap-5 font-mono text-xs text-stone-400">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>RPC: Localhost (31337)</span>
               </div>
+              <span className="text-stone-700">·</span>
               <div>
-                <span className="text-stone-400">Longitude</span>{" "}
-                <span className="text-[#FF5023] font-bold">-122.4194</span>
+                Contracts: <span className="text-stone-300">Solidity 0.8.24</span>
               </div>
+              <span className="text-stone-700">·</span>
               <div>
-                <span className="text-stone-400">Chain ID</span>{" "}
-                <span className="text-amber-400 font-bold">31337</span>
+                Audit: <span className="text-stone-300">Keccak-256</span>
               </div>
             </div>
           </div>
