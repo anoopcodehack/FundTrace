@@ -39,6 +39,7 @@ Built for **Versathon 2.0** (24-hour hackathon), Problem Statement **F4: Transpa
 - [Problem Statement Mapping](#problem-statement-mapping)
 - [Design Decisions and Trade-offs](#design-decisions-and-trade-offs)
 - [Limitations and Future Scope](#limitations-and-future-scope)
+- [Originality and Attribution](#originality-and-attribution)
 - [Team](#team)
 - [License](#license)
 
@@ -78,7 +79,7 @@ Donations are held by a smart contract, not by the campaign creator. Money leave
 | 3 | **Fund**: contributors donate from their wallets | Before the deadline; creator address cannot donate |
 | 4 | **Close funding**: the donation that reaches or exceeds the goal closes funding | No top-ups afterwards; raised may end above 100% |
 | 5 | **Request spending**: creator submits purpose, amount, recipient, quote and `requestHash` | Amount ≤ available balance; only one open request; voting window within configured bounds |
-| 6 | **Vote**: donors approve using their contribution as weight | Passes when `approvalWeight × 2 > totalRaised`; creator cannot vote |
+| 6 | **Vote**: donors approve using their contribution as weight | One vote per donor; passes when `approvalWeight × 2 > totalRaised`; creator cannot vote |
 | 7 | **Release**: anyone can trigger release once approved | State updated before transfer; reentrancy guarded |
 | 8 | **Submit proof**: creator submits the receipt hash | Within the fixed proof deadline; `receiptHash` recorded on-chain |
 | 9 | **Check proof**: anyone re-uploads the file and the browser re-hashes it | Match means unchanged since submission |
@@ -91,6 +92,7 @@ stateDiagram-v2
     [*] --> PendingVerification: createCampaign
     PendingVerification --> Funding: verifyCampaign
     PendingVerification --> Rejected: rejectCampaign
+    Rejected --> [*]
     Funding --> Active: goal reached, funding closes
     Funding --> Failed: deadline passed, goal not reached
     Failed --> [*]: donors claim refunds
@@ -108,7 +110,9 @@ stateDiagram-v2
     Released --> ProofSubmitted: submitProof
 ```
 
-`PROOF OVERDUE` is a computed status, not a transaction: if a released request has no proof after the proof deadline, the dashboard flags it in red. Because only one request may be open at a time, an unresolved request also blocks any new spending request.
+`FAILED` and `PROOF OVERDUE` are computed statuses, not transactions. A campaign is failed once its deadline has passed without reaching the goal. A released request with no proof after the proof deadline is flagged in red on the dashboard.
+
+A request is **open** while it is `PENDING`, `APPROVED`, or `RELEASED` without proof. Only one request may be open at a time, so an unresolved request also blocks any new spending request.
 
 ## Key Features
 
@@ -252,9 +256,9 @@ The ledger UI reads events starting from the **contract deployment block** rathe
 | Vote manipulation | Closed funding phase fixes weights and denominator |
 | Overspending | Amount ≤ available balance; only one open request at a time |
 | Stuck requests | Voting deadline with public `closeExpiredRequest` |
-| Unbounded deadlines | Min/max voting and proof windows set at deployment |
+| Unbounded deadlines | Voting window must fall within min/max bounds set at deployment; proof window is a fixed period after release |
 | Fake campaigns | Institutional verifier approval before any funding |
-| Refund safety | Donors pull their own refund; funding and requests close on failure |
+| Refund safety | Donors pull their own refund; a failed campaign accepts no more funding |
 | Metadata tampering | `metadataHash` committed on creation and locked at verification |
 
 This is a hackathon prototype and has **not** been independently audited.
@@ -297,11 +301,11 @@ cp .env.example .env
 | `MONGODB_URI` | MongoDB connection string |
 | `NEXT_PUBLIC_CHAIN_ID` | `31337` for local Hardhat, `11155111` for Sepolia |
 | `NEXT_PUBLIC_RPC_URL` | RPC endpoint (`http://127.0.0.1:8545` locally) |
-| `NEXT_PUBLIC_CONTRACT_ADDRESS` | Filled in by the deploy/seed script |
-| `NEXT_PUBLIC_DEPLOY_BLOCK` | Deployment block used by the ledger |
 | `SEPOLIA_RPC_URL` | Sepolia RPC URL (backup deployment only) |
 | `DEPLOYER_PRIVATE_KEY` | **Test-only** key for Sepolia deploys. Never commit a real key. |
 | `CLOUDINARY_URL` | Cover image storage |
+
+The contract address and deployment block are written by the deploy script to `deployments/<network>.json` and read by the app, so a redeploy does not require restarting the dev server (`NEXT_PUBLIC_*` variables are only read at startup).
 
 ### Run locally (primary demo setup)
 
@@ -331,7 +335,7 @@ Have Sepolia test ETH ready before the event; faucets can be slow. Test event qu
 | Command | What it does |
 |---|---|
 | `npx hardhat test` | Run the contract test suite |
-| `npm run demo:reset` | Reset the local chain, deploy, seed campaigns, donations, requests and proofs, print addresses |
+| `npm run demo:reset` | Reset the local chain and MongoDB demo data, deploy, seed campaigns (with matching `metadataHash`), donations, requests and proof files, write deployment info. Requires `npx hardhat node` to be running |
 | `npm run demo:live` | Create the live spending request with a fresh 10+ minute voting window |
 | `npm run dev` | Start the Next.js app |
 
@@ -366,7 +370,7 @@ Dashboard figures use test ETH throughout. No real money is involved.
 7. **Hold them accountable.** Open the overdue campaign: red `PROOF OVERDUE`, and a new request is blocked.
 8. **Audit.** Open the public ledger, no login: every event with timestamp, transaction hash and addresses.
 
-Demo files live in `demo-files/`: the quote, the original invoice and a pre-made tampered invoice.
+Demo files live in `demo-files/`: the quotes for Request #01 and Request #02, the original invoice, and a pre-made tampered invoice (created and tested well before judging).
 
 ## Testing
 
@@ -426,6 +430,13 @@ Run `npx hardhat test`. The suite covers the rules that matter most:
 - Independent smart-contract audit
 - AI-assisted receipt plausibility checks as an advisory layer (never a substitute for verifier review)
 - Institutional dashboards, audit exports and compliance workflows
+
+## Originality and Attribution
+
+- All application and smart-contract code in this repository was written during Versathon 2.0; the commit history reflects the development process.
+- The architecture was planned in advance; no code from that planning was carried into the repository.
+- Third-party libraries (OpenZeppelin Contracts, ethers.js, Hardhat, Next.js and others) are used as dependencies; see `package.json`. Any adapted snippet is credited with a link in a code comment.
+- AI assistance: _state here whether AI tools were used and how, if the organizers permit it._
 
 ## Team
 
