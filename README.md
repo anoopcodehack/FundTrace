@@ -441,10 +441,10 @@ Run `npx hardhat test`. The suite covers the rules that matter most:
 ## Team
 
 | Name |
-|---|---|
-| _Your name_  | 
-| _Teammate_   | 
-| _Teammate_   | 
+
+| Tharun Rai  | 
+| Anoop  | 
+| Pranathi R Shetty  | 
 
 Built at **Versathon 2.0**.
 
