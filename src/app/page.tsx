@@ -711,7 +711,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8 border-t border-stone-800 text-xs text-stone-400 font-medium">
-            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+            <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
             <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
             <a href="#" className="hover:text-white transition-colors">Cookie Policy</a>
             <a href="#" className="hover:text-white transition-colors">Disclaimer</a>
