@@ -10,7 +10,10 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "demo:reset": "hardhat run scripts/demo-reset.ts --network localhost",
-    "demo:live": "hardhat run scripts/demo-live.ts --network localhost"
+    "demo:live": "hardhat run scripts/demo-live.ts --network localhost",
+    "backend:dev": "npm --prefix backend run start:dev",
+    "backend:build": "npm --prefix backend run build",
+    "backend:start": "npm --prefix backend run start:prod"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.6.1",
