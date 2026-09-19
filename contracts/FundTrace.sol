@@ -5,11 +5,30 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title FundTrace
- * @dev Transparent funding and verifiable spending platform with contributor-approved releases.
+ * @notice Transparent crowdfunding & fund ledger with milestone spending governance and cryptographic proof of expenditure.
+ * @dev Problem Statement F4: Transparent Crowdfunding & Fund Ledger
  */
 contract FundTrace is ReentrancyGuard {
-    enum CampaignState { Pending, Verified, Rejected, FundingClosed, Failed }
-    enum RequestState { Pending, Approved, Released, Closed }
+    enum CampaignState {
+        PendingVerification,
+        Verified,
+        Rejected,
+        FundingClosed,
+        Failed
+    }
+
+    enum RequestState {
+        Pending,
+        Approved,
+        Released,
+        Closed
+    }
+
+    enum ProofTiming {
+        None,
+        OnTime,
+        Late
+    }
 
     struct Request {
         uint256 id;
@@ -22,6 +41,9 @@ contract FundTrace is ReentrancyGuard {
         RequestState state;
         bytes32 receiptHash;
         bool proofSubmitted;
+        uint256 releasedAt;
+        uint256 proofSubmittedAt;
+        ProofTiming timing;
     }
 
     struct Campaign {
@@ -38,44 +60,93 @@ contract FundTrace is ReentrancyGuard {
         uint256 activeRequestId;
     }
 
-    // Storage
+    // --- State Variables ---
     uint256 public campaignCount;
     mapping(uint256 => Campaign) public campaigns;
-    mapping(uint256 => mapping(address => uint256)) public donations; // campaignId => donor => amount
-    mapping(uint256 => mapping(uint256 => Request)) public requests; // campaignId => requestId => Request
-    mapping(uint256 => mapping(uint256 => mapping(address => bool))) public hasVoted; // campaignId => requestId => donor => voted
+    mapping(uint256 => mapping(address => uint256)) public donations;
+    mapping(uint256 => mapping(uint256 => Request)) public requests;
+    mapping(uint256 => mapping(uint256 => mapping(address => bool))) public hasVoted;
 
-    // Events
-    event CampaignCreated(uint256 indexed campaignId, address indexed creator, uint256 goal, uint256 deadline, bytes32 metadataHash);
+    // --- Events (Public Ledger Source) ---
+    event CampaignCreated(
+        uint256 indexed campaignId,
+        address indexed creator,
+        address indexed verifier,
+        uint256 goal,
+        uint256 deadline,
+        bytes32 metadataHash
+    );
     event CampaignVerified(uint256 indexed campaignId, address indexed verifier);
     event CampaignRejected(uint256 indexed campaignId, address indexed verifier, string reason);
-    event Donated(uint256 indexed campaignId, address indexed donor, uint256 amount);
+    event Donated(uint256 indexed campaignId, address indexed donor, uint256 amount, uint256 totalDonated);
     event FundingClosed(uint256 indexed campaignId, uint256 totalRaised);
-    event RequestCreated(uint256 indexed campaignId, uint256 indexed requestId, address recipient, uint256 amount, bytes32 requestHash);
-    event Approved(uint256 indexed campaignId, uint256 indexed requestId, address indexed donor, uint256 weight);
+    event CampaignFailed(uint256 indexed campaignId, uint256 totalDonated, uint256 goal);
+    event RequestCreated(
+        uint256 indexed campaignId,
+        uint256 indexed requestId,
+        address indexed recipient,
+        uint256 amount,
+        bytes32 requestHash,
+        uint256 votingDeadline,
+        uint256 proofDeadline
+    );
+    event Approved(
+        uint256 indexed campaignId,
+        uint256 indexed requestId,
+        address indexed donor,
+        uint256 weight,
+        uint256 currentApprovalWeight
+    );
     event RequestApproved(uint256 indexed campaignId, uint256 indexed requestId, uint256 totalApprovalWeight);
-    event Released(uint256 indexed campaignId, uint256 indexed requestId, address recipient, uint256 amount);
+    event Released(uint256 indexed campaignId, uint256 indexed requestId, address indexed recipient, uint256 amount);
     event RequestClosed(uint256 indexed campaignId, uint256 indexed requestId, string reason);
-    event ProofSubmitted(uint256 indexed campaignId, uint256 indexed requestId, bytes32 receiptHash);
+    event ProofSubmitted(
+        uint256 indexed campaignId,
+        uint256 indexed requestId,
+        bytes32 receiptHash,
+        bool isLate,
+        uint256 submittedAt
+    );
     event Refunded(uint256 indexed campaignId, address indexed donor, uint256 amount);
 
-    // Custom errors
+    // --- Custom Errors ---
     error Unauthorized();
     error InvalidState();
     error DeadlinePassed();
+    error DeadlineNotPassed();
     error GoalAlreadyReached();
     error InvalidAmount();
+    error InvalidAddress();
     error ActiveRequestExists();
+    error OverdueProofPending();
     error RequestNotFound();
     error AlreadyVoted();
     error VotingClosed();
     error ThresholdNotMet();
     error AlreadyReleased();
+    error ProofAlreadySubmitted();
+    error TransferFailed();
 
-    function createCampaign(uint256 _goal, uint256 _deadline, bytes32 _metadataHash, address _verifier) external returns (uint256) {
-        require(_goal > 0, "Goal must be > 0");
-        require(_deadline > block.timestamp, "Deadline must be in future");
-        require(_verifier != msg.sender, "Creator cannot verify");
+    // ==========================================
+    // 1. CAMPAIGN LIFECYCLE
+    // ==========================================
+
+    /**
+     * @notice Creates a new campaign with a goal, deadline, and canonical metadata hash.
+     * @param _goal Target amount in wei.
+     * @param _deadline Unix timestamp when funding ends.
+     * @param _metadataHash Keccak-256 hash of canonical off-chain campaign metadata.
+     * @param _verifier Third-party verifier institution address.
+     */
+    function createCampaign(
+        uint256 _goal,
+        uint256 _deadline,
+        bytes32 _metadataHash,
+        address _verifier
+    ) external returns (uint256) {
+        if (_goal == 0) revert InvalidAmount();
+        if (_deadline <= block.timestamp) revert DeadlinePassed();
+        if (_verifier == address(0) || _verifier == msg.sender) revert InvalidAddress();
 
         campaignCount++;
         Campaign storage c = campaigns[campaignCount];
@@ -85,30 +156,43 @@ contract FundTrace is ReentrancyGuard {
         c.goal = _goal;
         c.deadline = _deadline;
         c.metadataHash = _metadataHash;
-        c.state = CampaignState.Pending;
+        c.state = CampaignState.PendingVerification;
 
-        emit CampaignCreated(campaignCount, msg.sender, _goal, _deadline, _metadataHash);
+        emit CampaignCreated(campaignCount, msg.sender, _verifier, _goal, _deadline, _metadataHash);
         return campaignCount;
     }
 
+    /**
+     * @notice Institutional verifier approves the campaign for public donation.
+     */
     function verifyCampaign(uint256 _campaignId) external {
         Campaign storage c = campaigns[_campaignId];
         if (msg.sender != c.verifier) revert Unauthorized();
-        if (c.state != CampaignState.Pending) revert InvalidState();
+        if (c.state != CampaignState.PendingVerification) revert InvalidState();
 
         c.state = CampaignState.Verified;
         emit CampaignVerified(_campaignId, msg.sender);
     }
 
+    /**
+     * @notice Institutional verifier rejects the campaign.
+     */
     function rejectCampaign(uint256 _campaignId, string calldata _reason) external {
         Campaign storage c = campaigns[_campaignId];
         if (msg.sender != c.verifier) revert Unauthorized();
-        if (c.state != CampaignState.Pending) revert InvalidState();
+        if (c.state != CampaignState.PendingVerification) revert InvalidState();
 
         c.state = CampaignState.Rejected;
         emit CampaignRejected(_campaignId, msg.sender, _reason);
     }
 
+    // ==========================================
+    // 2. DONATION & FUNDING
+    // ==========================================
+
+    /**
+     * @notice Donate to a verified campaign before the deadline.
+     */
     function donate(uint256 _campaignId) external payable nonReentrant {
         Campaign storage c = campaigns[_campaignId];
         if (c.state != CampaignState.Verified) revert InvalidState();
@@ -119,7 +203,7 @@ contract FundTrace is ReentrancyGuard {
         donations[_campaignId][msg.sender] += msg.value;
         c.totalDonated += msg.value;
 
-        emit Donated(_campaignId, msg.sender, msg.value);
+        emit Donated(_campaignId, msg.sender, msg.value, c.totalDonated);
 
         if (c.totalDonated >= c.goal) {
             c.state = CampaignState.FundingClosed;
@@ -127,6 +211,14 @@ contract FundTrace is ReentrancyGuard {
         }
     }
 
+    // ==========================================
+    // 3. SPENDING & GOVERNANCE
+    // ==========================================
+
+    /**
+     * @notice Creator creates a spending request.
+     * @dev Creator cannot create if another request is active or if proof is overdue on a previous release.
+     */
     function createRequest(
         uint256 _campaignId,
         address payable _recipient,
@@ -139,7 +231,12 @@ contract FundTrace is ReentrancyGuard {
         if (msg.sender != c.creator) revert Unauthorized();
         if (c.state != CampaignState.FundingClosed) revert InvalidState();
         if (c.activeRequestId != 0) revert ActiveRequestExists();
-        if (_amount > (c.totalDonated - c.totalReleased)) revert InvalidAmount();
+        if (_recipient == address(0)) revert InvalidAddress();
+        if (_amount == 0 || _amount > (c.totalDonated - c.totalReleased)) revert InvalidAmount();
+        if (_votingDuration == 0 || _proofDuration == 0) revert InvalidAmount();
+
+        // Block if previous released request has an unsubmitted overdue proof
+        if (hasOverdueProof(_campaignId)) revert OverdueProofPending();
 
         c.requestCount++;
         uint256 reqId = c.requestCount;
@@ -151,13 +248,52 @@ contract FundTrace is ReentrancyGuard {
         r.amount = _amount;
         r.requestHash = _requestHash;
         r.votingDeadline = block.timestamp + _votingDuration;
-        r.proofDeadline = block.timestamp + _votingDuration + _proofDuration;
+        // Proof deadline is relative to release time, but initialized as default duration window
+        r.proofDeadline = _proofDuration;
         r.state = RequestState.Pending;
 
-        emit RequestCreated(_campaignId, reqId, _recipient, _amount, _requestHash);
+        emit RequestCreated(
+            _campaignId,
+            reqId,
+            _recipient,
+            _amount,
+            _requestHash,
+            r.votingDeadline,
+            block.timestamp + _votingDuration + _proofDuration
+        );
         return reqId;
     }
 
+    /**
+     * @notice Contributor casts a contribution-weighted vote for a request.
+     */
+    function vote(uint256 _campaignId, uint256 _requestId) external {
+        Campaign storage c = campaigns[_campaignId];
+        Request storage r = requests[_campaignId][_requestId];
+
+        if (msg.sender == c.creator) revert Unauthorized();
+        if (r.state != RequestState.Pending) revert InvalidState();
+        if (block.timestamp > r.votingDeadline) revert VotingClosed();
+        if (hasVoted[_campaignId][_requestId][msg.sender]) revert AlreadyVoted();
+
+        uint256 weight = donations[_campaignId][msg.sender];
+        if (weight == 0) revert Unauthorized();
+
+        hasVoted[_campaignId][_requestId][msg.sender] = true;
+        r.approvalWeight += weight;
+
+        emit Approved(_campaignId, _requestId, msg.sender, weight, r.approvalWeight);
+
+        // Snapshot threshold: strictly > 50% of total raised
+        if (r.approvalWeight * 2 > c.totalDonated) {
+            r.state = RequestState.Approved;
+            emit RequestApproved(_campaignId, _requestId, r.approvalWeight);
+        }
+    }
+
+    /**
+     * @notice Alias for vote() to match README interface approveRequest.
+     */
     function approveRequest(uint256 _campaignId, uint256 _requestId) external {
         Campaign storage c = campaigns[_campaignId];
         Request storage r = requests[_campaignId][_requestId];
@@ -167,21 +303,23 @@ contract FundTrace is ReentrancyGuard {
         if (block.timestamp > r.votingDeadline) revert VotingClosed();
         if (hasVoted[_campaignId][_requestId][msg.sender]) revert AlreadyVoted();
 
-        uint256 donorWeight = donations[_campaignId][msg.sender];
-        if (donorWeight == 0) revert Unauthorized();
+        uint256 weight = donations[_campaignId][msg.sender];
+        if (weight == 0) revert Unauthorized();
 
         hasVoted[_campaignId][_requestId][msg.sender] = true;
-        r.approvalWeight += donorWeight;
+        r.approvalWeight += weight;
 
-        emit Approved(_campaignId, _requestId, msg.sender, donorWeight);
+        emit Approved(_campaignId, _requestId, msg.sender, weight, r.approvalWeight);
 
-        // Check > 50% threshold of total raised
         if (r.approvalWeight * 2 > c.totalDonated) {
             r.state = RequestState.Approved;
             emit RequestApproved(_campaignId, _requestId, r.approvalWeight);
         }
     }
 
+    /**
+     * @notice Releases funds to the recipient once approved. Can be triggered by anyone.
+     */
     function release(uint256 _campaignId, uint256 _requestId) external nonReentrant {
         Campaign storage c = campaigns[_campaignId];
         Request storage r = requests[_campaignId][_requestId];
@@ -189,15 +327,22 @@ contract FundTrace is ReentrancyGuard {
         if (r.state != RequestState.Approved) revert ThresholdNotMet();
 
         r.state = RequestState.Released;
+        r.releasedAt = block.timestamp;
+        // Proof window is fixed from release timestamp
+        uint256 duration = r.proofDeadline;
+        r.proofDeadline = block.timestamp + duration;
         c.totalReleased += r.amount;
-        c.activeRequestId = 0; // Release active request slot
+        c.activeRequestId = 0; // Release active slot
 
         (bool sent, ) = r.recipient.call{value: r.amount}("");
-        require(sent, "Transfer failed");
+        if (!sent) revert TransferFailed();
 
         emit Released(_campaignId, _requestId, r.recipient, r.amount);
     }
 
+    /**
+     * @notice Closes a request whose voting window expired without reaching the threshold.
+     */
     function closeExpiredRequest(uint256 _campaignId, uint256 _requestId) external {
         Campaign storage c = campaigns[_campaignId];
         Request storage r = requests[_campaignId][_requestId];
@@ -210,35 +355,113 @@ contract FundTrace is ReentrancyGuard {
             c.activeRequestId = 0;
         }
 
-        emit RequestClosed(_campaignId, _requestId, "Voting deadline expired");
+        emit RequestClosed(_campaignId, _requestId, "Voting deadline expired without approval");
     }
 
-    function submitProof(uint256 _campaignId, uint256 _requestId, bytes32 _receiptHash) external {
+    // ==========================================
+    // 4. PROOF & AUDIT TRAIL
+    // ==========================================
+
+    /**
+     * @notice Creator records proof of expenditure (invoice/receipt hash).
+     * @dev Checks if submission is ON TIME or LATE against proof deadline.
+     */
+    function submitProof(
+        uint256 _campaignId,
+        uint256 _requestId,
+        bytes32 _receiptHash
+    ) external {
         Campaign storage c = campaigns[_campaignId];
         Request storage r = requests[_campaignId][_requestId];
 
         if (msg.sender != c.creator) revert Unauthorized();
         if (r.state != RequestState.Released) revert InvalidState();
+        if (r.proofSubmitted) revert ProofAlreadySubmitted();
 
+        bool isLate = block.timestamp > r.proofDeadline;
         r.receiptHash = _receiptHash;
         r.proofSubmitted = true;
+        r.proofSubmittedAt = block.timestamp;
+        r.timing = isLate ? ProofTiming.Late : ProofTiming.OnTime;
 
-        emit ProofSubmitted(_campaignId, _requestId, _receiptHash);
+        emit ProofSubmitted(_campaignId, _requestId, _receiptHash, isLate, block.timestamp);
     }
 
-    function refund(uint256 _campaignId) external nonReentrant {
-        Campaign storage c = campaigns[_campaignId];
-        if (c.state != CampaignState.Failed && !(c.state == CampaignState.Verified && block.timestamp > c.deadline && c.totalDonated < c.goal)) {
-            revert InvalidState();
+    /**
+     * @notice Verifies if an uploaded file's hash matches the on-chain recorded receipt hash.
+     */
+    function checkProofHash(
+        uint256 _campaignId,
+        uint256 _requestId,
+        bytes32 _candidateHash
+    ) external view returns (bool matches, bool isSubmitted, ProofTiming timing) {
+        Request storage r = requests[_campaignId][_requestId];
+        if (!r.proofSubmitted) {
+            return (false, false, ProofTiming.None);
         }
+        return (r.receiptHash == _candidateHash, true, r.timing);
+    }
 
-        uint256 donatedAmt = donations[_campaignId][msg.sender];
-        if (donatedAmt == 0) revert InvalidAmount();
+    /**
+     * @notice Checks whether a campaign has any released request with an overdue unsubmitted proof.
+     */
+    function hasOverdueProof(uint256 _campaignId) public view returns (bool) {
+        Campaign storage c = campaigns[_campaignId];
+        for (uint256 i = 1; i <= c.requestCount; i++) {
+            Request storage r = requests[_campaignId][i];
+            if (r.state == RequestState.Released && !r.proofSubmitted) {
+                if (block.timestamp > r.proofDeadline) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // ==========================================
+    // 5. FAILURE & REFUND
+    // ==========================================
+
+    /**
+     * @notice Evaluates campaign failure when deadline passes without reaching the goal.
+     */
+    function checkAndUpdateCampaignFailure(uint256 _campaignId) public returns (bool) {
+        Campaign storage c = campaigns[_campaignId];
+        if (c.state == CampaignState.Verified && block.timestamp > c.deadline && c.totalDonated < c.goal) {
+            c.state = CampaignState.Failed;
+            emit CampaignFailed(_campaignId, c.totalDonated, c.goal);
+            return true;
+        }
+        return c.state == CampaignState.Failed;
+    }
+
+    /**
+     * @notice Donors can pull their refund if campaign has failed.
+     */
+    function refund(uint256 _campaignId) external nonReentrant {
+        bool isFailed = checkAndUpdateCampaignFailure(_campaignId);
+        if (!isFailed) revert InvalidState();
+
+        uint256 amount = donations[_campaignId][msg.sender];
+        if (amount == 0) revert InvalidAmount();
 
         donations[_campaignId][msg.sender] = 0;
-        (bool sent, ) = payable(msg.sender).call{value: donatedAmt}("");
-        require(sent, "Refund failed");
 
-        emit Refunded(_campaignId, msg.sender, donatedAmt);
+        (bool sent, ) = payable(msg.sender).call{value: amount}("");
+        if (!sent) revert TransferFailed();
+
+        emit Refunded(_campaignId, msg.sender, amount);
+    }
+
+    // ==========================================
+    // 6. VIEW HELPERS
+    // ==========================================
+
+    function getCampaign(uint256 _campaignId) external view returns (Campaign memory) {
+        return campaigns[_campaignId];
+    }
+
+    function getRequest(uint256 _campaignId, uint256 _requestId) external view returns (Request memory) {
+        return requests[_campaignId][_requestId];
     }
 }
