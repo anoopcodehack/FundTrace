@@ -73,9 +73,6 @@ export default function HomePage() {
           <Link href="/" className="text-2xl sm:text-3xl font-black tracking-tight font-display text-white hover:opacity-90 transition-opacity">
             FundTrace
           </Link>
-          <span className="hidden sm:inline-block text-[9px] uppercase font-bold tracking-widest px-2.5 py-0.5 rounded-full bg-[#FF5023] text-white">
-            Versathon 2026
-          </span>
         </div>
 
         <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-stone-300">
@@ -744,7 +741,7 @@ export default function HomePage() {
           </div>
 
           <div className="pt-4 border-t border-stone-800/40 text-center sm:text-left text-xs text-stone-400">
-            Copyright © <strong className="text-white font-bold">2026</strong> <strong className="text-white font-bold">FundTrace</strong>. All Rights Reserved. Built for Versathon 2.0.
+            Copyright © <strong className="text-white font-bold">2026</strong> <strong className="text-white font-bold">FundTrace</strong>. All Rights Reserved.
           </div>
 
         </div>

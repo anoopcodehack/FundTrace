@@ -23,9 +23,6 @@ export default function Navbar() {
             FundTrace
           </span>
         </Link>
-        <span className="hidden sm:inline-block text-[9px] uppercase font-bold tracking-widest px-2.5 py-0.5 rounded-full bg-black/20 text-orange-100">
-          Versathon 2.0
-        </span>
       </div>
 
       {/* Nav Links */}
