@@ -1,0 +1,168 @@
+import { ethers } from "ethers";
+import { NETWORKS, switchOrAddNetwork, DEFAULT_CHAIN_ID } from "./blockchain";
+
+export interface WalletState {
+  isConnected: boolean;
+  address: string | null;
+  displayAddress: string | null;
+  chainId: number | null;
+  networkName: string | null;
+  balanceEth: string | null;
+  isMetaMask: boolean;
+  error: string | null;
+}
+
+export const INITIAL_WALLET_STATE: WalletState = {
+  isConnected: false,
+  address: null,
+  displayAddress: null,
+  chainId: null,
+  networkName: null,
+  balanceEth: null,
+  isMetaMask: false,
+  error: null,
+};
+
+// Known pre-funded local Hardhat accounts for instant hackathon demo role switching
+export const DEMO_PRESET_ACCOUNTS = [
+  {
+    role: "Deployer / Admin",
+    address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    privateKey: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+    description: "Contract deployer & system administrator",
+  },
+  {
+    role: "Campaign Creator",
+    address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    privateKey: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+    description: "Rural STEM Lab campaign owner & spending requester",
+  },
+  {
+    role: "Institutional Verifier",
+    address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    privateKey: "0x5de4111afa1a4b94908f83103eb2f958080a22fec3fb16e284d74f417a8420e6",
+    description: "Trusted auditor approving campaigns before public donation",
+  },
+  {
+    role: "Alice (Major Contributor)",
+    address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+    privateKey: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
+    description: "Donated 1.5 ETH (46.9% voting weight)",
+  },
+  {
+    role: "Bob (Key Contributor)",
+    address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+    privateKey: "0x47e179ec340f649b83564579282b404fc2458009ec06b916Bra4d85203303649",
+    description: "Donated 1.0 ETH (31.3% voting weight, triggers >50% approval)",
+  },
+  {
+    role: "Charlie (Community Donor)",
+    address: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+    privateKey: "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba",
+    description: "Donated 0.7 ETH (21.9% voting weight)",
+  },
+];
+
+/**
+ * Truncates an Ethereum address to 0x123...abc format
+ */
+export function formatAddress(address?: string | null): string {
+  if (!address) return "";
+  if (address.length <= 10) return address;
+  return `${address.slice(0, 5)}...${address.slice(-4)}`;
+}
+
+/**
+ * Formats a BigNumber / wei balance to readable ETH with specified decimals
+ */
+export function formatEthBalance(balanceWei: bigint, decimals = 4): string {
+  const ethStr = ethers.formatEther(balanceWei);
+  const num = parseFloat(ethStr);
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  });
+}
+
+/**
+ * Connects to MetaMask or any window.ethereum browser provider
+ */
+export async function connectBrowserWallet(): Promise<{
+  provider: ethers.BrowserProvider;
+  signer: ethers.Signer;
+  walletState: WalletState;
+}> {
+  if (typeof window === "undefined" || !(window as any).ethereum) {
+    throw new Error("No Web3 wallet found. Please install MetaMask to continue.");
+  }
+
+  const ethereum = (window as any).ethereum;
+  const provider = new ethers.BrowserProvider(ethereum);
+
+  // Request user account authorization
+  const accounts: string[] = await ethereum.request({ method: "eth_requestAccounts" });
+  if (!accounts || accounts.length === 0) {
+    throw new Error("No accounts selected in wallet.");
+  }
+
+  const signer = await provider.getSigner();
+  const address = accounts[0];
+  const network = await provider.getNetwork();
+  const chainId = Number(network.chainId);
+
+  // Auto-switch to Hardhat local or designated default chain if on incorrect network
+  if (chainId !== DEFAULT_CHAIN_ID && NETWORKS[DEFAULT_CHAIN_ID]) {
+    try {
+      await switchOrAddNetwork(DEFAULT_CHAIN_ID);
+    } catch (e) {
+      console.warn("Could not auto-switch network:", e);
+    }
+  }
+
+  const balance = await provider.getBalance(address);
+  const networkConfig = NETWORKS[chainId];
+  const networkName = networkConfig ? networkConfig.name : `Chain ${chainId}`;
+
+  const walletState: WalletState = {
+    isConnected: true,
+    address,
+    displayAddress: formatAddress(address),
+    chainId,
+    networkName,
+    balanceEth: formatEthBalance(balance),
+    isMetaMask: Boolean(ethereum.isMetaMask),
+    error: null,
+  };
+
+  return { provider, signer, walletState };
+}
+
+/**
+ * Connects using a pre-funded local demo account via direct RPC provider
+ * Ideal for rapid hackathon role demonstrations without MetaMask prompts.
+ */
+export async function connectDemoAccount(
+  preset: typeof DEMO_PRESET_ACCOUNTS[0]
+): Promise<{
+  provider: ethers.JsonRpcProvider;
+  signer: ethers.Wallet;
+  walletState: WalletState;
+}> {
+  const rpcUrl = NETWORKS[31337].rpcUrl;
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const signer = new ethers.Wallet(preset.privateKey, provider);
+
+  const balance = await provider.getBalance(preset.address);
+  const walletState: WalletState = {
+    isConnected: true,
+    address: preset.address,
+    displayAddress: formatAddress(preset.address),
+    chainId: 31337,
+    networkName: "Hardhat Local",
+    balanceEth: formatEthBalance(balance),
+    isMetaMask: false,
+    error: null,
+  };
+
+  return { provider, signer, walletState };
+}
