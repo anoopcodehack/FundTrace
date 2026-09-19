@@ -1,4 +1,5 @@
-import { ethers } from "ethers";
+import { keccak_256 } from "@noble/hashes/sha3";
+import { bytesToHex } from "@noble/hashes/utils";
 
 /**
  * Produces a deterministic canonical representation of an object with sorted keys.
@@ -37,14 +38,15 @@ export function computeCanonicalMetadataHash(metadata: {
     title: metadata.title.trim(),
   };
   const serialized = canonicalStringify(canonicalData);
-  return ethers.keccak256(ethers.toUtf8Bytes(serialized));
+  const bytes = new TextEncoder().encode(serialized);
+  return "0x" + bytesToHex(keccak_256(bytes));
 }
 
 /**
  * Computes the Keccak-256 hash of a file buffer (PDF quote, invoice, etc.).
  */
-export function computeFileKeccak256(buffer: Buffer | Uint8Array): string {
-  return ethers.keccak256(buffer);
+export function computeFileKeccak256(buffer: Uint8Array): string {
+  return "0x" + bytesToHex(keccak_256(buffer));
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { WalletProvider } from "@/context/WalletContext";
 
 export const metadata: Metadata = {
   title: "FundTrace - Transparent Crowdfunding & Fund Ledger",
@@ -13,8 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white">
-        {children}
+      <body className="bg-[#F7F4ED] text-[#141414] min-h-screen antialiased selection:bg-[#FF5023] selection:text-white">
+        <WalletProvider>
+          {children}
+        </WalletProvider>
       </body>
     </html>
   );

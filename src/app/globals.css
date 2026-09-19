@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cabinet+Grotesk:wght@800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -18,9 +18,14 @@ body {
   overflow-x: hidden;
 }
 
+.font-bebas {
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.02em;
+}
+
 .font-display {
-  font-family: 'Cabinet Grotesk', 'Plus Jakarta Sans', sans-serif;
-  letter-spacing: -0.03em;
+  font-family: 'Bebas Neue', 'Cabinet Grotesk', sans-serif;
+  letter-spacing: 0.01em;
 }
 
 .font-mono-code {
@@ -29,8 +34,8 @@ body {
 
 /* Wavy topographic pattern for the orange card */
 .bg-topo-pattern {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1.5px, transparent 1.5px),
-                    radial-gradient(rgba(255, 255, 255, 0.1) 1.5px, transparent 1.5px);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.18) 1.5px, transparent 1.5px),
+                    radial-gradient(rgba(255, 255, 255, 0.12) 1.5px, transparent 1.5px);
   background-size: 24px 24px;
   background-position: 0 0, 12px 12px;
 }
@@ -39,4 +44,103 @@ body {
 .ticket-edge {
   background: radial-gradient(circle at center, transparent 8px, #ffffff 8.5px);
 }
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 5s ease-in-out infinite;
+}
+
+@keyframes floatTilt {
+  0%, 100% {
+    transform: rotate(2deg) translateY(0px);
+  }
+  50% {
+    transform: rotate(0.8deg) translateY(-6px);
+  }
+}
+
+.animate-float-tilt {
+  animation: floatTilt 6s ease-in-out infinite;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.card-hover-effect {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
+}
+
+/* Scroll reveal utilities */
+.reveal-init {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger delays */
+.delay-100 { transition-delay: 100ms; }
+.delay-200 { transition-delay: 200ms; }
+.delay-300 { transition-delay: 300ms; }
+.delay-400 { transition-delay: 400ms; }
+
+/* 3D isometric card deck floating wave */
+@keyframes waveDeck1 {
+  0%, 100% { transform: rotate(-6deg) translateY(0px); }
+  50% { transform: rotate(-6deg) translateY(-8px); }
+}
+@keyframes waveDeck2 {
+  0%, 100% { transform: rotate(-3deg) translateY(0px); }
+  50% { transform: rotate(-3deg) translateY(-12px); }
+}
+@keyframes waveDeck3 {
+  0%, 100% { transform: rotate(0deg) translateY(0px); }
+  50% { transform: rotate(0deg) translateY(-16px); }
+}
+@keyframes waveDeck4 {
+  0%, 100% { transform: rotate(3deg) translateY(0px); }
+  50% { transform: rotate(3deg) translateY(-12px); }
+}
+@keyframes waveDeck5 {
+  0%, 100% { transform: rotate(6deg) translateY(0px); }
+  50% { transform: rotate(6deg) translateY(-8px); }
+}
+
+.animate-deck-1 { animation: waveDeck1 4s ease-in-out infinite; }
+.animate-deck-2 { animation: waveDeck2 4s ease-in-out 0.2s infinite; }
+.animate-deck-3 { animation: waveDeck3 4s ease-in-out 0.4s infinite; }
+.animate-deck-4 { animation: waveDeck4 4s ease-in-out 0.6s infinite; }
+.animate-deck-5 { animation: waveDeck5 4s ease-in-out 0.8s infinite; }
+
+
 
