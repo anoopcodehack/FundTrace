@@ -1,0 +1,446 @@
+<div align="center">
+
+# FundTrace
+
+### Transparent funding. Verifiable spending.
+
+**A blockchain fund-accountability platform that follows donated money from campaign verification to contributor-approved spending to proof of expenditure, with a public audit trail anyone can inspect without logging in.**
+
+![Solidity](https://img.shields.io/badge/Solidity-0.8.x-363636?logo=solidity)
+![Hardhat](https://img.shields.io/badge/Hardhat-tested-FFF100)
+![Next.js](https://img.shields.io/badge/Next.js-App_Router-000000?logo=nextdotjs)
+![ethers.js](https://img.shields.io/badge/ethers.js-v6-2535A0)
+![MongoDB](https://img.shields.io/badge/MongoDB-off--chain_data-47A248?logo=mongodb&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue)
+
+Built for **Versathon 2.0** (24-hour hackathon), Problem Statement **F4: Transparent Crowdfunding & Fund Ledger**.
+
+[Live Demo](#) · [Demo Video](#) · [Slides](#) · [Walkthrough](#demo-walkthrough)
+
+</div>
+
+---
+
+## Table of Contents
+
+- [The Problem](#the-problem)
+- [The Solution](#the-solution)
+- [How It Works](#how-it-works)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Governance: Snapshot Voting](#governance-snapshot-voting)
+- [Proof Integrity](#proof-integrity)
+- [Smart Contract Design](#smart-contract-design)
+- [Security Considerations](#security-considerations)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [Demo Walkthrough](#demo-walkthrough)
+- [Testing](#testing)
+- [Problem Statement Mapping](#problem-statement-mapping)
+- [Design Decisions and Trade-offs](#design-decisions-and-trade-offs)
+- [Limitations and Future Scope](#limitations-and-future-scope)
+- [Team](#team)
+- [License](#license)
+
+---
+
+## The Problem
+
+Crowdfunding platforms are good at collecting money and weak at proving what happened to it afterwards.
+
+- Donors cannot clearly track how raised funds are used.
+- Spending records are scattered across spreadsheets, receipts and private databases.
+- Contributors have little say in major spending decisions.
+- Post-fundraising accountability is hard to verify independently.
+- Edited or replaced evidence undermines trust in financial records.
+- Campaign verification and fund utilization are usually handled as separate processes.
+
+**Core question:** how can the complete journey of donated funds be made transparent, accountable and independently verifiable?
+
+## The Solution
+
+FundTrace connects campaign verification, fundraising, controlled spending, contributor approval, proof submission and public auditing in one workflow.
+
+```
+VERIFY CAMPAIGN → FUND → LOCK → REQUEST → VOTE → RELEASE → PROVE → CHECK PROOF → AUDIT
+```
+
+Donations are held by a smart contract, not by the campaign creator. Money leaves the contract in exactly two ways: an **approved release** to the request's visible recipient wallet, or a **refund** to donors of a failed campaign.
+
+> FundTrace does not claim that locked funds or donor voting are new ideas on their own. Its contribution is combining verification, a closed funding phase, snapshot voting, a one-open-request rule, document hashes, proof deadlines and a public event ledger into a single accountability loop.
+
+## How It Works
+
+| Step | Action | What the contract enforces |
+|---|---|---|
+| 1 | **Create campaign**: creator submits metadata, goal and deadline | A canonical `metadataHash` is recorded on-chain |
+| 2 | **Verify campaign**: an institutional verifier approves or rejects | Verifier cannot be the creator; only verified campaigns accept funds |
+| 3 | **Fund**: contributors donate from their wallets | Before the deadline; creator address cannot donate |
+| 4 | **Close funding**: the donation that reaches or exceeds the goal closes funding | No top-ups afterwards; raised may end above 100% |
+| 5 | **Request spending**: creator submits purpose, amount, recipient, quote and `requestHash` | Amount ≤ available balance; only one open request; voting window within configured bounds |
+| 6 | **Vote**: donors approve using their contribution as weight | Passes when `approvalWeight × 2 > totalRaised`; creator cannot vote |
+| 7 | **Release**: anyone can trigger release once approved | State updated before transfer; reentrancy guarded |
+| 8 | **Submit proof**: creator submits the receipt hash | Within the fixed proof deadline; `receiptHash` recorded on-chain |
+| 9 | **Check proof**: anyone re-uploads the file and the browser re-hashes it | Match means unchanged since submission |
+| 10 | **Audit**: public ledger built from contract events | No login required |
+
+### Campaign lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> PendingVerification: createCampaign
+    PendingVerification --> Funding: verifyCampaign
+    PendingVerification --> Rejected: rejectCampaign
+    Funding --> Active: goal reached, funding closes
+    Funding --> Failed: deadline passed, goal not reached
+    Failed --> [*]: donors claim refunds
+    Active --> Active: spending requests
+```
+
+### Spending request lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: createRequest
+    Pending --> Approved: approvalWeight x 2 > totalRaised
+    Pending --> Closed: voting deadline expires
+    Approved --> Released: release
+    Released --> ProofSubmitted: submitProof
+```
+
+`PROOF OVERDUE` is a computed status, not a transaction: if a released request has no proof after the proof deadline, the dashboard flags it in red. Because only one request may be open at a time, an unresolved request also blocks any new spending request.
+
+## Key Features
+
+- **Institution-verified campaigns**: approve or reject, with the verifier separated from the creator.
+- **Locked-fund custody**: funds sit in the contract, not in a creator wallet.
+- **Closed funding phase**: funding ends before spending starts, so voting weights are final and simple.
+- **Contributor-weighted snapshot voting**: each donor's weight is their contribution; the denominator is the total raised.
+- **One open request at a time**: prevents overlapping fund commitments.
+- **Recipient wallet transparency**: every request shows exactly where the money goes.
+- **Request and receipt hashing**: Keccak-256 commitments for the quote and the receipt.
+- **Browser-side proof check**: upload a file, get an instant match or mismatch against the on-chain hash.
+- **Proof deadline with overdue status**: missing evidence is visible, and blocks further spending.
+- **Metadata integrity**: campaign story and details are hashed at creation and locked at verification.
+- **Refunds**: donors reclaim their contribution if a campaign misses its goal.
+- **Public event ledger**: every financial event with timestamp, transaction hash, donor and recipient addresses, no login.
+- **Demo tooling**: local Hardhat network, pre-funded demo wallets and a one-command reset.
+
+<!-- Add screenshots here once the UI is built:
+![Campaign dashboard](docs/img/dashboard.png)
+![Public ledger](docs/img/ledger.png)
+![Proof verification: match and tamper](docs/img/proof-check.png)
+-->
+
+## Architecture
+
+```mermaid
+flowchart TB
+    FE["Frontend<br/>Next.js + Tailwind + ethers.js"] --> WAL["MetaMask or demo wallet"]
+    WAL --> SC["FundLedger.sol<br/>campaigns, donations, votes, releases, hashes, events"]
+    FE --> API["Next.js API routes"]
+    API --> DB["MongoDB<br/>stories, cover images, original proof files"]
+    SC -->|"contract events"| LEDGER["Public ledger<br/>no login required"]
+    FE --> LEDGER
+```
+
+**Blockchain is the financial source of truth.** The contract holds money, authorization, votes, deadlines and hashes. MongoDB only stores presentation data (title, story, images, original receipt files), and anything important in it is committed on-chain by hash.
+
+## Governance: Snapshot Voting
+
+Funding closes before any spending request can be made, so each donor's final contribution is their voting weight and `totalRaised` is a fixed denominator. No checkpoints, no historical lookups, and late donors cannot influence existing requests.
+
+**Rule:** a request passes when `approvalWeight × 2 > totalRaised`.
+
+| Donor | Contribution | Share |
+|---|---|---|
+| Alice | 1.5 ETH | 46.9% |
+| Bob | 1.0 ETH | 31.3% |
+| Carol | 0.7 ETH | 21.9% |
+| **Total raised** | **3.2 ETH** | |
+
+| Approvers | Weight × 2 | vs 3.2 | Result |
+|---|---|---|---|
+| Alice alone | 3.0 | not greater | **Fails** |
+| Alice + Bob | 5.0 | greater | **Passes** |
+| Bob + Carol | 3.4 | greater | **Passes** |
+
+The creator is blocked from donating and from voting **inside the contract**, not only in the UI.
+
+## Proof Integrity
+
+Two commitments bracket every spend:
+
+- **`requestHash`**: hash of the original quote/estimate, recorded when the request is created, so donors vote on something concrete.
+- **`receiptHash`**: hash of the actual receipt or invoice, recorded when proof is submitted after release.
+
+The check runs in the browser, using the same algorithm the contract stores:
+
+```ts
+import { keccak256 } from "ethers";
+
+async function hashFile(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return keccak256(bytes); // raw bytes, no compression or re-encoding
+}
+
+// compare hashFile(uploaded) with the receiptHash read from the contract
+```
+
+- **Match** → the file is unchanged since submission.
+- **Mismatch** → the file differs from the submitted proof.
+
+> **What this proves, and what it doesn't.** A hash proves a document has not changed since its hash was recorded. It does **not** prove the underlying receipt is genuine. FundTrace pairs the hash with verifier review and states this limit openly.
+
+Original receipts are stored as untouched bytes (GridFS or server storage). Cover images use Cloudinary; receipts never pass through image optimization.
+
+### Metadata integrity
+
+Campaign details in MongoDB are serialized in a **canonical form** (sorted keys, deterministic serialization), hashed with Keccak-256, and committed on-chain at creation. The hash is locked when the campaign is verified. If the stored story is later altered, recomputing the hash no longer matches and the UI shows a metadata integrity warning. The funding goal lives only on-chain, so the two copies cannot disagree.
+
+## Smart Contract Design
+
+### Roles
+
+| Role | Can do |
+|---|---|
+| **Creator** | Create campaigns, create spending requests, submit proof. Cannot donate or vote. |
+| **Verifier** | Approve or reject campaigns. Cannot be the campaign creator. |
+| **Donor** | Donate before the deadline, vote on requests, claim a refund if a campaign fails. |
+| **Anyone** | Trigger `release` on an approved request, close an expired request, read the public ledger. |
+
+### Core interface
+
+| Function | Purpose |
+|---|---|
+| `createCampaign` | Register a campaign with goal, deadline and `metadataHash` |
+| `verifyCampaign` / `rejectCampaign` | Verifier decision on a pending campaign |
+| `donate` | Contribute to a verified campaign in the funding phase |
+| `createRequest` | Open a spending request with recipient, amount and `requestHash` |
+| `approveRequest` | Cast a contribution-weighted vote |
+| `release` | Transfer funds to the recipient once the threshold is met |
+| `closeExpiredRequest` | Close a request whose voting window has passed |
+| `submitProof` | Record the `receiptHash` after release |
+| `refund` | Withdraw a contribution from a failed campaign |
+
+See `contracts/FundLedger.sol` for exact signatures and custom errors.
+
+### Events (the source of the public ledger)
+
+| Event | Emitted when |
+|---|---|
+| `CampaignCreated` | A campaign is registered (includes `metadataHash`) |
+| `CampaignVerified` / `CampaignRejected` | The verifier decides |
+| `Donated` | A contribution is received |
+| `FundingClosed` | The goal is reached and funding ends |
+| `RequestCreated` | A spending request is opened (includes `requestHash`) |
+| `Approved` | A donor votes (includes weight) |
+| `RequestApproved` | The approval threshold is crossed |
+| `Released` | Funds are sent to the recipient |
+| `RequestClosed` | A request expires without approval |
+| `ProofSubmitted` | A `receiptHash` is recorded |
+| `Refunded` | A donor withdraws from a failed campaign |
+
+The ledger UI reads events starting from the **contract deployment block** rather than scanning the whole chain. Free RPC providers can limit event ranges, so the backend can cache indexed events while the blockchain remains the source of truth.
+
+## Security Considerations
+
+| Concern | Mitigation |
+|---|---|
+| Reentrancy | State updated **before** external transfers, plus OpenZeppelin `ReentrancyGuard` |
+| Creator self-dealing | Creator blocked from donating and voting **in Solidity** |
+| Vote manipulation | Closed funding phase fixes weights and denominator |
+| Overspending | Amount ≤ available balance; only one open request at a time |
+| Stuck requests | Voting deadline with public `closeExpiredRequest` |
+| Unbounded deadlines | Min/max voting and proof windows set at deployment |
+| Fake campaigns | Institutional verifier approval before any funding |
+| Refund safety | Donors pull their own refund; funding and requests close on failure |
+| Metadata tampering | `metadataHash` committed on creation and locked at verification |
+
+This is a hackathon prototype and has **not** been independently audited.
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js, Tailwind CSS, ethers.js v6, Recharts |
+| Wallet | MetaMask, pre-funded demo wallets |
+| Smart contracts | Solidity, Hardhat, OpenZeppelin `ReentrancyGuard` |
+| Backend | Next.js API routes, MongoDB |
+| File storage | Original receipts in GridFS / server storage; cover images on Cloudinary |
+| Hashing | Keccak-256 via ethers.js (requests, receipts, metadata) |
+| Testing | Hardhat, Chai |
+| Networks | Local Hardhat (primary demo), Ethereum Sepolia (public backup) |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 22 or newer
+- npm
+- MongoDB (local instance or Atlas connection string)
+- MetaMask (optional: demo mode signs with pre-funded local accounts)
+
+### Install
+
+```bash
+git clone <your-repo-url>
+cd fundtrace
+npm install
+cp .env.example .env
+```
+
+### Environment variables
+
+| Variable | Description |
+|---|---|
+| `MONGODB_URI` | MongoDB connection string |
+| `NEXT_PUBLIC_CHAIN_ID` | `31337` for local Hardhat, `11155111` for Sepolia |
+| `NEXT_PUBLIC_RPC_URL` | RPC endpoint (`http://127.0.0.1:8545` locally) |
+| `NEXT_PUBLIC_CONTRACT_ADDRESS` | Filled in by the deploy/seed script |
+| `NEXT_PUBLIC_DEPLOY_BLOCK` | Deployment block used by the ledger |
+| `SEPOLIA_RPC_URL` | Sepolia RPC URL (backup deployment only) |
+| `DEPLOYER_PRIVATE_KEY` | **Test-only** key for Sepolia deploys. Never commit a real key. |
+| `CLOUDINARY_URL` | Cover image storage |
+
+### Run locally (primary demo setup)
+
+```bash
+# Terminal 1: local blockchain
+npx hardhat node
+
+# Terminal 2: deploy contracts and seed the demo
+npm run demo:reset
+
+# Terminal 3: web app
+npm run dev
+```
+
+Open `http://localhost:3000`. To use MetaMask instead of demo mode, add a network with RPC `http://127.0.0.1:8545`, chain ID `31337`, and import one of the pre-funded Hardhat accounts.
+
+### Public backup deployment (Sepolia)
+
+```bash
+npx hardhat run scripts/deploy.js --network sepolia
+```
+
+Have Sepolia test ETH ready before the event; faucets can be slow. Test event queries early against your RPC provider.
+
+### Useful scripts
+
+| Command | What it does |
+|---|---|
+| `npx hardhat test` | Run the contract test suite |
+| `npm run demo:reset` | Reset the local chain, deploy, seed campaigns, donations, requests and proofs, print addresses |
+| `npm run demo:live` | Create the live spending request with a fresh 10+ minute voting window |
+| `npm run dev` | Start the Next.js app |
+
+## Demo Walkthrough
+
+### Seeded data (all values in test ETH)
+
+**Main campaign: Build Rural STEM Lab**
+
+| Metric | Value |
+|---|---|
+| Goal | 3.0 ETH |
+| Raised | 3.2 ETH (**107% funded**) |
+| Released | 1.2 ETH |
+| Remaining | 2.0 ETH |
+
+- **Request #01**: 50 Arduino boards, 1.2 ETH, `RELEASED`, proof `SUBMITTED` (the completed accountability path).
+- **Request #02**: laboratory equipment, 0.5 ETH, `PENDING`, created live by `npm run demo:live`.
+- **Verifier demo campaign**: a separate campaign in `PENDING VERIFICATION` for the approve/reject demo.
+- **Overdue demo campaign**: a small campaign with a `RELEASED` request whose proof deadline has passed, showing **PROOF OVERDUE** and a blocked new request.
+
+Dashboard figures use test ETH throughout. No real money is involved.
+
+### Three-minute judge flow
+
+1. **Verify.** In the verifier panel, approve the pending campaign. Only verified campaigns accept donations.
+2. **Fund and lock.** View the main campaign: funds are locked in the contract, 107% funded, funding closed.
+3. **Vote.** Open Request #02. Alice votes (46.9%, not enough), then Bob votes (78.1%). The request flips to `APPROVED`.
+4. **Release.** Trigger release. The recipient wallet shown on the card receives the funds.
+5. **Prove.** Open Request #01 and upload the original invoice. The browser hashes it: `MATCH: file unchanged`.
+6. **Tamper test.** Upload the edited invoice. **`VERIFICATION FAILED`**: the document does not match the proof recorded on-chain.
+7. **Hold them accountable.** Open the overdue campaign: red `PROOF OVERDUE`, and a new request is blocked.
+8. **Audit.** Open the public ledger, no login: every event with timestamp, transaction hash and addresses.
+
+Demo files live in `demo-files/`: the quote, the original invoice and a pre-made tampered invoice.
+
+## Testing
+
+Run `npx hardhat test`. The suite covers the rules that matter most:
+
+- Donations update totals, and only verified campaigns in the funding phase accept them
+- Creator cannot donate or vote
+- Non-donors cannot vote; no double voting
+- Snapshot threshold: passes above 50% of total raised, fails at or below
+- Release blocked below threshold, works at threshold, cannot be repeated
+- Request amount cannot exceed the available balance; only one open request
+- Expired voting closes the request (time travel with `evm_increaseTime`)
+- Proof deadline and overdue status
+- Refunds after a failed campaign, and not before
+- Verifier cannot be the creator; rejected campaigns cannot be funded
+
+## Problem Statement Mapping
+
+**Versathon 2.0, F4: Transparent Crowdfunding & Fund Ledger.**
+
+| Suggested scope | FundTrace |
+|---|---|
+| Campaign/project creation | Campaign creation with verified metadata and institutional approval |
+| Contributor and donation records | On-chain `Donated` events with donor address and amount |
+| Fund allocation workflow | Spending requests, contributor-weighted voting, controlled release |
+| Public utilization dashboard | Campaign dashboard and no-login public ledger |
+| Blockchain or tamper-evident audit trail | Contract events plus request, receipt and metadata hashes |
+
+## Design Decisions and Trade-offs
+
+- **Funding closes before spending.** This keeps voting weights final and the contract simple. The trade-off is that no top-ups are possible after the goal is reached.
+- **One open request at a time.** This removes overlapping commitments. The trade-off is slower spending for campaigns with many small expenses.
+- **Proof status is checked in the UI, not stored as a "verified" state.** A hash match is an honest claim about file integrity, so the contract stops at `PROOF_SUBMITTED`.
+- **Overdue is computed on read.** Contracts cannot run on their own, so the status is derived from timestamps.
+- **ETH-denominated prototype.** Everything shown is test ETH. A production system would settle through compliant payment rails or stablecoins.
+- **No DAO, token or NFT layer.** The goal is a focused accountability loop, not a governance framework.
+
+## Limitations and Future Scope
+
+**Known limitations**
+
+- **Creator Sybil:** another wallet could contribute on the creator's behalf. Mitigated by verified campaigns and public donor addresses, not eliminated.
+- **Single verifier:** the prototype trusts one institution.
+- **Whale voting:** contribution-weighted voting gives larger donors more influence.
+- **Receipt authenticity:** hashes detect changes, not fake receipts.
+- **Creator abandonment:** remaining funds may need a future recovery mechanism.
+- **Test ETH only:** prototype funds have no monetary value.
+- **Regulation:** a real deployment would require appropriate payment, crowdfunding and crypto compliance.
+- **Not audited.**
+
+**Roadmap**
+
+- Multi-verifier approval and multisig governance
+- Quorum, per-donor voting caps or quadratic voting
+- Stablecoin and payment-gateway integration
+- Abandonment/recovery mechanism for undelivered proof
+- Independent smart-contract audit
+- AI-assisted receipt plausibility checks as an advisory layer (never a substitute for verifier review)
+- Institutional dashboards, audit exports and compliance workflows
+
+## Team
+
+| Name | Role |
+|---|---|
+| _Your name_ | _e.g. Smart contracts, architecture_ |
+| _Teammate_ | _e.g. Frontend_ |
+| _Teammate_ | _e.g. Backend and demo tooling_ |
+
+Built at **Versathon 2.0**.
+
+## License
+
+Released under the [MIT License](LICENSE).
+
+## Acknowledgements
+
+Ethereum, Solidity, OpenZeppelin Contracts, Hardhat, ethers.js, Next.js and the Versathon 2.0 organizers.
