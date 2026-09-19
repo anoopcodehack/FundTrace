@@ -41,72 +41,96 @@ export default function CreateCampaignPage() {
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-6 sm:px-12 pt-14 sm:pt-20">
+      <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-8 pb-16">
         
-        {/* Header */}
-        <div className="pb-8 border-b border-stone-300">
-          <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5023]">
-            CAMPAIGN GENESIS
-          </span>
-          <h1 className="text-4xl sm:text-6xl font-black font-bebas uppercase leading-none text-[#141414] mt-1">
-            CREATE CAMPAIGN
-          </h1>
-          <p className="text-xs sm:text-sm text-stone-600 mt-2">
-            Submit campaign metadata, target goal, and designated institutional verifier. Canonical story text is cryptographically hashed and anchored on-chain.
-          </p>
+        {/* Colorful Editorial Hero Banner (FinFLO Theme) */}
+        <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-8 border border-stone-800">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-3 py-1 rounded-md bg-[#FF5023] text-white font-mono text-[10px] font-bold uppercase tracking-widest">
+                  CAMPAIGN GENESIS
+                </span>
+                <span className="px-3 py-1 rounded-md bg-[#FED74C] text-stone-950 font-mono text-[10px] font-black uppercase tracking-wider">
+                  VERIFIER-GATED
+                </span>
+              </div>
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black font-bebas uppercase leading-[0.88] tracking-tight text-white">
+                DEPLOY AUDITED CAMPAIGN
+              </h1>
+              <p className="text-xs sm:text-sm text-stone-300 max-w-xl leading-relaxed">
+                Submit campaign metadata, target goal, and designated institutional verifier. Canonical story text is cryptographically hashed with Keccak-256 and committed on-chain.
+              </p>
+            </div>
+
+            <div className="hidden lg:flex flex-col items-end border-l border-stone-800 pl-8 space-y-1">
+              <span className="text-[10px] font-mono uppercase text-stone-400 font-bold tracking-widest">
+                PROTOCOL RULE
+              </span>
+              <span className="text-3xl font-black font-bebas text-[#FF5023] tracking-wide">
+                ZERO SELF-AUDIT
+              </span>
+              <span className="text-xs font-mono text-emerald-400 font-semibold">
+                ● 3rd-Party Verified
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Success Alert */}
         {submittedId && (
-          <div className="mt-6 p-4 rounded-xl bg-white border-l-4 border-l-emerald-600 border border-stone-200 shadow-sm flex items-start gap-3.5">
-            <div className="p-1 rounded-md bg-emerald-50 text-emerald-600 mt-0.5 shrink-0">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+          <div className="mb-8 p-6 rounded-3xl bg-emerald-950/90 text-emerald-100 border-2 border-emerald-500 shadow-2xl flex items-start gap-4 animate-fade-in">
+            <div className="w-8 h-8 rounded-full bg-emerald-500 text-stone-950 flex items-center justify-center shrink-0 mt-0.5 text-base font-black">
+              ✓
             </div>
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-sm text-stone-900">Campaign #{submittedId} Registered On-Chain</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-50 text-amber-800 border border-amber-200">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-black font-bebas text-2xl uppercase tracking-wide text-emerald-300">
+                  Campaign #{submittedId} Registered On-Chain
+                </span>
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[#FED74C] text-stone-950">
                   PENDING_VERIFICATION
                 </span>
               </div>
-              <p className="text-xs text-stone-600 leading-relaxed">
-                Designated institutional verifier <code className="font-mono text-stone-800 bg-stone-100 px-1.5 py-0.5 rounded text-[11px]">{verifierAddress.slice(0, 10)}...</code> notified to audit credentials before public funding opens.
+              <p className="text-xs text-emerald-200/90 leading-relaxed font-sans">
+                Designated institutional verifier <code className="font-mono text-emerald-300 bg-black/40 px-2 py-0.5 rounded text-[11px] font-bold">{verifierAddress.slice(0, 10)}...</code> has been assigned to audit credentials before public funding opens.
               </p>
             </div>
           </div>
         )}
 
         {/* Create Form */}
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 border border-stone-200 shadow-sm space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="bg-white rounded-3xl p-8 sm:p-10 border border-stone-300 shadow-sm space-y-6">
             
             {/* Title */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">
-                Campaign Title *
-              </label>
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
+                  Campaign Title *
+                </label>
+                <span className="text-[10px] font-mono text-stone-400">Public Blockchain Record</span>
+              </div>
               <input
                 type="text"
                 required
                 placeholder="e.g. Build Rural STEM Lab & Robotics Center"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full p-3 rounded-xl border border-stone-200 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023]"
+                className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
               />
             </div>
 
             {/* Category & Location */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">
+                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
                   Category *
                 </label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-stone-200 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023]"
+                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
                 >
                   <option value="Education">Education</option>
                   <option value="Sanitation">Sanitation</option>
@@ -116,7 +140,7 @@ export default function CreateCampaignPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">
+                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
                   Location *
                 </label>
                 <input
@@ -124,15 +148,15 @@ export default function CreateCampaignPage() {
                   required
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-stone-200 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023]"
+                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
                 />
               </div>
             </div>
 
             {/* Target Goal & Duration */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">
+                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
                   Target Goal (ETH) *
                 </label>
                 <input
@@ -141,12 +165,12 @@ export default function CreateCampaignPage() {
                   required
                   value={goalEth}
                   onChange={(e) => setGoalEth(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-stone-200 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023]"
+                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">
+                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
                   Funding Duration (Days) *
                 </label>
                 <input
@@ -154,32 +178,35 @@ export default function CreateCampaignPage() {
                   required
                   value={durationDays}
                   onChange={(e) => setDurationDays(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-stone-200 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023]"
+                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
                 />
               </div>
             </div>
 
             {/* Designated Verifier Address */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">
-                Designated Institutional Verifier Address *
-              </label>
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
+                  Designated Institutional Verifier Address *
+                </label>
+                <span className="text-[10px] font-mono text-[#FF5023] font-bold">Rule: Non-Creator</span>
+              </div>
               <input
                 type="text"
                 required
                 value={verifierAddress}
                 onChange={(e) => setVerifierAddress(e.target.value)}
-                className="w-full p-3 rounded-xl border border-stone-200 bg-stone-50 text-xs font-mono text-stone-900 focus:outline-none focus:border-[#FF5023]"
+                className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-mono text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
               />
-              <span className="text-[10px] text-stone-500 font-mono">
-                Rule: Verifier cannot be the creator address.
+              <span className="text-[10px] text-stone-500 font-mono block">
+                Rule: Designated auditor must sign off before campaign can accept donations.
               </span>
             </div>
 
             {/* Story & Objectives */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">
-                Campaign Story &amp; Expenditure Vision *
+              <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
+                Campaign Story &amp; Expenditure Objectives *
               </label>
               <textarea
                 rows={4}
@@ -187,27 +214,35 @@ export default function CreateCampaignPage() {
                 placeholder="Describe project deliverables, milestone objectives, and procurement requirements..."
                 value={story}
                 onChange={(e) => setStory(e.target.value)}
-                className="w-full p-3 rounded-xl border border-stone-200 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023]"
+                className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
               />
             </div>
 
-            {/* Real-time Canonical Metadata Hash Preview */}
-            <div className="p-4 rounded-xl bg-stone-950 text-white text-xs space-y-1.5 border border-stone-800">
-              <div className="text-[10px] font-mono font-semibold uppercase tracking-wider text-[#FF5023]">
-                Deterministic Canonical Metadata Hash (Anchored On-Chain):
+            {/* Real-time Canonical Metadata Hash Preview in Charcoal Inspector */}
+            <div className="p-5 rounded-2xl bg-[#141613] text-white border border-stone-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-[#FED74C]">
+                  DETERMINISTIC METADATA HASH (KECCAK-256)
+                </span>
+                <span className="text-[10px] font-mono text-stone-400">
+                  Calculated Client-side
+                </span>
               </div>
-              <div className="font-mono text-[11px] text-stone-300 break-all select-all tracking-tight leading-relaxed">
+              <code className="font-mono text-xs text-emerald-400 break-all select-all tracking-tight leading-relaxed block bg-black/60 p-3 rounded-xl border border-stone-800">
                 {computedMetadataHash}
-              </div>
+              </code>
             </div>
 
-            {/* Submit Button */}
+            {/* Submit Button (FinFLO High-Energy Developer Button) */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3.5 px-6 rounded-xl bg-[#FF5023] hover:bg-[#ff5d32] text-white font-bold text-xs uppercase tracking-wider shadow-md transition-all disabled:opacity-50 cursor-pointer"
+              className="w-full py-4 px-8 rounded-2xl bg-[#181816] hover:bg-black text-white font-black font-bebas text-2xl tracking-wider uppercase transition-all shadow-xl hover:shadow-2xl hover:scale-[1.005] active:scale-[0.99] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3"
             >
-              {isSubmitting ? "Anchoring on Blockchain..." : "Register Campaign & Commit Metadata Hash"}
+              <span>{isSubmitting ? "Anchoring on Blockchain..." : "Register Campaign & Commit Hash"}</span>
+              <span className="w-7 h-7 rounded-full bg-[#FF5023] text-white flex items-center justify-center text-sm font-bold">
+                →
+              </span>
             </button>
 
           </div>

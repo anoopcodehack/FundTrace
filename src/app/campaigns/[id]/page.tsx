@@ -34,18 +34,18 @@ export default function CampaignDetailPage() {
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-6 sm:px-12 pt-14 sm:pt-20">
+      <main className="max-w-7xl mx-auto px-6 sm:px-12 pt-8 pb-16">
         
-        {/* Breadcrumb Navigation */}
-        <div className="flex items-center gap-2 text-xs font-bold text-stone-500 mb-4 uppercase tracking-wider">
+        {/* Navigation Breadcrumb */}
+        <div className="flex items-center gap-2 text-xs font-bold text-stone-500 mb-6 uppercase tracking-wider">
           <Link href="/campaigns" className="hover:text-[#FF5023]">Campaigns</Link>
           <span>/</span>
-          <span className="text-stone-900">Campaign #{id}</span>
+          <span className="text-stone-900 font-extrabold">Campaign #{id}</span>
         </div>
 
         {/* OVERDUE LOCKOUT ALERT (For Campaign #3 or when overdue) */}
         {isOverdueCampaign && (
-          <div className="mb-8 p-6 rounded-3xl bg-red-600 text-white shadow-xl flex items-start gap-4">
+          <div className="mb-8 p-6 rounded-3xl bg-red-600 text-white shadow-xl flex items-start gap-4 animate-fade-in">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 flex-shrink-0 mt-1 text-white">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
@@ -64,7 +64,7 @@ export default function CampaignDetailPage() {
 
         {/* PENDING VERIFICATION ALERT (For Campaign #2) */}
         {isPendingCampaign && (
-          <div className="mb-8 p-6 rounded-3xl bg-amber-500 text-stone-950 shadow-xl flex items-start gap-4">
+          <div className="mb-8 p-6 rounded-3xl bg-[#FED74C] text-stone-950 shadow-xl flex items-start gap-4 animate-fade-in border border-amber-400">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 flex-shrink-0 mt-1 text-stone-950">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -73,26 +73,28 @@ export default function CampaignDetailPage() {
               <h4 className="font-black font-bebas text-2xl uppercase tracking-wide">
                 CAMPAIGN LOCKED: AWAITING INSTITUTIONAL AUDITOR SIGNOFF
               </h4>
-              <p className="text-xs text-stone-900 leading-relaxed">
+              <p className="text-xs text-stone-900 leading-relaxed font-sans">
                 Smart Contract Rule Enforcement: Unverified campaigns cannot receive any donations. An institutional verifier must review credentials and call <code>verifyCampaign()</code> before public funding opens.
               </p>
             </div>
           </div>
         )}
 
-        {/* Campaign Header Details */}
-        <div className="bg-white rounded-3xl p-8 border border-stone-300 shadow-md space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-stone-200">
+        {/* Colorful Editorial Campaign Hero Banner (FinFLO Theme) */}
+        <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-10 shadow-2xl border border-stone-800 space-y-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-stone-800">
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 rounded-full bg-stone-100 text-stone-800 text-[10px] font-black uppercase tracking-wider">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="px-3 py-1 rounded-md bg-[#FF5023] text-white text-[10px] font-mono font-bold uppercase tracking-wider">
                   {id === 1 ? "Education" : id === 2 ? "Sanitation" : "Healthcare"} · Campaign #{id}
                 </span>
-                <span className="text-xs font-bold text-emerald-600">
+                <span className={`px-3 py-1 rounded-md text-[10px] font-mono font-black uppercase tracking-wider ${
+                  isPendingCampaign ? "bg-[#FED74C] text-stone-950" : "bg-emerald-500 text-stone-950"
+                }`}>
                   {isPendingCampaign ? "Pending Audit" : "✓ Verified by Auditor"}
                 </span>
               </div>
-              <h1 className="text-3xl sm:text-5xl font-black font-bebas uppercase text-[#141414] leading-none">
+              <h1 className="text-4xl sm:text-6xl font-black font-bebas uppercase text-white leading-none tracking-tight">
                 {id === 1 && "Build Rural STEM Lab & Robotics Center"}
                 {id === 2 && "Clean Water Well & Community Filtration"}
                 {id === 3 && "Solar Clinic Medical Refrigerators"}
@@ -101,7 +103,7 @@ export default function CampaignDetailPage() {
 
             <Link
               href={`/campaigns/${id}/ledger`}
-              className="py-3 px-6 rounded-full bg-[#181816] hover:bg-black text-white text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow self-start transition-all"
+              className="py-3 px-6 rounded-full bg-[#FED74C] hover:bg-[#ffe17d] text-stone-950 text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg self-start transition-all cursor-pointer"
             >
               <span>Inspect Public Ledger</span>
               <span>→</span>
@@ -110,36 +112,50 @@ export default function CampaignDetailPage() {
 
           {/* Financial Metrics Summary Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200/80">
-              <div className="text-[11px] font-medium text-stone-500">Target Goal</div>
-              <div className="text-xl sm:text-2xl font-bold font-sans tracking-tight text-stone-900 mt-1 tabular-nums">
-                {id === 1 ? "3.00 ETH" : id === 2 ? "5.00 ETH" : "1.00 ETH"}
+            <div className="p-5 rounded-2xl bg-black/60 border border-stone-800 space-y-1">
+              <div className="text-[10px] font-mono font-bold tracking-widest uppercase text-stone-400">
+                Target Goal
+              </div>
+              <div className="text-3xl sm:text-4xl font-black font-bebas text-white leading-none">
+                {id === 1 ? "3.00" : id === 2 ? "5.00" : "1.00"}{" "}
+                <span className="text-lg font-bold text-stone-400">ETH</span>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200/80">
-              <div className="text-[11px] font-medium text-stone-500">Total Donated</div>
-              <div className="text-xl sm:text-2xl font-bold font-sans tracking-tight text-stone-900 mt-1 tabular-nums flex items-baseline gap-2">
-                <span>{id === 1 ? "3.20 ETH" : id === 2 ? "0.00 ETH" : "1.00 ETH"}</span>
+            <div className="p-5 rounded-2xl bg-black/60 border border-stone-800 space-y-1">
+              <div className="text-[10px] font-mono font-bold tracking-widest uppercase text-stone-400">
+                Total Donated
+              </div>
+              <div className="flex items-baseline gap-2">
+                <div className="text-3xl sm:text-4xl font-black font-bebas text-[#FF5023] leading-none">
+                  {id === 1 ? "3.20" : id === 2 ? "0.00" : "1.00"}{" "}
+                  <span className="text-lg font-bold text-stone-400">ETH</span>
+                </div>
                 {id === 1 && (
-                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                  <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-700">
                     107%
                   </span>
                 )}
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200/80">
-              <div className="text-[11px] font-medium text-stone-500">Released to Vendors</div>
-              <div className="text-xl sm:text-2xl font-bold font-sans tracking-tight text-stone-900 mt-1 tabular-nums">
-                {id === 1 ? "1.20 ETH" : id === 2 ? "0.00 ETH" : "0.80 ETH"}
+            <div className="p-5 rounded-2xl bg-black/60 border border-stone-800 space-y-1">
+              <div className="text-[10px] font-mono font-bold tracking-widest uppercase text-stone-400">
+                Released to Vendors
+              </div>
+              <div className="text-3xl sm:text-4xl font-black font-bebas text-white leading-none">
+                {id === 1 ? "1.20" : id === 2 ? "0.00" : "0.80"}{" "}
+                <span className="text-lg font-bold text-stone-400">ETH</span>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200/80">
-              <div className="text-[11px] font-medium text-stone-500">Remaining in Escrow</div>
-              <div className="text-xl sm:text-2xl font-bold font-sans tracking-tight text-stone-900 mt-1 tabular-nums">
-                {id === 1 ? "2.00 ETH" : id === 2 ? "0.00 ETH" : "0.20 ETH"}
+            <div className="p-5 rounded-2xl bg-black/60 border border-stone-800 space-y-1">
+              <div className="text-[10px] font-mono font-bold tracking-widest uppercase text-stone-400">
+                Remaining in Escrow
+              </div>
+              <div className="text-3xl sm:text-4xl font-black font-bebas text-[#FED74C] leading-none">
+                {id === 1 ? "2.00" : id === 2 ? "0.00" : "0.20"}{" "}
+                <span className="text-lg font-bold text-stone-400">ETH</span>
               </div>
             </div>
           </div>
@@ -180,8 +196,10 @@ export default function CampaignDetailPage() {
               </div>
 
               <div className="text-left sm:text-right">
-                <div className="text-xl font-bold font-sans tracking-tight text-stone-900 tabular-nums">1.20 ETH</div>
-                <div className="text-[11px] font-mono text-stone-500">Recipient: 0x976E...0aa9</div>
+                <div className="text-2xl sm:text-3xl font-black font-bebas text-stone-900 leading-none">
+                  1.20 <span className="text-base font-bold text-stone-500">ETH</span>
+                </div>
+                <div className="text-[11px] font-mono text-stone-500 mt-1">Recipient: 0x976E...0aa9</div>
               </div>
             </div>
 
@@ -206,84 +224,86 @@ export default function CampaignDetailPage() {
             </div>
           </div>
 
-          {/* Request #02: Live Voting Card (Senior Developer Layout) */}
-          <div className="bg-[#141613] rounded-2xl p-6 sm:p-8 text-white shadow-xl space-y-6 border border-stone-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-stone-800">
+          {/* Request #02: Live Voting Card (Clean Developer Card) */}
+          <div className="bg-white rounded-2xl p-6 sm:p-8 text-stone-900 shadow-sm space-y-6 border border-stone-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-stone-200">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/30 text-xs font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-xs font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                     Active Request #02 · Voting Open
                   </span>
-                  <span className="text-xs text-stone-400 font-mono">30-Min Window</span>
+                  <span className="text-xs text-stone-500 font-mono">30-Min Window</span>
                 </div>
-                <h3 className="text-lg sm:text-xl font-bold text-white mt-2 leading-snug">
+                <h3 className="text-lg sm:text-xl font-bold text-stone-900 mt-2 leading-snug">
                   Solar Battery Inverters &amp; Laboratory Workbenches
                 </h3>
               </div>
 
               <div className="text-left sm:text-right">
-                <div className="text-2xl font-bold font-sans tracking-tight text-white tabular-nums">0.50 ETH</div>
-                <div className="text-xs font-mono text-stone-400">Vendor: 0x14dC...9955</div>
+                <div className="text-2xl sm:text-3xl font-black font-bebas text-stone-900 leading-none">
+                  0.50 <span className="text-base font-bold text-stone-500">ETH</span>
+                </div>
+                <div className="text-xs font-mono text-stone-500 mt-1">Vendor: 0x14dC...9955</div>
               </div>
             </div>
 
             {/* Voting Bar & Threshold Meter */}
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-mono">
-                <span className="text-stone-400">Current Approval Weight:</span>
-                <span className="text-stone-300">
-                  <strong className={isApproved ? "text-emerald-400 font-bold" : "text-white font-bold"}>
+                <span className="text-stone-500">Current Approval Weight:</span>
+                <span className="text-stone-700">
+                  <strong className={isApproved ? "text-emerald-700 font-bold" : "text-stone-900 font-bold"}>
                     {currentWeight.toFixed(1)}%
                   </strong>{" "}
                   / 50.0% Required Threshold
                 </span>
               </div>
 
-              <div className="w-full bg-stone-800/80 rounded-full h-2 relative overflow-hidden border border-stone-700/50">
+              <div className="w-full bg-stone-100 rounded-full h-2 relative overflow-hidden border border-stone-200">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
-                    isApproved ? "bg-emerald-500" : "bg-[#FF5023]"
+                    isApproved ? "bg-emerald-600" : "bg-[#FF5023]"
                   }`}
                   style={{ width: `${Math.min(currentWeight, 100)}%` }}
                 />
                 {/* 50% marker line */}
-                <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/80" />
+                <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-stone-400" />
               </div>
             </div>
 
             {/* Live Voting Cards for Alice & Bob */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              <div className="p-4 rounded-xl bg-stone-900/90 border border-stone-800 flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between">
                 <div>
-                  <div className="font-semibold text-sm text-white">Alice (Donor)</div>
-                  <div className="text-xs text-stone-400 mt-0.5">Donated 1.50 ETH · 46.9% Weight</div>
+                  <div className="font-semibold text-sm text-stone-900">Alice (Donor)</div>
+                  <div className="text-xs text-stone-500 mt-0.5">Donated 1.50 ETH · 46.9% Weight</div>
                 </div>
                 <button
                   onClick={() => setAliceVoted(!aliceVoted)}
                   disabled={requestReleased}
                   className={`py-1.5 px-3.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                     aliceVoted
-                      ? "bg-emerald-600 border border-emerald-500 text-white"
-                      : "bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200"
+                      ? "bg-emerald-600 border border-emerald-600 text-white"
+                      : "bg-white hover:bg-stone-100 border border-stone-300 text-stone-800"
                   }`}
                 >
                   {aliceVoted ? "✓ Approved" : "Vote Alice"}
                 </button>
               </div>
 
-              <div className="p-4 rounded-xl bg-stone-900/90 border border-stone-800 flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between">
                 <div>
-                  <div className="font-semibold text-sm text-white">Bob (Donor)</div>
-                  <div className="text-xs text-stone-400 mt-0.5">Donated 1.00 ETH · 31.3% Weight</div>
+                  <div className="font-semibold text-sm text-stone-900">Bob (Donor)</div>
+                  <div className="text-xs text-stone-500 mt-0.5">Donated 1.00 ETH · 31.3% Weight</div>
                 </div>
                 <button
                   onClick={() => setBobVoted(!bobVoted)}
                   disabled={requestReleased}
                   className={`py-1.5 px-3.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                     bobVoted
-                      ? "bg-emerald-600 border border-emerald-500 text-white"
-                      : "bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200"
+                      ? "bg-emerald-600 border border-emerald-600 text-white"
+                      : "bg-white hover:bg-stone-100 border border-stone-300 text-stone-800"
                   }`}
                 >
                   {bobVoted ? "✓ Approved" : "Vote Bob"}
@@ -292,9 +312,9 @@ export default function CampaignDetailPage() {
             </div>
 
             {/* Controlled Release Execution Button */}
-            <div className="pt-4 border-t border-stone-800">
+            <div className="pt-4 border-t border-stone-200">
               {requestReleased ? (
-                <div className="p-4 rounded-xl bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 text-xs font-medium text-center">
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium text-center">
                   ✓ 0.50 ETH Transferred Directly to Vendor (0x14dC...9955). Proof submission window activated.
                 </div>
               ) : (
@@ -303,8 +323,8 @@ export default function CampaignDetailPage() {
                   disabled={!isApproved}
                   className={`w-full py-3.5 px-6 rounded-xl font-semibold text-xs uppercase tracking-wider transition-colors ${
                     isApproved
-                      ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md cursor-pointer"
-                      : "bg-stone-800/80 text-stone-500 border border-stone-800 cursor-not-allowed"
+                      ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm cursor-pointer"
+                      : "bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed"
                   }`}
                 >
                   {isApproved ? "Execute Controlled Release (0.50 ETH)" : "Locked: Requires >50% Contributor Approval"}

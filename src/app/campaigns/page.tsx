@@ -79,50 +79,61 @@ export default function CampaignsPage() {
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-6 sm:px-12 pt-14 sm:pt-20">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-8 border-b border-stone-300">
-          <div>
-            <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5023]">
-              ON-CHAIN AUDITED DIRECTORY
-            </span>
-            <h1 className="text-4xl sm:text-6xl font-black font-bebas uppercase leading-none text-[#141414] mt-1">
-              EXPLORE CAMPAIGNS
-            </h1>
-          </div>
+      <main className="max-w-7xl mx-auto px-6 sm:px-12 pt-8 pb-16">
+        
+        {/* Colorful Editorial Hero Banner (FinFLO Theme) */}
+        <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-8 border border-stone-800">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-3 py-1 rounded-md bg-[#FF5023] text-white font-mono text-[10px] font-bold uppercase tracking-widest">
+                  ON-CHAIN DIRECTORY
+                </span>
+                <span className="px-3 py-1 rounded-md bg-[#FED74C] text-stone-950 font-mono text-[10px] font-black uppercase tracking-wider">
+                  VERIFIED AUDITS
+                </span>
+              </div>
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black font-bebas uppercase leading-[0.88] tracking-tight text-white">
+                EXPLORE CAMPAIGNS
+              </h1>
+              <p className="text-xs sm:text-sm text-stone-300 max-w-xl leading-relaxed">
+                Discover transparent fundraising initiatives with milestone-based escrow release and cryptographically verified expense receipts.
+              </p>
+            </div>
 
-          {/* Filter Control: Segmented Developer Tab Bar */}
-          <div className="inline-flex p-1 rounded-xl bg-stone-200/70 border border-stone-300/80 gap-1">
-            <button
-              onClick={() => setFilter("all")}
-              className={`py-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all ${
-                filter === "all"
-                  ? "bg-white text-stone-900 shadow-xs"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              All ({CAMPAIGNS_DATA.length})
-            </button>
-            <button
-              onClick={() => setFilter("verified")}
-              className={`py-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all ${
-                filter === "verified"
-                  ? "bg-white text-stone-900 shadow-xs"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              Verified
-            </button>
-            <button
-              onClick={() => setFilter("pending")}
-              className={`py-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all ${
-                filter === "pending"
-                  ? "bg-white text-stone-900 shadow-xs"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              Pending Audit
-            </button>
+            {/* Filter Control: High-Contrast Segmented Bar */}
+            <div className="inline-flex p-1.5 rounded-2xl bg-black/60 border border-stone-800 gap-1.5 self-start lg:self-center">
+              <button
+                onClick={() => setFilter("all")}
+                className={`py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  filter === "all"
+                    ? "bg-[#FF5023] text-white shadow-md"
+                    : "text-stone-300 hover:text-white"
+                }`}
+              >
+                All ({CAMPAIGNS_DATA.length})
+              </button>
+              <button
+                onClick={() => setFilter("verified")}
+                className={`py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  filter === "verified"
+                    ? "bg-[#FF5023] text-white shadow-md"
+                    : "text-stone-300 hover:text-white"
+                }`}
+              >
+                Verified
+              </button>
+              <button
+                onClick={() => setFilter("pending")}
+                className={`py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  filter === "pending"
+                    ? "bg-[#FF5023] text-white shadow-md"
+                    : "text-stone-300 hover:text-white"
+                }`}
+              >
+                Pending Audit
+              </button>
+            </div>
           </div>
         </div>
 
@@ -173,27 +184,32 @@ export default function CampaignsPage() {
                   </p>
                 </div>
 
-                {/* Financial Metrics (Clean Senior Developer Layout) */}
+                {/* Financial Metrics (FinFLO Editorial Style) */}
                 <div className="space-y-3 pt-2">
-                  <div className="flex items-baseline justify-between">
+                  <div className="flex items-end justify-between">
                     <div>
-                      <span className="text-xl font-bold tracking-tight text-stone-900 font-sans tabular-nums">
-                        {campaign.raisedEth.toFixed(2)} ETH
-                      </span>
-                      <span className="text-xs text-stone-500 ml-1.5 font-normal">
-                        raised of {campaign.goalEth.toFixed(2)} ETH
-                      </span>
+                      <div className="text-[10px] font-mono font-bold tracking-widest uppercase text-stone-500">
+                        TOTAL RAISED
+                      </div>
+                      <div className="text-3xl sm:text-4xl font-black font-bebas text-stone-900 leading-none tracking-wide mt-0.5">
+                        {campaign.raisedEth.toFixed(2)} <span className="text-lg font-bold text-stone-500">ETH</span>
+                      </div>
                     </div>
-                    <span className="text-xs font-semibold text-stone-700 tabular-nums font-mono">
-                      {pct}%
-                    </span>
+                    <div className="text-right">
+                      <div className="text-[10px] font-mono font-bold tracking-widest uppercase text-stone-500">
+                        TARGET GOAL
+                      </div>
+                      <div className="text-xl font-black font-bebas text-stone-700 leading-none tracking-wide mt-0.5">
+                        {campaign.goalEth.toFixed(2)} ETH
+                      </div>
+                    </div>
                   </div>
 
                   {/* Sleek Minimal Progress Track */}
-                  <div className="w-full bg-stone-100 rounded-full h-1.5 overflow-hidden border border-stone-200/60">
+                  <div className="w-full bg-stone-200/70 rounded-full h-2 overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        campaign.status === "PROOF_OVERDUE" ? "bg-rose-500" : "bg-stone-900"
+                        campaign.status === "PROOF_OVERDUE" ? "bg-rose-500" : "bg-[#FF5023]"
                       }`}
                       style={{ width: `${Math.min(pct, 100)}%` }}
                     />
@@ -201,13 +217,13 @@ export default function CampaignsPage() {
 
                   {/* Accounting Escrow Breakdown */}
                   <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
-                    <div className="bg-stone-50 p-2.5 rounded-lg border border-stone-200/60">
-                      <span className="text-[10px] uppercase font-medium tracking-wider text-stone-400 block">In Escrow</span>
-                      <span className="font-semibold text-stone-800 tabular-nums">{campaign.balanceEth.toFixed(2)} ETH</span>
+                    <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/70">
+                      <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-stone-400 block">In Escrow</span>
+                      <span className="text-base font-black font-bebas text-stone-800 tracking-wide">{campaign.balanceEth.toFixed(2)} ETH</span>
                     </div>
-                    <div className="bg-stone-50 p-2.5 rounded-lg border border-stone-200/60">
-                      <span className="text-[10px] uppercase font-medium tracking-wider text-stone-400 block">Released</span>
-                      <span className="font-semibold text-stone-800 tabular-nums">{campaign.releasedEth.toFixed(2)} ETH</span>
+                    <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/70">
+                      <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-stone-400 block">Released</span>
+                      <span className="text-base font-black font-bebas text-stone-800 tracking-wide">{campaign.releasedEth.toFixed(2)} ETH</span>
                     </div>
                   </div>
                 </div>
@@ -216,13 +232,13 @@ export default function CampaignsPage() {
                 <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
                   <Link
                     href={`/campaigns/${campaign.id}`}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-stone-900 hover:bg-black text-white text-center font-semibold text-xs transition-colors shadow-xs"
+                    className="flex-1 py-3 px-4 rounded-xl bg-[#181816] hover:bg-black text-white text-center font-bold text-xs uppercase tracking-wider transition-colors shadow-sm"
                   >
                     View Campaign
                   </Link>
                   <Link
                     href={`/campaigns/${campaign.id}/ledger`}
-                    className="py-2.5 px-4 rounded-xl bg-white hover:bg-stone-50 text-stone-700 text-center font-mono font-semibold text-xs transition-colors border border-stone-200 shadow-xs"
+                    className="py-3 px-4 rounded-xl bg-white hover:bg-stone-50 text-stone-800 text-center font-mono font-bold text-xs uppercase tracking-wider transition-colors border border-stone-300 shadow-xs"
                     title="Inspect Public Ledger"
                   >
                     Ledger

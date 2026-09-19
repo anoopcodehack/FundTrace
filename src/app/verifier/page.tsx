@@ -23,19 +23,40 @@ export default function VerifierPortalPage() {
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
       <Navbar />
 
-      <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-14 sm:pt-20">
+      <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-8 pb-16">
         
-        {/* Header */}
-        <div className="pb-8 border-b border-stone-300">
-          <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5023]">
-            INSTITUTIONAL AUDIT PORTAL
-          </span>
-          <h1 className="text-4xl sm:text-6xl font-black font-bebas uppercase leading-none text-[#141414] mt-1">
-            VERIFIER DASHBOARD
-          </h1>
-          <p className="text-xs sm:text-sm text-stone-600 mt-2">
-            Independent institutional review. Verified campaigns are cryptographically unlocked to accept contributor donations.
-          </p>
+        {/* Colorful Editorial Hero Banner (FinFLO Theme) */}
+        <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-8 border border-stone-800">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-3 py-1 rounded-md bg-[#FF5023] text-white font-mono text-[10px] font-bold uppercase tracking-widest">
+                  INSTITUTIONAL PORTAL
+                </span>
+                <span className="px-3 py-1 rounded-md bg-[#FED74C] text-stone-950 font-mono text-[10px] font-black uppercase tracking-wider">
+                  AUDITOR SIGN-OFF
+                </span>
+              </div>
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black font-bebas uppercase leading-[0.88] tracking-tight text-white">
+                VERIFIER DASHBOARD
+              </h1>
+              <p className="text-xs sm:text-sm text-stone-300 max-w-xl leading-relaxed">
+                Independent institutional review. Verified campaigns are cryptographically unlocked to accept contributor donations.
+              </p>
+            </div>
+
+            <div className="hidden lg:flex flex-col items-end border-l border-stone-800 pl-8 space-y-1">
+              <span className="text-[10px] font-mono uppercase text-stone-400 font-bold tracking-widest">
+                VERIFIER ROLE
+              </span>
+              <span className="text-3xl font-black font-bebas text-[#FF5023] tracking-wide">
+                GATED AUTHORITY
+              </span>
+              <span className="text-xs font-mono text-emerald-400 font-semibold">
+                ● 0x3C44...93BC
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Warning if connected account is not verifier */}
@@ -90,10 +111,13 @@ export default function VerifierPortalPage() {
               </div>
 
               <div className="text-left sm:text-right">
-                <div className="text-xl font-bold font-sans tracking-tight text-stone-900 tabular-nums">
-                  Target: 5.00 ETH
+                <div className="text-[10px] font-mono font-bold tracking-widest uppercase text-stone-500">
+                  Target Goal
                 </div>
-                <div className="text-xs font-mono text-stone-500">Duration: 30 Days</div>
+                <div className="text-2xl sm:text-3xl font-black font-bebas text-stone-900 leading-none mt-0.5">
+                  5.00 <span className="text-base font-bold text-stone-500">ETH</span>
+                </div>
+                <div className="text-xs font-mono text-stone-500 mt-1">Duration: 30 Days</div>
               </div>
             </div>
 

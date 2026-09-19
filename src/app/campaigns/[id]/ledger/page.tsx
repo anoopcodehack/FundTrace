@@ -118,20 +118,38 @@ export default function CampaignLedgerPage() {
           <span className="text-stone-900">Public Audit Ledger</span>
         </div>
 
-        {/* Ledger Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-8 border-b border-stone-300">
-          <div>
-            <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5023]">
-              PUBLIC VERIFIABILITY · ZERO LOGIN REQUIRED
-            </span>
-            <h1 className="text-4xl sm:text-6xl font-black font-bebas uppercase leading-none text-[#141414] mt-1">
-              CAMPAIGN #{id} EVENT LEDGER
-            </h1>
-          </div>
+        {/* Colorful Editorial Hero Banner (FinFLO Theme) */}
+        <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-8 border border-stone-800">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-3 py-1 rounded-md bg-[#FF5023] text-white font-mono text-[10px] font-bold uppercase tracking-widest">
+                  PUBLIC VERIFIABILITY
+                </span>
+                <span className="px-3 py-1 rounded-md bg-[#FED74C] text-stone-950 font-mono text-[10px] font-black uppercase tracking-wider">
+                  ZERO LOGIN REQUIRED
+                </span>
+              </div>
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black font-bebas uppercase leading-[0.88] tracking-tight text-white">
+                CAMPAIGN #{id} EVENT LEDGER
+              </h1>
+              <p className="text-xs sm:text-sm text-stone-300 max-w-xl leading-relaxed">
+                Immutable chronological event log emitted by the FundTrace smart contract on Ethereum node.
+              </p>
+            </div>
 
-          <span className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-mono font-medium">
-            Contract Event Feed · Chain ID 31337
-          </span>
+            <div className="hidden lg:flex flex-col items-end border-l border-stone-800 pl-8 space-y-1">
+              <span className="text-[10px] font-mono uppercase text-stone-400 font-bold tracking-widest">
+                CHAIN NETWORK
+              </span>
+              <span className="text-3xl font-black font-bebas text-[#FF5023] tracking-wide">
+                CHAIN ID 31337
+              </span>
+              <span className="text-xs font-mono text-emerald-400 font-semibold">
+                ● Live Contract Feed
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Immutable Audit Ledger Table */}
