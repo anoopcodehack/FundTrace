@@ -31,6 +31,18 @@ export default function CampaignDetailPage() {
   const [isDormantSimulated, setIsDormantSimulated] = useState(false);
   const [dormancyRefundClaimed, setDormancyRefundClaimed] = useState(false);
 
+  // Shareable Audit Link state
+  const [copiedAuditLink, setCopiedAuditLink] = useState(false);
+
+  function handleCopyAuditLink() {
+    if (typeof window !== "undefined") {
+      const url = `${window.location.origin}/campaigns/${id}/ledger`;
+      navigator.clipboard.writeText(url);
+      setCopiedAuditLink(true);
+      setTimeout(() => setCopiedAuditLink(false), 2500);
+    }
+  }
+
   // Voting calculation
   const currentWeight = (aliceVoted ? 46.9 : 0) + (bobVoted ? 31.3 : 0);
   const isApproved = currentWeight > 50.0;
@@ -121,13 +133,35 @@ export default function CampaignDetailPage() {
               </h1>
             </div>
 
-            <Link
-              href={`/campaigns/${id}/ledger`}
-              className="py-2.5 px-5 rounded-full bg-white hover:bg-stone-100 text-stone-950 text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg self-start transition-all cursor-pointer"
-            >
-              <span>Inspect Public Ledger</span>
-              <span>→</span>
-            </Link>
+            <div className="flex flex-wrap items-center gap-3 self-start">
+              <button
+                onClick={handleCopyAuditLink}
+                className="py-2.5 px-4 rounded-full bg-white/10 hover:bg-white/20 text-stone-200 border border-white/20 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-sm"
+              >
+                {copiedAuditLink ? (
+                  <>
+                    <span className="text-emerald-400 font-bold">✓</span>
+                    <span className="text-emerald-300">Link Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-stone-300">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    <span>Copy Audit Link</span>
+                  </>
+                )}
+              </button>
+
+              <Link
+                href={`/campaigns/${id}/ledger`}
+                className="py-2.5 px-5 rounded-full bg-white hover:bg-stone-100 text-stone-950 text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all cursor-pointer"
+              >
+                <span>Inspect Public Ledger</span>
+                <span>→</span>
+              </Link>
+            </div>
           </div>
 
           {/* Financial Metrics Summary Cards */}
