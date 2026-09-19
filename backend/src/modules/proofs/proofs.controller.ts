@@ -6,12 +6,10 @@ import {
   Body,
   UploadedFile,
   UseInterceptors,
-  Res,
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiOperation, ApiTags, ApiBody } from '@nestjs/swagger';
-import { Response } from 'express';
 import { ProofsService } from './proofs.service';
 
 @ApiTags('Proofs & Quotes')
@@ -19,38 +17,38 @@ import { ProofsService } from './proofs.service';
 export class ProofsController {
   constructor(private readonly proofsService: ProofsService) {}
 
-  @Post('upload-quote')
-  @ApiOperation({ summary: 'Upload spending estimate quote PDF and return requestHash' })
+  @Post('upload')
+  @ApiOperation({ summary: 'Upload document proof to Supabase Storage and PostgreSQL' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
         file: { type: 'string', format: 'binary' },
+        campaignId: { type: 'number' },
+        requestId: { type: 'number' },
+        documentType: { type: 'string' },
       },
     },
   })
   @UseInterceptors(FileInterceptor('file'))
-  async uploadQuote(@UploadedFile() file: Express.Multer.File) {
+  async uploadDocument(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('campaignId') campaignId: string,
+    @Body('requestId') requestId: string,
+    @Body('documentType') documentType: 'quote' | 'invoice_original' | 'invoice_tampered' | 'receipt'
+  ) {
     if (!file) throw new BadRequestException('File is required');
-    return this.proofsService.saveFile(file, 'quote');
-  }
+    if (!campaignId || !requestId || !documentType) {
+      throw new BadRequestException('campaignId, requestId, and documentType are required');
+    }
 
-  @Post('upload-receipt')
-  @ApiOperation({ summary: 'Upload expenditure invoice/receipt PDF and return receiptHash' })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        file: { type: 'string', format: 'binary' },
-      },
-    },
-  })
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadReceipt(@UploadedFile() file: Express.Multer.File) {
-    if (!file) throw new BadRequestException('File is required');
-    return this.proofsService.saveFile(file, 'receipt');
+    return this.proofsService.saveFile(
+      file,
+      Number(campaignId),
+      Number(requestId),
+      documentType
+    );
   }
 
   @Post('verify')
@@ -73,21 +71,16 @@ export class ProofsController {
     if (!file) throw new BadRequestException('File is required');
     if (!expectedHash) throw new BadRequestException('expectedHash is required');
 
-    const calculatedHash = this.proofsService.computeKeccak256(file.buffer);
-    const matches = this.proofsService.verifyHash(calculatedHash, expectedHash);
-
-    return {
-      matches,
-      calculatedHash,
-      expectedHash,
-      status: matches ? 'MATCH - Document is untampered' : 'MISMATCH - Document does not match on-chain record',
-    };
+    return this.proofsService.verifyCandidateFileHash(file.buffer, expectedHash);
   }
 
-  @Get('download/:filename')
-  @ApiOperation({ summary: 'Download stored quote or receipt document' })
-  downloadFile(@Param('filename') filename: string, @Res() res: Response) {
-    const filePath = this.proofsService.getFilePath(filename);
-    res.sendFile(filePath);
+  @Get(':campaignId/:requestId/:documentType')
+  @ApiOperation({ summary: 'Get stored proof document metadata' })
+  async getDocument(
+    @Param('campaignId') campaignId: string,
+    @Param('requestId') requestId: string,
+    @Param('documentType') documentType: string
+  ) {
+    return this.proofsService.getProofDocument(Number(campaignId), Number(requestId), documentType);
   }
 }

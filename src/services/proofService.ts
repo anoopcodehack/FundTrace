@@ -1,13 +1,6 @@
-import { getSupabaseClient, isSupabaseConfigured, STORAGE_BUCKET } from "../lib/supabase";
-import { computeFileKeccak256, verifyHashMatch } from "../lib/canonical";
 import { ProofDocumentRecord, IntegrityVerificationResult } from "../types";
 
-// In-memory document fallback store for hackathon resilience
-const memoryDocuments = new Map<string, ProofDocumentRecord>();
-
-function getDocKey(campaignId: number, requestId: number, docType: string): string {
-  return `${campaignId}-${requestId}-${docType}`;
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export async function storeProofDocument(params: {
   campaignId: number;
@@ -18,60 +11,38 @@ export async function storeProofDocument(params: {
   fileBuffer: Buffer | Uint8Array;
   isTamperedDemo?: boolean;
 }): Promise<ProofDocumentRecord> {
-  const fileHash = computeFileKeccak256(params.fileBuffer);
-  const base64Content = Buffer.from(params.fileBuffer).toString("base64");
-  const storagePath = `${params.campaignId}/${params.requestId}/${params.fileName}`;
+  const formData = new FormData();
+  
+  // Convert buffer to Blob for FormData
+  const blob = new Blob([params.fileBuffer], { type: params.mimeType || "application/pdf" });
+  formData.append('file', blob, params.fileName);
+  formData.append('campaignId', params.campaignId.toString());
+  formData.append('requestId', params.requestId.toString());
+  formData.append('documentType', params.documentType);
 
-  const record: ProofDocumentRecord = {
+  const response = await fetch(`${API_URL}/proofs/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to upload proof document');
+  }
+
+  const result = await response.json();
+  
+  return {
     campaignId: params.campaignId,
     requestId: params.requestId,
     documentType: params.documentType,
-    fileName: params.fileName,
-    mimeType: params.mimeType || "application/pdf",
-    fileSizeBytes: params.fileBuffer.length,
-    fileHash,
-    fileContentBase64: base64Content,
-    storagePath,
+    fileName: result.filename,
+    mimeType: result.mimeType,
+    fileSizeBytes: result.size,
+    fileHash: result.hash,
+    storagePath: result.storagePath,
     uploadedAt: new Date().toISOString(),
     isTamperedDemo: params.isTamperedDemo || false,
   };
-
-  const key = getDocKey(params.campaignId, params.requestId, params.documentType);
-  memoryDocuments.set(key, record);
-
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = getSupabaseClient();
-
-      // 1. Upload untouched bytes to Supabase Storage
-      await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(storagePath, params.fileBuffer, {
-          contentType: params.mimeType || "application/pdf",
-          upsert: true,
-        });
-
-      // 2. Upsert metadata record in Supabase PostgreSQL
-      await supabase.from("proof_documents").upsert(
-        {
-          campaign_id: params.campaignId,
-          request_id: params.requestId,
-          document_type: params.documentType,
-          file_name: params.fileName,
-          mime_type: params.mimeType || "application/pdf",
-          file_size_bytes: params.fileBuffer.length,
-          file_hash: fileHash,
-          storage_path: storagePath,
-          uploaded_at: new Date().toISOString(),
-        },
-        { onConflict: "campaign_id,request_id,document_type" }
-      );
-    } catch (e) {
-      console.warn("Supabase document save fallback:", e);
-    }
-  }
-
-  return record;
 }
 
 export async function getProofDocument(
@@ -79,58 +50,71 @@ export async function getProofDocument(
   requestId: number,
   documentType: "quote" | "invoice_original" | "invoice_tampered" | "receipt"
 ): Promise<ProofDocumentRecord | null> {
-  const key = getDocKey(campaignId, requestId, documentType);
-
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = getSupabaseClient();
-      const { data, error } = await supabase
-        .from("proof_documents")
-        .select("*")
-        .eq("campaign_id", campaignId)
-        .eq("request_id", requestId)
-        .eq("document_type", documentType)
-        .single();
-
-      if (data && !error) {
-        return {
-          campaignId: data.campaign_id,
-          requestId: data.request_id,
-          documentType: data.document_type as any,
-          fileName: data.file_name,
-          mimeType: data.mime_type,
-          fileSizeBytes: data.file_size_bytes,
-          fileHash: data.file_hash,
-          storagePath: data.storage_path,
-          uploadedAt: data.uploaded_at,
-        };
-      }
-    } catch (e) {
-      console.warn("Supabase document get fallback:", e);
+  try {
+    const response = await fetch(`${API_URL}/proofs/${campaignId}/${requestId}/${documentType}`);
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error('Failed to fetch proof document metadata');
     }
-  }
 
-  return memoryDocuments.get(key) || null;
+    const data = await response.json();
+    return {
+      campaignId: data.campaign_id,
+      requestId: data.request_id,
+      documentType: data.document_type as any,
+      fileName: data.file_name,
+      mimeType: data.mime_type,
+      fileSizeBytes: data.file_size_bytes,
+      fileHash: data.file_hash,
+      storagePath: data.storage_path,
+      uploadedAt: data.uploaded_at,
+    };
+  } catch (error) {
+    console.error("Error fetching proof document:", error);
+    return null;
+  }
 }
 
 /**
  * Validates a candidate uploaded file against an on-chain committed receipt hash.
  */
-export function verifyCandidateFileHash(
+export async function verifyCandidateFileHash(
   candidateBuffer: Buffer | Uint8Array,
   onChainHash: string
-): IntegrityVerificationResult {
-  const computedHash = computeFileKeccak256(candidateBuffer);
-  const { isMatch } = verifyHashMatch(onChainHash, computedHash);
+): Promise<IntegrityVerificationResult> {
+  try {
+    const formData = new FormData();
+    const blob = new Blob([candidateBuffer]);
+    formData.append('file', blob, 'candidate');
+    formData.append('expectedHash', onChainHash);
 
-  return {
-    target: "receipt_proof",
-    onChainHash,
-    computedHash,
-    isMatch,
-    status: isMatch ? "TAMPER_FREE" : "TAMPER_DETECTED",
-    details: isMatch
-      ? "MATCH: File is 100% authentic and unaltered from the receipt committed on-chain."
-      : "VERIFICATION FAILED: Cryptographic hash mismatch. Document has been modified, tampered with, or replaced!",
-  };
+    const response = await fetch(`${API_URL}/proofs/verify`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to verify document hash');
+    }
+
+    const result = await response.json();
+
+    return {
+      target: "receipt_proof",
+      onChainHash,
+      computedHash: result.computedHash,
+      isMatch: result.isMatch,
+      status: result.status,
+      details: result.details,
+    };
+  } catch (error) {
+    return {
+      target: "receipt_proof",
+      onChainHash,
+      computedHash: "",
+      isMatch: false,
+      status: "TAMPER_DETECTED",
+      details: "Verification failed to communicate with backend.",
+    };
+  }
 }

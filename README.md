@@ -140,18 +140,41 @@ A request is **open** while it is `PENDING`, `APPROVED`, or `RELEASED` without p
 
 ## Architecture
 
-```mermaid
-flowchart TB
-    FE["Frontend<br/>Next.js + Tailwind + ethers.js"] --> WAL["MetaMask or demo wallet"]
-    WAL --> SC["FundLedger.sol<br/>campaigns, donations, votes, releases, hashes, events"]
-    FE --> API["NestJS API<br/>content, uploads, event indexer"]
-    API --> DB["Supabase<br/>PostgreSQL + Storage<br/>campaign content, cached events, original proof files"]
-    SC -->|"events indexed for caching"| API
-    SC -->|"contract events"| LEDGER["Public ledger<br/>no login required"]
-    FE --> LEDGER
+```text
+                   FUNDTRACE
+               Next.js Frontend
+                      │
+            ┌─────────┴─────────┐
+            ↓                   ↓
+         MetaMask             NestJS
+       User Wallet         Backend / API
+            │                   │
+            │       ┌───────────┼───────────┐
+            │       ↓           ↓           ↓
+            │    Supabase    Business   Blockchain
+            │   PostgreSQL    Logic       Service
+            │    Storage                 ethers.js
+            │                               │
+            └───────────────┬───────────────┘
+                            ↓
+                    Solidity Contract
 ```
 
 **Blockchain is the financial source of truth.** The contract holds money, authorization, votes, deadlines and hashes. The NestJS backend and Supabase only handle presentation data (title, story, images, original receipt files) and a cache of contract events, and anything important in them is committed on-chain by hash. The backend cannot move funds or change on-chain state, and the public ledger can be checked directly against the chain even if the backend is unavailable.
+
+### Why Both Frontend and Backend Connect to the Blockchain
+
+In FundTrace, both the client and server communicate with the Ethereum blockchain, but for fundamentally different purposes:
+
+| Responsibility | Frontend (MetaMask / Client) | Backend (NestJS + ethers.js) |
+|---|---|---|
+| **Connection Type** | Signer (MetaMask browser extension) | Read-Only Provider (`JsonRpcProvider`) |
+| **Private Keys & Custody** | Stored securely in user's browser (non-custodial) | **None** (backend never holds private keys or funds) |
+| **Operations** | **Write / State Transitions**: `donate()`, `createCampaign()`, `approveRequest()`, `release()` | **Read-Only / Verification**: `metadataHash` / `receiptHash` verification, event caching |
+| **Gas Costs** | Paid by the user in ETH | **Zero gas** (free off-chain RPC calls) |
+
+- **Frontend (Write & Authorization):** Users maintain full custody of their funds. Any action that transfers ETH or changes contract state must be signed and authorized directly by the user's wallet via MetaMask.
+- **Backend (Read & Tamper-Proof Verification):** The NestJS backend uses a read-only RPC provider to read on-chain anchor hashes (`metadataHash`, `receiptHash`) and compare them against off-chain records stored in Supabase. This guarantees that data served to users has not been altered or tampered with in the database. It also indexes blockchain events for rapid search, dashboard aggregation, and sorting without putting heavy query loads on the RPC node.
 
 ## How Each Technology Is Used
 
@@ -317,8 +340,8 @@ fundtrace/
 ├── test/           Hardhat tests
 ├── scripts/        deploy, demo:reset, demo:live
 ├── deployments/    deployed address and block per network
-├── api/            NestJS backend (Swagger, uploads, event indexer)
-├── web/            Next.js frontend
+├── backend/        NestJS backend (Swagger, uploads, event indexer)
+├── src/            Next.js frontend services and UI
 └── demo-files/     quotes, invoices, tampered invoice
 ```
 
@@ -352,7 +375,7 @@ npx hardhat node
 npm run demo:reset
 
 # Terminal 3: NestJS API
-npm run api:dev
+npm run backend:dev
 
 # Terminal 4: web app
 npm run dev
@@ -375,7 +398,7 @@ Have Sepolia test ETH ready before the event; faucets can be slow. Test event qu
 | `npx hardhat test` | Run the contract test suite |
 | `npm run demo:reset` | Reset the local chain and the Supabase demo data (tables and storage), deploy, seed campaigns (with matching `metadataHash`), donations, requests and proof files, write deployment info. Requires `npx hardhat node` to be running |
 | `npm run demo:live` | Create the live spending request with a fresh 10+ minute voting window |
-| `npm run api:dev` | Start the NestJS API |
+| `npm run backend:dev` | Start the NestJS API |
 | `npm run dev` | Start the Next.js app |
 
 ## Demo Walkthrough
