@@ -8,36 +8,11 @@ import { CreateCampaignDto } from './dto/create-campaign.dto';
 @Injectable()
 export class CampaignsService {
   private readonly logger = new Logger(CampaignsService.name);
-  private inMemoryCampaigns = new Map<number, any>();
 
   constructor(
     @Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient,
     private readonly blockchainService: BlockchainService
-  ) {
-    this.seedDefaultDemoCampaign();
-  }
-
-  private seedDefaultDemoCampaign() {
-    const demoPayload = {
-      title: 'Build Rural STEM Lab',
-      story: 'Equipping 10 rural schools with robotics starter kits, sensors, and microcontrollers.',
-      category: 'Education',
-      location: 'Rural District',
-    };
-    const metadataHash = computeCanonicalMetadataHash(demoPayload);
-    const demoCampaign = {
-      on_chain_id: 1,
-      title: demoPayload.title,
-      story: demoPayload.story,
-      category: demoPayload.category,
-      location: demoPayload.location,
-      canonical_hash: metadataHash,
-      cover_image_url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    this.inMemoryCampaigns.set(1, demoCampaign);
-  }
+  ) {}
 
   async create(createDto: CreateCampaignDto) {
     const canonicalHash = computeCanonicalMetadataHash({
@@ -47,7 +22,7 @@ export class CampaignsService {
       location: createDto.location || 'Global',
     });
 
-    const campaignData = {
+    const campaignData: any = {
       on_chain_id: createDto.onChainId,
       title: createDto.title,
       tagline: '', // Next.js payload sometimes includes this
@@ -59,47 +34,53 @@ export class CampaignsService {
       updated_at: new Date().toISOString(),
     };
 
-    if (campaignData.on_chain_id) {
-      this.inMemoryCampaigns.set(campaignData.on_chain_id, campaignData);
-    }
+    if (createDto.creatorAddress) campaignData.creator_address = createDto.creatorAddress;
+    if (createDto.verifierAddress) campaignData.verifier_address = createDto.verifierAddress;
 
     try {
+      // Upsert Creator User
+      if (createDto.creatorAddress) {
+        await this.supabase.from('users').upsert({
+          wallet_address: createDto.creatorAddress,
+          role: 'CREATOR'
+        }, { onConflict: 'wallet_address' });
+      }
+
+      // Upsert Verifier User
+      if (createDto.verifierAddress) {
+        await this.supabase.from('users').upsert({
+          wallet_address: createDto.verifierAddress,
+          role: 'VERIFIER'
+        }, { onConflict: 'wallet_address' });
+      }
+
       const { data, error } = await this.supabase.from('campaigns').upsert(campaignData, { onConflict: 'on_chain_id' }).select().single();
       if (error) throw error;
       return data;
     } catch (err: any) {
-      this.logger.warn(`Supabase save failed, using memory fallback: ${err.message}`);
+      this.logger.error(`Supabase save failed: ${err.message}`);
       return campaignData;
     }
   }
 
   async findAll() {
-    try {
-      const { data, error } = await this.supabase.from('campaigns').select('*');
-      if (error) throw error;
-      if (data && data.length > 0) return data;
-    } catch (err) {
-      this.logger.debug('Fetching from in-memory fallback store');
+    const { data, error } = await this.supabase.from('campaigns').select('*').order('created_at', { ascending: false });
+    if (error) {
+      this.logger.error(`Failed to fetch campaigns: ${error.message}`);
+      throw error;
     }
-    return Array.from(this.inMemoryCampaigns.values());
+    return data || [];
   }
 
   async findOne(onChainId: number) {
-    let campaign = null;
-    try {
-      const { data, error } = await this.supabase.from('campaigns').select('*').eq('on_chain_id', onChainId).single();
-      if (!error && data) {
-        campaign = data;
-      }
-    } catch (err) {
-      // fallback to memory
-    }
+    const { data: campaign, error } = await this.supabase
+      .from('campaigns')
+      .select('*')
+      .eq('on_chain_id', onChainId)
+      .single();
 
-    if (!campaign) {
-      campaign = this.inMemoryCampaigns.get(Number(onChainId));
-    }
-
-    if (!campaign) {
+    if (error || !campaign) {
+      this.logger.error(`Campaign ${onChainId} not found in Supabase: ${error?.message}`);
       throw new NotFoundException(`Campaign ${onChainId} not found`);
     }
 
