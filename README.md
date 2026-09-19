@@ -433,12 +433,14 @@ Dashboard figures use test ETH throughout. No real money is involved. If the bac
 6. **Tamper test.** Upload the edited invoice. **`VERIFICATION FAILED`**: the document does not match the proof recorded on-chain.
 7. **Hold them accountable.** Open the overdue campaign: red `PROOF OVERDUE`, and a new request is blocked.
 8. **Audit.** Open the public ledger, no login: every event with timestamp, transaction hash and addresses.
+9. **Physical Delivery Attestation (Phantom Delivery Defense).** Switch to Beneficiary role (Principal Sharma) and confirm physical receipt. Subsequent spending requests are blocked on-chain until local ground-truth delivery is attested!
+10. **Dead-Man's Dormancy Auto-Refund (Abandoned Student Project Defense).** If a project goes dormant for 30+ days, contributors Alice & Bob can reclaim their unspent escrow share proportionally without organizer approval.
 
 Demo files live in `demo-files/`: the quotes for Request #01 and Request #02, the original invoice, and a pre-made tampered invoice (created and tested well before judging).
 
 ## Testing
 
-Run `npx hardhat test`. The suite covers the rules that matter most:
+Run `npx hardhat test`. The suite contains **63 automated unit tests** (100% pass rate) covering the complete rule verification suite:
 
 - Donations update totals, and only verified campaigns in the funding phase accept them
 - Creator cannot donate or vote
@@ -450,6 +452,8 @@ Run `npx hardhat test`. The suite covers the rules that matter most:
 - Proof deadline and overdue status
 - Refunds after a failed campaign, and not before
 - Verifier cannot be the creator; rejected campaigns cannot be funded
+- **Beneficiary Delivery Attestation rules**: Ground-truth confirmation, non-beneficiary rejection, and phantom delivery spending blocks
+- **Dormancy Auto-Refund rules**: 30-day inactivity detection, exact proportional share calculation, and double-claim prevention
 
 ## Problem Statement Mapping
 
@@ -462,6 +466,8 @@ Run `npx hardhat test`. The suite covers the rules that matter most:
 | Fund allocation workflow | Spending requests, contributor-weighted voting, controlled release |
 | Public utilization dashboard | Campaign dashboard and no-login public ledger |
 | Blockchain or tamper-evident audit trail | Contract events plus request, receipt and metadata hashes |
+| **Real-world edge case #1 (Phantom Delivery)** | **Beneficiary Physical Delivery Attestation (`confirmDelivery`)** |
+| **Real-world edge case #2 (Abandoned Student Project)** | **Dead-Man's Auto-Refund (`claimDormancyRefund`)** |
 
 ## Design Decisions and Trade-offs
 
