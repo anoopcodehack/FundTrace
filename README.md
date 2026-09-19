@@ -440,7 +440,7 @@ Run `npx hardhat test`. The suite covers the rules that matter most:
 
 ## Team
 
-| Name |
+| Stack Blaze |
 
 | Tharun Rai  | 
 | Anoop  | 
