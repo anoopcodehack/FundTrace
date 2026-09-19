@@ -87,41 +87,94 @@ export function formatEthBalance(balanceWei: bigint, decimals = 4): string {
 /**
  * Connects to MetaMask or any window.ethereum browser provider
  */
+/**
+ * Connects to MetaMask or any window.ethereum browser provider
+ */
 export async function connectBrowserWallet(): Promise<{
   provider: ethers.BrowserProvider;
   signer: ethers.Signer;
   walletState: WalletState;
 }> {
   if (typeof window === "undefined" || !(window as any).ethereum) {
-    throw new Error("No Web3 wallet found. Please install MetaMask to continue.");
+    throw new Error("No Web3 wallet found. Please install or open MetaMask.");
   }
 
   const ethereum = (window as any).ethereum;
   const provider = new ethers.BrowserProvider(ethereum);
 
-  // Request user account authorization
-  const accounts: string[] = await ethereum.request({ method: "eth_requestAccounts" });
-  if (!accounts || accounts.length === 0) {
-    throw new Error("No accounts selected in wallet.");
+  // 1. Check if already authorized
+  let accounts: string[] = [];
+  try {
+    accounts = (await ethereum.request({ method: "eth_accounts" })) || [];
+  } catch (err) {
+    console.warn("eth_accounts check failed, will request accounts:", err);
   }
 
-  const signer = await provider.getSigner();
-  const address = accounts[0];
-  const network = await provider.getNetwork();
-  const chainId = Number(network.chainId);
+  // 2. If not already authorized, request user authorization
+  if (!accounts || accounts.length === 0) {
+    try {
+      accounts = await ethereum.request({ method: "eth_requestAccounts" });
+    } catch (reqErr: any) {
+      if (reqErr.code === -32002) {
+        throw new Error("MetaMask is already waiting for your approval! Click on the MetaMask icon in your browser toolbar to approve.");
+      }
+      if (reqErr.code === 4001) {
+        throw new Error("Connection request was rejected in MetaMask.");
+      }
+      throw reqErr;
+    }
+  }
 
-  // Auto-switch to Hardhat local or designated default chain if on incorrect network
+  if (!accounts || accounts.length === 0) {
+    throw new Error("No accounts selected in wallet. Please select an account in MetaMask.");
+  }
+
+  const address = accounts[0];
+  const signer = await provider.getSigner().catch(() => null as any);
+
+  let chainId = 31337;
+  let networkName = "Hardhat Local";
+  try {
+    const network = await provider.getNetwork();
+    chainId = Number(network.chainId);
+    const networkConfig = NETWORKS[chainId];
+    networkName = networkConfig ? networkConfig.name : `Chain ${chainId}`;
+  } catch (netErr) {
+    console.warn("Could not retrieve network from provider:", netErr);
+  }
+
+  // Auto-switch to Hardhat local if on different chain
   if (chainId !== DEFAULT_CHAIN_ID && NETWORKS[DEFAULT_CHAIN_ID]) {
     try {
       await switchOrAddNetwork(DEFAULT_CHAIN_ID);
+      const updatedNet = await provider.getNetwork().catch(() => null);
+      if (updatedNet) {
+        chainId = Number(updatedNet.chainId);
+        networkName = NETWORKS[chainId]?.name || `Chain ${chainId}`;
+      }
     } catch (e) {
       console.warn("Could not auto-switch network:", e);
     }
   }
 
-  const balance = await provider.getBalance(address);
-  const networkConfig = NETWORKS[chainId];
-  const networkName = networkConfig ? networkConfig.name : `Chain ${chainId}`;
+  let balanceEth = "0.0";
+  try {
+    const balance = await provider.getBalance(address);
+    balanceEth = formatEthBalance(balance);
+  } catch (balErr) {
+    console.warn("Could not fetch balance via provider:", balErr);
+    try {
+      const hexBal = await ethereum.request({
+        method: "eth_getBalance",
+        params: [address, "latest"],
+      });
+      if (hexBal) {
+        balanceEth = formatEthBalance(BigInt(hexBal));
+      }
+    } catch {
+      balanceEth = "0.0";
+    }
+  }
 
   const walletState: WalletState = {
     isConnected: true,
@@ -129,7 +182,7 @@ export async function connectBrowserWallet(): Promise<{
     displayAddress: formatAddress(address),
     chainId,
     networkName,
-    balanceEth: formatEthBalance(balance),
+    balanceEth,
     isMetaMask: Boolean(ethereum.isMetaMask),
     error: null,
   };
