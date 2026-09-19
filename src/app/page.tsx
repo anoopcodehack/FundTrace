@@ -800,7 +800,7 @@ export default function HomePage() {
               <div>
                 <div className="text-xs text-stone-400 font-sans">Smart Contract Tests</div>
                 <div className="text-3xl sm:text-4xl font-black font-bebas text-[#FF5023] tracking-wide mt-0.5">
-                  52 / 52 PASS
+                  63 / 63 PASS
                 </div>
               </div>
               <div>

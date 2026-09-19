@@ -73,23 +73,25 @@ export default function CampaignDetailPage() {
 
         {/* PENDING VERIFICATION ALERT (For Campaign #2) */}
         {isPendingCampaign && (
-          <div className="mb-8 p-6 rounded-3xl bg-[#FED74C] text-stone-950 shadow-xl flex items-start gap-4 animate-fade-in border border-amber-400">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 flex-shrink-0 mt-1 text-stone-950">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
+          <div className="mb-8 p-6 rounded-3xl bg-amber-950/40 border border-amber-500/30 text-amber-100 shadow-xl flex items-start gap-4 animate-fade-in">
+            <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
             <div className="space-y-1">
-              <h4 className="font-black font-bebas text-2xl uppercase tracking-wide">
+              <h4 className="font-black font-bebas text-2xl uppercase tracking-wide text-amber-300">
                 CAMPAIGN LOCKED: AWAITING INSTITUTIONAL AUDITOR SIGNOFF
               </h4>
-              <p className="text-xs text-stone-900 leading-relaxed font-sans">
-                Smart Contract Rule Enforcement: Unverified campaigns cannot receive any donations. An institutional verifier must review credentials and call <code>verifyCampaign()</code> before public funding opens.
+              <p className="text-xs text-amber-200/80 leading-relaxed font-sans">
+                Smart Contract Rule Enforcement: Unverified campaigns cannot receive any donations. An institutional verifier must review credentials and call <code className="font-mono bg-black/40 text-amber-300 px-1.5 py-0.5 rounded">verifyCampaign()</code> before public funding opens.
               </p>
             </div>
           </div>
         )}
 
-        {/* Colorful Editorial Campaign Hero Banner (FinFLO Theme) */}
+        {/* Clean Editorial Campaign Hero Banner (FinFLO Theme) */}
         <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-10 shadow-2xl border border-stone-800 space-y-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-stone-800">
             <div>
@@ -121,7 +123,7 @@ export default function CampaignDetailPage() {
 
             <Link
               href={`/campaigns/${id}/ledger`}
-              className="py-3 px-6 rounded-full bg-[#FED74C] hover:bg-[#ffe17d] text-stone-950 text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg self-start transition-all cursor-pointer"
+              className="py-2.5 px-5 rounded-full bg-white hover:bg-stone-100 text-stone-950 text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg self-start transition-all cursor-pointer"
             >
               <span>Inspect Public Ledger</span>
               <span>→</span>
@@ -145,7 +147,7 @@ export default function CampaignDetailPage() {
                 Total Donated
               </div>
               <div className="flex items-baseline gap-2">
-                <div className="text-3xl sm:text-4xl font-black font-bebas text-[#FF5023] leading-none">
+                <div className="text-3xl sm:text-4xl font-black font-bebas text-amber-400 leading-none">
                   {id === 1 ? "3.20" : id === 2 ? "0.00" : "1.00"}{" "}
                   <span className="text-lg font-bold text-stone-400">ETH</span>
                 </div>
@@ -171,7 +173,7 @@ export default function CampaignDetailPage() {
               <div className="text-[10px] font-mono font-bold tracking-widest uppercase text-stone-400">
                 Remaining in Escrow
               </div>
-              <div className="text-3xl sm:text-4xl font-black font-bebas text-[#FED74C] leading-none">
+              <div className="text-3xl sm:text-4xl font-black font-bebas text-emerald-400 leading-none">
                 {id === 1 ? "2.00" : id === 2 ? "0.00" : "0.20"}{" "}
                 <span className="text-lg font-bold text-stone-400">ETH</span>
               </div>

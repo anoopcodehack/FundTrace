@@ -25,15 +25,17 @@ export default function VerifierPortalPage() {
 
       <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-8 pb-16">
         
-        {/* Colorful Editorial Hero Banner (FinFLO Theme) */}
+        {/* Clean Editorial Hero Banner (FinFLO Theme) */}
         <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-8 border border-stone-800">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 rounded-md bg-[#FF5023] text-white font-mono text-[10px] font-bold uppercase tracking-widest">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-stone-200 border border-white/10 font-mono text-[10px] font-medium tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                   INSTITUTIONAL PORTAL
                 </span>
-                <span className="px-3 py-1 rounded-md bg-[#FED74C] text-stone-950 font-mono text-[10px] font-black uppercase tracking-wider">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-stone-200 border border-white/10 font-mono text-[10px] font-medium tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
                   AUDITOR SIGN-OFF
                 </span>
               </div>
@@ -49,7 +51,7 @@ export default function VerifierPortalPage() {
               <span className="text-[10px] font-mono uppercase text-stone-400 font-bold tracking-widest">
                 VERIFIER ROLE
               </span>
-              <span className="text-3xl font-black font-bebas text-[#FF5023] tracking-wide">
+              <span className="text-3xl font-black font-bebas text-amber-400 tracking-wide">
                 GATED AUTHORITY
               </span>
               <span className="text-xs font-mono text-emerald-400 font-semibold">

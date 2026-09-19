@@ -144,12 +144,13 @@ export default function CampaignLedgerPage() {
         <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-8 border border-stone-800">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 rounded-md bg-[#FF5023] text-white font-mono text-[10px] font-bold uppercase tracking-widest">
-                  PUBLIC VERIFIABILITY
+              <div className="flex items-center gap-2.5 mb-3">
+                <span className="px-3 py-1 rounded-full bg-white/10 text-stone-200 text-xs font-mono font-medium border border-white/10">
+                  Public Verifiability
                 </span>
-                <span className="px-3 py-1 rounded-md bg-[#FED74C] text-stone-950 font-mono text-[10px] font-black uppercase tracking-wider">
-                  ZERO LOGIN REQUIRED
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 text-stone-300 text-xs font-mono font-medium border border-white/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Zero Login Required
                 </span>
               </div>
               <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black font-bebas uppercase leading-[0.88] tracking-tight text-white">

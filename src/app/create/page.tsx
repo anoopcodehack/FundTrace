@@ -47,12 +47,13 @@ export default function CreateCampaignPage() {
         <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-8 border border-stone-800">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 rounded-md bg-[#FF5023] text-white font-mono text-[10px] font-bold uppercase tracking-widest">
-                  CAMPAIGN GENESIS
+              <div className="flex items-center gap-2.5 mb-3">
+                <span className="px-3 py-1 rounded-full bg-white/10 text-stone-200 text-xs font-mono font-medium border border-white/10">
+                  Campaign Genesis
                 </span>
-                <span className="px-3 py-1 rounded-md bg-[#FED74C] text-stone-950 font-mono text-[10px] font-black uppercase tracking-wider">
-                  VERIFIER-GATED
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 text-stone-300 text-xs font-mono font-medium border border-white/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Verifier-Gated
                 </span>
               </div>
               <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black font-bebas uppercase leading-[0.88] tracking-tight text-white">
@@ -88,7 +89,7 @@ export default function CreateCampaignPage() {
                 <span className="font-black font-bebas text-2xl uppercase tracking-wide text-emerald-300">
                   Campaign #{submittedId} Registered On-Chain
                 </span>
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[#FED74C] text-stone-950">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
                   PENDING_VERIFICATION
                 </span>
               </div>
@@ -221,7 +222,7 @@ export default function CreateCampaignPage() {
             {/* Real-time Canonical Metadata Hash Preview in Charcoal Inspector */}
             <div className="p-5 rounded-2xl bg-[#141613] text-white border border-stone-800 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-[#FED74C]">
+                <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-amber-400">
                   DETERMINISTIC METADATA HASH (KECCAK-256)
                 </span>
                 <span className="text-[10px] font-mono text-stone-400">
