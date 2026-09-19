@@ -505,11 +505,11 @@ Run `npx hardhat test`. The suite covers the rules that matter most:
 
 ## Team
 
-| Name | Role |
-|---|---|
-| _Your name_ | _e.g. Smart contracts, architecture_ |
-| _Teammate_ | _e.g. Frontend_ |
-| _Teammate_ | _e.g. Backend and demo tooling_ |
+| Team StackBlaze |
+
+| Tharun Rai | 
+| Anoop | 
+| Pranathi R Shetty | 
 
 Built at **Versathon 2.0**.
 
