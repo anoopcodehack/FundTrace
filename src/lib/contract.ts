@@ -19,30 +19,39 @@ export const FUNDTRACE_ABI = [
   "event RequestClosed(uint256 indexed campaignId, uint256 indexed requestId, string reason)",
   "event ProofSubmitted(uint256 indexed campaignId, uint256 indexed requestId, bytes32 receiptHash, bool isLate, uint256 submittedAt)",
   "event Refunded(uint256 indexed campaignId, address indexed donor, uint256 amount)",
+  "event BeneficiarySet(uint256 indexed campaignId, address indexed beneficiary)",
+  "event DeliveryConfirmed(uint256 indexed campaignId, uint256 indexed requestId, address indexed beneficiary, uint256 timestamp)",
+  "event DormancyRefundClaimed(uint256 indexed campaignId, address indexed donor, uint256 amount, uint256 remainingEscrow)",
 
   // Read Functions
   "function campaignCount() view returns (uint256)",
-  "function campaigns(uint256) view returns (uint256 id, address creator, address verifier, uint256 goal, uint256 deadline, uint256 totalDonated, uint256 totalReleased, bytes32 metadataHash, uint8 state, uint256 requestCount, uint256 activeRequestId)",
-  "function getCampaign(uint256 _campaignId) view returns (tuple(uint256 id, address creator, address verifier, uint256 goal, uint256 deadline, uint256 totalDonated, uint256 totalReleased, bytes32 metadataHash, uint8 state, uint256 requestCount, uint256 activeRequestId))",
-  "function requests(uint256, uint256) view returns (uint256 id, address recipient, uint256 amount, bytes32 requestHash, uint256 votingDeadline, uint256 proofDeadline, uint256 approvalWeight, uint8 state, bytes32 receiptHash, bool proofSubmitted, uint256 releasedAt, uint256 proofSubmittedAt, uint8 timing)",
-  "function getRequest(uint256 _campaignId, uint256 _requestId) view returns (tuple(uint256 id, address recipient, uint256 amount, bytes32 requestHash, uint256 votingDeadline, uint256 proofDeadline, uint256 approvalWeight, uint8 state, bytes32 receiptHash, bool proofSubmitted, uint256 releasedAt, uint256 proofSubmittedAt, uint8 timing))",
+  "function campaigns(uint256) view returns (uint256 id, address creator, address verifier, uint256 goal, uint256 deadline, uint256 totalDonated, uint256 totalReleased, bytes32 metadataHash, uint8 state, uint256 requestCount, uint256 activeRequestId, address beneficiary, uint256 lastActivityTimestamp, uint256 dormancySnapshotEscrow)",
+  "function getCampaign(uint256 _campaignId) view returns (tuple(uint256 id, address creator, address verifier, uint256 goal, uint256 deadline, uint256 totalDonated, uint256 totalReleased, bytes32 metadataHash, uint8 state, uint256 requestCount, uint256 activeRequestId, address beneficiary, uint256 lastActivityTimestamp, uint256 dormancySnapshotEscrow))",
+  "function requests(uint256, uint256) view returns (uint256 id, address recipient, uint256 amount, bytes32 requestHash, uint256 votingDeadline, uint256 proofDeadline, uint256 approvalWeight, uint8 state, bytes32 receiptHash, bool proofSubmitted, uint256 releasedAt, uint256 proofSubmittedAt, uint8 timing, bool deliveryConfirmed, uint256 deliveryConfirmedAt)",
+  "function getRequest(uint256 _campaignId, uint256 _requestId) view returns (tuple(uint256 id, address recipient, uint256 amount, bytes32 requestHash, uint256 votingDeadline, uint256 proofDeadline, uint256 approvalWeight, uint8 state, bytes32 receiptHash, bool proofSubmitted, uint256 releasedAt, uint256 proofSubmittedAt, uint8 timing, bool deliveryConfirmed, uint256 deliveryConfirmedAt))",
   "function donations(uint256, address) view returns (uint256)",
   "function hasVoted(uint256, uint256, address) view returns (bool)",
   "function checkProofHash(uint256 _campaignId, uint256 _requestId, bytes32 _candidateHash) view returns (bool matches, bool isSubmitted, uint8 timing)",
   "function hasOverdueProof(uint256 _campaignId) view returns (bool)",
+  "function hasUnconfirmedDelivery(uint256 _campaignId) view returns (bool)",
+  "function isCampaignDormant(uint256 _campaignId) view returns (bool)",
+  "function DORMANCY_TIMEOUT() view returns (uint256)",
 
   // Write Functions
   "function createCampaign(uint256 _goal, uint256 _deadline, bytes32 _metadataHash, address _verifier) returns (uint256)",
   "function verifyCampaign(uint256 _campaignId)",
   "function rejectCampaign(uint256 _campaignId, string _reason)",
+  "function setBeneficiary(uint256 _campaignId, address _beneficiary)",
   "function donate(uint256 _campaignId) payable",
   "function createRequest(uint256 _campaignId, address _recipient, uint256 _amount, bytes32 _requestHash, uint256 _votingDuration, uint256 _proofDuration) returns (uint256)",
   "function vote(uint256 _campaignId, uint256 _requestId)",
   "function approveRequest(uint256 _campaignId, uint256 _requestId)",
   "function release(uint256 _campaignId, uint256 _requestId)",
+  "function confirmDelivery(uint256 _campaignId, uint256 _requestId)",
   "function closeExpiredRequest(uint256 _campaignId, uint256 _requestId)",
   "function submitProof(uint256 _campaignId, uint256 _requestId, bytes32 _receiptHash)",
   "function refund(uint256 _campaignId)",
+  "function claimDormancyRefund(uint256 _campaignId)",
 ];
 
 /**

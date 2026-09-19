@@ -36,6 +36,9 @@ export declare namespace FundTrace {
     state: BigNumberish;
     requestCount: BigNumberish;
     activeRequestId: BigNumberish;
+    beneficiary: AddressLike;
+    lastActivityTimestamp: BigNumberish;
+    dormancySnapshotEscrow: BigNumberish;
   };
 
   export type CampaignStructOutput = [
@@ -49,7 +52,10 @@ export declare namespace FundTrace {
     metadataHash: string,
     state: bigint,
     requestCount: bigint,
-    activeRequestId: bigint
+    activeRequestId: bigint,
+    beneficiary: string,
+    lastActivityTimestamp: bigint,
+    dormancySnapshotEscrow: bigint
   ] & {
     id: bigint;
     creator: string;
@@ -62,6 +68,9 @@ export declare namespace FundTrace {
     state: bigint;
     requestCount: bigint;
     activeRequestId: bigint;
+    beneficiary: string;
+    lastActivityTimestamp: bigint;
+    dormancySnapshotEscrow: bigint;
   };
 
   export type RequestStruct = {
@@ -78,6 +87,8 @@ export declare namespace FundTrace {
     releasedAt: BigNumberish;
     proofSubmittedAt: BigNumberish;
     timing: BigNumberish;
+    deliveryConfirmed: boolean;
+    deliveryConfirmedAt: BigNumberish;
   };
 
   export type RequestStructOutput = [
@@ -93,7 +104,9 @@ export declare namespace FundTrace {
     proofSubmitted: boolean,
     releasedAt: bigint,
     proofSubmittedAt: bigint,
-    timing: bigint
+    timing: bigint,
+    deliveryConfirmed: boolean,
+    deliveryConfirmedAt: bigint
   ] & {
     id: bigint;
     recipient: string;
@@ -108,18 +121,23 @@ export declare namespace FundTrace {
     releasedAt: bigint;
     proofSubmittedAt: bigint;
     timing: bigint;
+    deliveryConfirmed: boolean;
+    deliveryConfirmedAt: bigint;
   };
 }
 
 export interface FundTraceInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "DORMANCY_TIMEOUT"
       | "approveRequest"
       | "campaignCount"
       | "campaigns"
       | "checkAndUpdateCampaignFailure"
       | "checkProofHash"
+      | "claimDormancyRefund"
       | "closeExpiredRequest"
+      | "confirmDelivery"
       | "createCampaign"
       | "createRequest"
       | "donate"
@@ -127,11 +145,14 @@ export interface FundTraceInterface extends Interface {
       | "getCampaign"
       | "getRequest"
       | "hasOverdueProof"
+      | "hasUnconfirmedDelivery"
       | "hasVoted"
+      | "isCampaignDormant"
       | "refund"
       | "rejectCampaign"
       | "release"
       | "requests"
+      | "setBeneficiary"
       | "submitProof"
       | "verifyCampaign"
       | "vote"
@@ -140,11 +161,14 @@ export interface FundTraceInterface extends Interface {
   getEvent(
     nameOrSignatureOrTopic:
       | "Approved"
+      | "BeneficiarySet"
       | "CampaignCreated"
       | "CampaignFailed"
       | "CampaignRejected"
       | "CampaignVerified"
+      | "DeliveryConfirmed"
       | "Donated"
+      | "DormancyRefundClaimed"
       | "FundingClosed"
       | "ProofSubmitted"
       | "Refunded"
@@ -154,6 +178,10 @@ export interface FundTraceInterface extends Interface {
       | "RequestCreated"
   ): EventFragment;
 
+  encodeFunctionData(
+    functionFragment: "DORMANCY_TIMEOUT",
+    values?: undefined
+  ): string;
   encodeFunctionData(
     functionFragment: "approveRequest",
     values: [BigNumberish, BigNumberish]
@@ -175,7 +203,15 @@ export interface FundTraceInterface extends Interface {
     values: [BigNumberish, BigNumberish, BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "claimDormancyRefund",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "closeExpiredRequest",
+    values: [BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "confirmDelivery",
     values: [BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
@@ -214,8 +250,16 @@ export interface FundTraceInterface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "hasUnconfirmedDelivery",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "hasVoted",
     values: [BigNumberish, BigNumberish, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "isCampaignDormant",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "refund",
@@ -234,6 +278,10 @@ export interface FundTraceInterface extends Interface {
     values: [BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "setBeneficiary",
+    values: [BigNumberish, AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "submitProof",
     values: [BigNumberish, BigNumberish, BytesLike]
   ): string;
@@ -246,6 +294,10 @@ export interface FundTraceInterface extends Interface {
     values: [BigNumberish, BigNumberish]
   ): string;
 
+  decodeFunctionResult(
+    functionFragment: "DORMANCY_TIMEOUT",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "approveRequest",
     data: BytesLike
@@ -264,7 +316,15 @@ export interface FundTraceInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "claimDormancyRefund",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "closeExpiredRequest",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "confirmDelivery",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -286,7 +346,15 @@ export interface FundTraceInterface extends Interface {
     functionFragment: "hasOverdueProof",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "hasUnconfirmedDelivery",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "hasVoted", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "isCampaignDormant",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "refund", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "rejectCampaign",
@@ -294,6 +362,10 @@ export interface FundTraceInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "release", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "requests", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "setBeneficiary",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "submitProof",
     data: BytesLike
@@ -326,6 +398,19 @@ export namespace ApprovedEvent {
     donor: string;
     weight: bigint;
     currentApprovalWeight: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace BeneficiarySetEvent {
+  export type InputTuple = [campaignId: BigNumberish, beneficiary: AddressLike];
+  export type OutputTuple = [campaignId: bigint, beneficiary: string];
+  export interface OutputObject {
+    campaignId: bigint;
+    beneficiary: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -421,6 +506,31 @@ export namespace CampaignVerifiedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace DeliveryConfirmedEvent {
+  export type InputTuple = [
+    campaignId: BigNumberish,
+    requestId: BigNumberish,
+    beneficiary: AddressLike,
+    timestamp: BigNumberish
+  ];
+  export type OutputTuple = [
+    campaignId: bigint,
+    requestId: bigint,
+    beneficiary: string,
+    timestamp: bigint
+  ];
+  export interface OutputObject {
+    campaignId: bigint;
+    requestId: bigint;
+    beneficiary: string;
+    timestamp: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace DonatedEvent {
   export type InputTuple = [
     campaignId: BigNumberish,
@@ -439,6 +549,31 @@ export namespace DonatedEvent {
     donor: string;
     amount: bigint;
     totalDonated: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace DormancyRefundClaimedEvent {
+  export type InputTuple = [
+    campaignId: BigNumberish,
+    donor: AddressLike,
+    amount: BigNumberish,
+    remainingEscrow: BigNumberish
+  ];
+  export type OutputTuple = [
+    campaignId: bigint,
+    donor: string,
+    amount: bigint,
+    remainingEscrow: bigint
+  ];
+  export interface OutputObject {
+    campaignId: bigint;
+    donor: string;
+    amount: bigint;
+    remainingEscrow: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -654,6 +789,8 @@ export interface FundTrace extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  DORMANCY_TIMEOUT: TypedContractMethod<[], [bigint], "view">;
+
   approveRequest: TypedContractMethod<
     [_campaignId: BigNumberish, _requestId: BigNumberish],
     [void],
@@ -676,6 +813,9 @@ export interface FundTrace extends BaseContract {
         string,
         bigint,
         bigint,
+        bigint,
+        string,
+        bigint,
         bigint
       ] & {
         id: bigint;
@@ -689,6 +829,9 @@ export interface FundTrace extends BaseContract {
         state: bigint;
         requestCount: bigint;
         activeRequestId: bigint;
+        beneficiary: string;
+        lastActivityTimestamp: bigint;
+        dormancySnapshotEscrow: bigint;
       }
     ],
     "view"
@@ -716,7 +859,19 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
 
+  claimDormancyRefund: TypedContractMethod<
+    [_campaignId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   closeExpiredRequest: TypedContractMethod<
+    [_campaignId: BigNumberish, _requestId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  confirmDelivery: TypedContractMethod<
     [_campaignId: BigNumberish, _requestId: BigNumberish],
     [void],
     "nonpayable"
@@ -772,8 +927,20 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
 
+  hasUnconfirmedDelivery: TypedContractMethod<
+    [_campaignId: BigNumberish],
+    [boolean],
+    "view"
+  >;
+
   hasVoted: TypedContractMethod<
     [arg0: BigNumberish, arg1: BigNumberish, arg2: AddressLike],
+    [boolean],
+    "view"
+  >;
+
+  isCampaignDormant: TypedContractMethod<
+    [_campaignId: BigNumberish],
     [boolean],
     "view"
   >;
@@ -812,6 +979,8 @@ export interface FundTrace extends BaseContract {
         boolean,
         bigint,
         bigint,
+        bigint,
+        boolean,
         bigint
       ] & {
         id: bigint;
@@ -827,9 +996,17 @@ export interface FundTrace extends BaseContract {
         releasedAt: bigint;
         proofSubmittedAt: bigint;
         timing: bigint;
+        deliveryConfirmed: boolean;
+        deliveryConfirmedAt: bigint;
       }
     ],
     "view"
+  >;
+
+  setBeneficiary: TypedContractMethod<
+    [_campaignId: BigNumberish, _beneficiary: AddressLike],
+    [void],
+    "nonpayable"
   >;
 
   submitProof: TypedContractMethod<
@@ -859,6 +1036,9 @@ export interface FundTrace extends BaseContract {
   ): T;
 
   getFunction(
+    nameOrSignature: "DORMANCY_TIMEOUT"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
     nameOrSignature: "approveRequest"
   ): TypedContractMethod<
     [_campaignId: BigNumberish, _requestId: BigNumberish],
@@ -884,6 +1064,9 @@ export interface FundTrace extends BaseContract {
         string,
         bigint,
         bigint,
+        bigint,
+        string,
+        bigint,
         bigint
       ] & {
         id: bigint;
@@ -897,6 +1080,9 @@ export interface FundTrace extends BaseContract {
         state: bigint;
         requestCount: bigint;
         activeRequestId: bigint;
+        beneficiary: string;
+        lastActivityTimestamp: bigint;
+        dormancySnapshotEscrow: bigint;
       }
     ],
     "view"
@@ -922,7 +1108,17 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "claimDormancyRefund"
+  ): TypedContractMethod<[_campaignId: BigNumberish], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "closeExpiredRequest"
+  ): TypedContractMethod<
+    [_campaignId: BigNumberish, _requestId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "confirmDelivery"
   ): TypedContractMethod<
     [_campaignId: BigNumberish, _requestId: BigNumberish],
     [void],
@@ -982,12 +1178,18 @@ export interface FundTrace extends BaseContract {
     nameOrSignature: "hasOverdueProof"
   ): TypedContractMethod<[_campaignId: BigNumberish], [boolean], "view">;
   getFunction(
+    nameOrSignature: "hasUnconfirmedDelivery"
+  ): TypedContractMethod<[_campaignId: BigNumberish], [boolean], "view">;
+  getFunction(
     nameOrSignature: "hasVoted"
   ): TypedContractMethod<
     [arg0: BigNumberish, arg1: BigNumberish, arg2: AddressLike],
     [boolean],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "isCampaignDormant"
+  ): TypedContractMethod<[_campaignId: BigNumberish], [boolean], "view">;
   getFunction(
     nameOrSignature: "refund"
   ): TypedContractMethod<[_campaignId: BigNumberish], [void], "nonpayable">;
@@ -1023,6 +1225,8 @@ export interface FundTrace extends BaseContract {
         boolean,
         bigint,
         bigint,
+        bigint,
+        boolean,
         bigint
       ] & {
         id: bigint;
@@ -1038,9 +1242,18 @@ export interface FundTrace extends BaseContract {
         releasedAt: bigint;
         proofSubmittedAt: bigint;
         timing: bigint;
+        deliveryConfirmed: boolean;
+        deliveryConfirmedAt: bigint;
       }
     ],
     "view"
+  >;
+  getFunction(
+    nameOrSignature: "setBeneficiary"
+  ): TypedContractMethod<
+    [_campaignId: BigNumberish, _beneficiary: AddressLike],
+    [void],
+    "nonpayable"
   >;
   getFunction(
     nameOrSignature: "submitProof"
@@ -1072,6 +1285,13 @@ export interface FundTrace extends BaseContract {
     ApprovedEvent.OutputObject
   >;
   getEvent(
+    key: "BeneficiarySet"
+  ): TypedContractEvent<
+    BeneficiarySetEvent.InputTuple,
+    BeneficiarySetEvent.OutputTuple,
+    BeneficiarySetEvent.OutputObject
+  >;
+  getEvent(
     key: "CampaignCreated"
   ): TypedContractEvent<
     CampaignCreatedEvent.InputTuple,
@@ -1100,11 +1320,25 @@ export interface FundTrace extends BaseContract {
     CampaignVerifiedEvent.OutputObject
   >;
   getEvent(
+    key: "DeliveryConfirmed"
+  ): TypedContractEvent<
+    DeliveryConfirmedEvent.InputTuple,
+    DeliveryConfirmedEvent.OutputTuple,
+    DeliveryConfirmedEvent.OutputObject
+  >;
+  getEvent(
     key: "Donated"
   ): TypedContractEvent<
     DonatedEvent.InputTuple,
     DonatedEvent.OutputTuple,
     DonatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "DormancyRefundClaimed"
+  ): TypedContractEvent<
+    DormancyRefundClaimedEvent.InputTuple,
+    DormancyRefundClaimedEvent.OutputTuple,
+    DormancyRefundClaimedEvent.OutputObject
   >;
   getEvent(
     key: "FundingClosed"
@@ -1168,6 +1402,17 @@ export interface FundTrace extends BaseContract {
       ApprovedEvent.OutputObject
     >;
 
+    "BeneficiarySet(uint256,address)": TypedContractEvent<
+      BeneficiarySetEvent.InputTuple,
+      BeneficiarySetEvent.OutputTuple,
+      BeneficiarySetEvent.OutputObject
+    >;
+    BeneficiarySet: TypedContractEvent<
+      BeneficiarySetEvent.InputTuple,
+      BeneficiarySetEvent.OutputTuple,
+      BeneficiarySetEvent.OutputObject
+    >;
+
     "CampaignCreated(uint256,address,address,uint256,uint256,bytes32)": TypedContractEvent<
       CampaignCreatedEvent.InputTuple,
       CampaignCreatedEvent.OutputTuple,
@@ -1212,6 +1457,17 @@ export interface FundTrace extends BaseContract {
       CampaignVerifiedEvent.OutputObject
     >;
 
+    "DeliveryConfirmed(uint256,uint256,address,uint256)": TypedContractEvent<
+      DeliveryConfirmedEvent.InputTuple,
+      DeliveryConfirmedEvent.OutputTuple,
+      DeliveryConfirmedEvent.OutputObject
+    >;
+    DeliveryConfirmed: TypedContractEvent<
+      DeliveryConfirmedEvent.InputTuple,
+      DeliveryConfirmedEvent.OutputTuple,
+      DeliveryConfirmedEvent.OutputObject
+    >;
+
     "Donated(uint256,address,uint256,uint256)": TypedContractEvent<
       DonatedEvent.InputTuple,
       DonatedEvent.OutputTuple,
@@ -1221,6 +1477,17 @@ export interface FundTrace extends BaseContract {
       DonatedEvent.InputTuple,
       DonatedEvent.OutputTuple,
       DonatedEvent.OutputObject
+    >;
+
+    "DormancyRefundClaimed(uint256,address,uint256,uint256)": TypedContractEvent<
+      DormancyRefundClaimedEvent.InputTuple,
+      DormancyRefundClaimedEvent.OutputTuple,
+      DormancyRefundClaimedEvent.OutputObject
+    >;
+    DormancyRefundClaimed: TypedContractEvent<
+      DormancyRefundClaimedEvent.InputTuple,
+      DormancyRefundClaimedEvent.OutputTuple,
+      DormancyRefundClaimedEvent.OutputObject
     >;
 
     "FundingClosed(uint256,uint256)": TypedContractEvent<

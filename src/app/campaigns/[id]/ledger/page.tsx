@@ -7,7 +7,19 @@ import Navbar from "@/components/Navbar";
 
 interface LedgerEvent {
   id: string;
-  eventName: "CampaignCreated" | "CampaignVerified" | "Donated" | "FundingClosed" | "RequestCreated" | "Approved" | "RequestApproved" | "Released" | "ProofSubmitted";
+  eventName:
+    | "CampaignCreated"
+    | "CampaignVerified"
+    | "Donated"
+    | "FundingClosed"
+    | "RequestCreated"
+    | "Approved"
+    | "RequestApproved"
+    | "Released"
+    | "ProofSubmitted"
+    | "BeneficiarySet"
+    | "DeliveryConfirmed"
+    | "DormancyRefundClaimed";
   blockNumber: number;
   txHash: string;
   timestamp: string;
@@ -17,6 +29,16 @@ interface LedgerEvent {
 }
 
 const SAMPLE_EVENTS: LedgerEvent[] = [
+  {
+    id: "0",
+    eventName: "DeliveryConfirmed",
+    blockNumber: 15,
+    txHash: "0x9f1827d01847192847291048102938471928471928471928471928471928478a",
+    timestamp: "8 mins ago",
+    actor: "0x976E...0aa9 (Principal Sharma)",
+    details: "Attested Physical Receipt: 50 Arduino Robotics Kits & Sensors arrived at School",
+    badge: "PHYSICAL DELIVERY CONFIRMED",
+  },
   {
     id: "1",
     eventName: "ProofSubmitted",

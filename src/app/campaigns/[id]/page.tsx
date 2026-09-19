@@ -23,12 +23,21 @@ export default function CampaignDetailPage() {
   const [showProofModal, setShowProofModal] = useState(false);
   const [proofSubmitted, setProofSubmitted] = useState(false);
 
+  // Beneficiary Physical Delivery Attestation (The Phantom Delivery Solution)
+  const [deliveryConfirmed, setDeliveryConfirmed] = useState(false);
+  const [confirmingDelivery, setConfirmingDelivery] = useState(false);
+
+  // Project Dormancy & Dead-Man's Auto-Refund (The Abandoned Student Project Solution)
+  const [isDormantSimulated, setIsDormantSimulated] = useState(false);
+  const [dormancyRefundClaimed, setDormancyRefundClaimed] = useState(false);
+
   // Voting calculation
   const currentWeight = (aliceVoted ? 46.9 : 0) + (bobVoted ? 31.3 : 0);
   const isApproved = currentWeight > 50.0;
 
   // Connected role check
   const isCreator = wallet.address?.toLowerCase() === "0x70997970C51812dc3A010C7d01b50e0d17dc79C8".toLowerCase();
+  const isBeneficiary = wallet.address?.toLowerCase() === "0x976EA74026E726554dB657fA54763abd0C3a0aa9".toLowerCase();
 
   return (
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
@@ -84,14 +93,23 @@ export default function CampaignDetailPage() {
         <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-10 shadow-2xl border border-stone-800 space-y-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-stone-800">
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="px-3 py-1 rounded-md bg-[#FF5023] text-white text-[10px] font-mono font-bold uppercase tracking-wider">
+              <div className="flex flex-wrap items-center gap-2.5 mb-4">
+                <span className="px-3 py-1 rounded-full bg-white/10 text-stone-200 text-xs font-mono font-medium border border-white/10">
                   {id === 1 ? "Education" : id === 2 ? "Sanitation" : "Healthcare"} · Campaign #{id}
                 </span>
-                <span className={`px-3 py-1 rounded-md text-[10px] font-mono font-black uppercase tracking-wider ${
-                  isPendingCampaign ? "bg-[#FED74C] text-stone-950" : "bg-emerald-500 text-stone-950"
+
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium border ${
+                  isPendingCampaign
+                    ? "bg-amber-950/60 text-amber-300 border-amber-500/30"
+                    : "bg-emerald-950/60 text-emerald-300 border-emerald-500/30"
                 }`}>
-                  {isPendingCampaign ? "Pending Audit" : "✓ Verified by Auditor"}
+                  <span className={`w-1.5 h-1.5 rounded-full ${isPendingCampaign ? "bg-amber-400" : "bg-emerald-400"}`} />
+                  {isPendingCampaign ? "Pending Audit" : "Verified by Auditor"}
+                </span>
+
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 text-stone-300 text-xs font-mono font-medium border border-white/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-stone-400" />
+                  Beneficiary: Principal Sharma (0x976E...0aa9)
                 </span>
               </div>
               <h1 className="text-4xl sm:text-6xl font-black font-bebas uppercase text-white leading-none tracking-tight">
@@ -181,13 +199,17 @@ export default function CampaignDetailPage() {
           <div className="bg-white rounded-2xl p-6 sm:p-8 border border-stone-200 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="px-2 py-0.5 rounded bg-stone-100 text-stone-700 text-[11px] font-mono font-medium border border-stone-200">
                     Request #01 · Milestone 1
                   </span>
                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     Released &amp; Proof Verified
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 border border-stone-200 text-xs font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Physical Delivery Confirmed
                   </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-bold text-stone-900 mt-1.5 leading-snug">
@@ -212,6 +234,10 @@ export default function CampaignDetailPage() {
                 <span className="text-stone-500">On-Chain Receipt Hash:</span>
                 <span className="text-emerald-700 font-bold break-all">0xb80dd0075275c63869fb31316e6d22a58911ec5896ed2c98bdaf0382ac4925fd (ON-TIME)</span>
               </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                <span className="text-stone-500">Physical Goods Sign-off:</span>
+                <span className="text-stone-800 font-semibold break-all">Attested On-Chain by Principal Sharma (0x976E...0aa9) · 50 Kits Inspected</span>
+              </div>
             </div>
 
             <div className="pt-1 flex justify-end">
@@ -231,7 +257,7 @@ export default function CampaignDetailPage() {
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-xs font-medium">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                    Active Request #02 · Voting Open
+                    Active Request #02 · {requestReleased ? "Funds Released" : "Voting Open"}
                   </span>
                   <span className="text-xs text-stone-500 font-mono">30-Min Window</span>
                 </div>
@@ -314,8 +340,53 @@ export default function CampaignDetailPage() {
             {/* Controlled Release Execution Button */}
             <div className="pt-4 border-t border-stone-200">
               {requestReleased ? (
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium text-center">
-                  ✓ 0.50 ETH Transferred Directly to Vendor (0x14dC...9955). Proof submission window activated.
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium text-center">
+                    ✓ 0.50 ETH Transferred Directly to Vendor (0x14dC...9955).
+                  </div>
+
+                  {/* Anti-Phantom Delivery Beneficiary Attestation Box */}
+                  <div className="p-5 rounded-2xl bg-stone-50 border border-stone-200 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded bg-stone-900 text-stone-100 text-[10px] font-mono font-medium tracking-wide">
+                            Phantom Delivery Prevention
+                          </span>
+                          <span className="text-xs font-bold text-stone-900">
+                            Beneficiary Physical Delivery Attestation
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-600 mt-1 leading-relaxed font-sans">
+                          School Principal Sharma must physically confirm receipt of hardware before Request #03 can be created by the organizer.
+                        </p>
+                      </div>
+
+                      <div>
+                        {deliveryConfirmed ? (
+                          <div className="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-medium flex items-center gap-2 shadow-sm whitespace-nowrap">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                            <span>Physical Goods Received</span>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setConfirmingDelivery(true);
+                              setTimeout(() => {
+                                setDeliveryConfirmed(true);
+                                setConfirmingDelivery(false);
+                              }, 600);
+                            }}
+                            disabled={confirmingDelivery}
+                            className="py-2.5 px-4 rounded-xl bg-[#161813] hover:bg-black text-white text-xs font-medium tracking-wide shadow-sm transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                          >
+                            <span>{confirmingDelivery ? "Attesting..." : "Confirm Physical Receipt"}</span>
+                            <span className="text-[10px] text-stone-400 font-mono">(Principal Sharma)</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <button
@@ -332,6 +403,97 @@ export default function CampaignDetailPage() {
               )}
             </div>
 
+          </div>
+
+          {/* 30-Day Project Dormancy & Dead-Man's Auto-Refund Shield */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-stone-200">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-md bg-stone-100 text-stone-700 text-[10px] font-mono font-medium border border-stone-200 uppercase tracking-wider">
+                    Dead-Man's Switch
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-md bg-stone-100 text-stone-700 text-[10px] font-mono font-medium border border-stone-200 uppercase tracking-wider">
+                    30-Day Timeout
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black font-bebas text-stone-900 tracking-wide uppercase mt-1">
+                  Abandoned Student Project Protection (Auto-Refund Shield)
+                </h3>
+                <p className="text-xs text-stone-600 max-w-3xl leading-relaxed font-sans">
+                  <strong>The Real-World Student Problem:</strong> Student teams often raise 3.20 ETH, spend 1.20 ETH on Phase 1, graduate, and disappear. The remaining 2.00 ETH sits locked in smart contracts forever. FundTrace enforces a 30-day inactivity timeout allowing contributors to withdraw their exact proportional share of unspent escrow.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setIsDormantSimulated(!isDormantSimulated)}
+                className={`py-2 px-4 rounded-xl text-xs font-mono font-medium tracking-wide transition-all cursor-pointer whitespace-nowrap ${
+                  isDormantSimulated
+                    ? "bg-[#161813] text-white shadow-sm"
+                    : "bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-300"
+                }`}
+              >
+                {isDormantSimulated ? "✓ 31 Days Inactive (Dormant)" : "Simulate 31-Day Silence"}
+              </button>
+            </div>
+
+            {/* Dormancy Math Breakdown */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-1">
+                <div className="text-[10px] font-mono uppercase font-bold text-stone-500">Unspent Escrow In Contract</div>
+                <div className="text-2xl font-black font-bebas text-stone-900">2.00 ETH</div>
+                <div className="text-[11px] text-stone-500">Out of 3.20 ETH initial total</div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-1">
+                <div className="text-[10px] font-mono uppercase font-bold text-stone-500">Your Donation Weight</div>
+                <div className="text-2xl font-black font-bebas text-stone-900">1.50 ETH</div>
+                <div className="text-[11px] text-stone-500">Alice (46.875% of total pool)</div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-1">
+                <div className="text-[10px] font-mono uppercase font-bold text-stone-500">Calculated Refund Share</div>
+                <div className="text-2xl font-black font-bebas text-emerald-700">0.9375 ETH</div>
+                <div className="text-[11px] font-mono text-stone-500">(1.50 × 2.00) ÷ 3.20 ETH</div>
+              </div>
+            </div>
+
+            {/* Claim Execution Banner */}
+            {isDormantSimulated ? (
+              <div className="p-5 rounded-2xl bg-stone-50 border border-stone-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm font-semibold text-stone-900 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span>Campaign Inactive (31 Days Without On-Chain Activity)</span>
+                  </div>
+                  <div className="text-xs text-stone-600 mt-0.5 font-sans">
+                    Dead-Man's Auto-Refund unlocked. Claiming returns your 0.9375 ETH proportional share directly to your wallet.
+                  </div>
+                </div>
+
+                {dormancyRefundClaimed ? (
+                  <div className="px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold flex items-center gap-2 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span>Refund Claimed (0.9375 ETH)</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setDormancyRefundClaimed(true)}
+                    className="py-2.5 px-5 rounded-xl bg-[#FF5023] hover:bg-[#e0441b] text-white text-xs font-semibold uppercase tracking-wider shadow-sm transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    Claim Proportional Refund (0.9375 ETH)
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-stone-500 font-mono pt-1">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span>Dormancy Status: <strong className="text-stone-800 font-semibold">Active &amp; Healthy (Last activity 12m ago)</strong></span>
+                </span>
+                <span>Rule: DORMANCY_TIMEOUT = 30 days</span>
+              </div>
+            )}
           </div>
         </div>
       </main>

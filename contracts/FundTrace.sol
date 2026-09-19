@@ -30,6 +30,8 @@ contract FundTrace is ReentrancyGuard {
         Late
     }
 
+    uint256 public constant DORMANCY_TIMEOUT = 30 days;
+
     struct Request {
         uint256 id;
         address payable recipient;
@@ -44,6 +46,8 @@ contract FundTrace is ReentrancyGuard {
         uint256 releasedAt;
         uint256 proofSubmittedAt;
         ProofTiming timing;
+        bool deliveryConfirmed;
+        uint256 deliveryConfirmedAt;
     }
 
     struct Campaign {
@@ -58,6 +62,9 @@ contract FundTrace is ReentrancyGuard {
         CampaignState state;
         uint256 requestCount;
         uint256 activeRequestId;
+        address beneficiary;
+        uint256 lastActivityTimestamp;
+        uint256 dormancySnapshotEscrow;
     }
 
     // --- State Variables ---
@@ -108,6 +115,9 @@ contract FundTrace is ReentrancyGuard {
         uint256 submittedAt
     );
     event Refunded(uint256 indexed campaignId, address indexed donor, uint256 amount);
+    event BeneficiarySet(uint256 indexed campaignId, address indexed beneficiary);
+    event DeliveryConfirmed(uint256 indexed campaignId, uint256 indexed requestId, address indexed beneficiary, uint256 timestamp);
+    event DormancyRefundClaimed(uint256 indexed campaignId, address indexed donor, uint256 amount, uint256 remainingEscrow);
 
     // --- Custom Errors ---
     error Unauthorized();
@@ -119,6 +129,7 @@ contract FundTrace is ReentrancyGuard {
     error InvalidAddress();
     error ActiveRequestExists();
     error OverdueProofPending();
+    error BeneficiaryDeliveryPending();
     error RequestNotFound();
     error AlreadyVoted();
     error VotingClosed();
@@ -157,6 +168,7 @@ contract FundTrace is ReentrancyGuard {
         c.deadline = _deadline;
         c.metadataHash = _metadataHash;
         c.state = CampaignState.PendingVerification;
+        c.lastActivityTimestamp = block.timestamp;
 
         emit CampaignCreated(campaignCount, msg.sender, _verifier, _goal, _deadline, _metadataHash);
         return campaignCount;
@@ -171,6 +183,7 @@ contract FundTrace is ReentrancyGuard {
         if (c.state != CampaignState.PendingVerification) revert InvalidState();
 
         c.state = CampaignState.Verified;
+        c.lastActivityTimestamp = block.timestamp;
         emit CampaignVerified(_campaignId, msg.sender);
     }
 
@@ -184,6 +197,20 @@ contract FundTrace is ReentrancyGuard {
 
         c.state = CampaignState.Rejected;
         emit CampaignRejected(_campaignId, msg.sender, _reason);
+    }
+
+    /**
+     * @notice Assigns or updates the physical beneficiary (e.g., school headmaster or hospital director).
+     * @dev Callable by campaign creator or institutional verifier.
+     */
+    function setBeneficiary(uint256 _campaignId, address _beneficiary) external {
+        Campaign storage c = campaigns[_campaignId];
+        if (msg.sender != c.creator && msg.sender != c.verifier) revert Unauthorized();
+        if (_beneficiary == address(0)) revert InvalidAddress();
+
+        c.beneficiary = _beneficiary;
+        c.lastActivityTimestamp = block.timestamp;
+        emit BeneficiarySet(_campaignId, _beneficiary);
     }
 
     // ==========================================
@@ -202,6 +229,7 @@ contract FundTrace is ReentrancyGuard {
 
         donations[_campaignId][msg.sender] += msg.value;
         c.totalDonated += msg.value;
+        c.lastActivityTimestamp = block.timestamp;
 
         emit Donated(_campaignId, msg.sender, msg.value, c.totalDonated);
 
@@ -238,9 +266,13 @@ contract FundTrace is ReentrancyGuard {
         // Block if previous released request has an unsubmitted overdue proof
         if (hasOverdueProof(_campaignId)) revert OverdueProofPending();
 
+        // Block if previous released request has unconfirmed beneficiary physical delivery
+        if (hasUnconfirmedDelivery(_campaignId)) revert BeneficiaryDeliveryPending();
+
         c.requestCount++;
         uint256 reqId = c.requestCount;
         c.activeRequestId = reqId;
+        c.lastActivityTimestamp = block.timestamp;
 
         Request storage r = requests[_campaignId][reqId];
         r.id = reqId;
@@ -281,6 +313,7 @@ contract FundTrace is ReentrancyGuard {
 
         hasVoted[_campaignId][_requestId][msg.sender] = true;
         r.approvalWeight += weight;
+        c.lastActivityTimestamp = block.timestamp;
 
         emit Approved(_campaignId, _requestId, msg.sender, weight, r.approvalWeight);
 
@@ -308,6 +341,7 @@ contract FundTrace is ReentrancyGuard {
 
         hasVoted[_campaignId][_requestId][msg.sender] = true;
         r.approvalWeight += weight;
+        c.lastActivityTimestamp = block.timestamp;
 
         emit Approved(_campaignId, _requestId, msg.sender, weight, r.approvalWeight);
 
@@ -333,6 +367,7 @@ contract FundTrace is ReentrancyGuard {
         r.proofDeadline = block.timestamp + duration;
         c.totalReleased += r.amount;
         c.activeRequestId = 0; // Release active slot
+        c.lastActivityTimestamp = block.timestamp;
 
         (bool sent, ) = r.recipient.call{value: r.amount}("");
         if (!sent) revert TransferFailed();
@@ -383,6 +418,7 @@ contract FundTrace is ReentrancyGuard {
         r.proofSubmitted = true;
         r.proofSubmittedAt = block.timestamp;
         r.timing = isLate ? ProofTiming.Late : ProofTiming.OnTime;
+        c.lastActivityTimestamp = block.timestamp;
 
         emit ProofSubmitted(_campaignId, _requestId, _receiptHash, isLate, block.timestamp);
     }
@@ -413,6 +449,45 @@ contract FundTrace is ReentrancyGuard {
                 if (block.timestamp > r.proofDeadline) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @notice Ground-truth beneficiary (e.g. school headmaster) or verifier confirms physical delivery of goods/services.
+     * @dev Solves Phantom Delivery: creator cannot create subsequent requests until physical arrival is verified.
+     */
+    function confirmDelivery(uint256 _campaignId, uint256 _requestId) external {
+        Campaign storage c = campaigns[_campaignId];
+        Request storage r = requests[_campaignId][_requestId];
+
+        if (c.beneficiary != address(0)) {
+            if (msg.sender != c.beneficiary && msg.sender != c.verifier) revert Unauthorized();
+        } else {
+            if (msg.sender != c.verifier) revert Unauthorized();
+        }
+
+        if (r.state != RequestState.Released) revert InvalidState();
+        if (r.deliveryConfirmed) revert InvalidState();
+
+        r.deliveryConfirmed = true;
+        r.deliveryConfirmedAt = block.timestamp;
+        c.lastActivityTimestamp = block.timestamp;
+
+        emit DeliveryConfirmed(_campaignId, _requestId, msg.sender, block.timestamp);
+    }
+
+    /**
+     * @notice Checks whether a campaign has any released request awaiting beneficiary physical delivery attestation.
+     */
+    function hasUnconfirmedDelivery(uint256 _campaignId) public view returns (bool) {
+        Campaign storage c = campaigns[_campaignId];
+        if (c.beneficiary == address(0)) return false;
+        for (uint256 i = 1; i <= c.requestCount; i++) {
+            Request storage r = requests[_campaignId][i];
+            if (r.state == RequestState.Released && !r.deliveryConfirmed) {
+                return true;
             }
         }
         return false;
@@ -451,6 +526,48 @@ contract FundTrace is ReentrancyGuard {
         if (!sent) revert TransferFailed();
 
         emit Refunded(_campaignId, msg.sender, amount);
+    }
+
+    /**
+     * @notice Returns true if campaign has unspent funds and has been abandoned/silent for over DORMANCY_TIMEOUT (30 days).
+     * @dev Solves the Abandoned Student Project problem where teams graduate and leave remaining escrow locked forever.
+     */
+    function isCampaignDormant(uint256 _campaignId) public view returns (bool) {
+        Campaign storage c = campaigns[_campaignId];
+        if (c.state != CampaignState.FundingClosed) return false;
+        if (c.totalDonated <= c.totalReleased) return false;
+        if (c.activeRequestId != 0) {
+            Request storage r = requests[_campaignId][c.activeRequestId];
+            if (r.state == RequestState.Pending && block.timestamp <= r.votingDeadline) {
+                return false;
+            }
+        }
+        return block.timestamp > (c.lastActivityTimestamp + DORMANCY_TIMEOUT);
+    }
+
+    /**
+     * @notice Contributors can pull back their proportional share of unspent escrow when a project is abandoned.
+     */
+    function claimDormancyRefund(uint256 _campaignId) external nonReentrant {
+        if (!isCampaignDormant(_campaignId)) revert InvalidState();
+        Campaign storage c = campaigns[_campaignId];
+
+        uint256 donorDonation = donations[_campaignId][msg.sender];
+        if (donorDonation == 0) revert InvalidAmount();
+
+        if (c.dormancySnapshotEscrow == 0) {
+            c.dormancySnapshotEscrow = c.totalDonated - c.totalReleased;
+        }
+
+        uint256 refundAmount = (donorDonation * c.dormancySnapshotEscrow) / c.totalDonated;
+        if (refundAmount == 0) revert InvalidAmount();
+
+        donations[_campaignId][msg.sender] = 0;
+
+        (bool sent, ) = payable(msg.sender).call{value: refundAmount}("");
+        if (!sent) revert TransferFailed();
+
+        emit DormancyRefundClaimed(_campaignId, msg.sender, refundAmount, address(this).balance);
     }
 
     // ==========================================

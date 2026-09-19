@@ -129,6 +129,8 @@ A request is **open** while it is `PENDING`, `APPROVED`, or `RELEASED` without p
 - **Proof deadline with overdue status**: missing evidence is visible, and blocks further spending.
 - **Metadata integrity**: campaign story and details are hashed at creation and locked at verification.
 - **Refunds**: donors reclaim their contribution if a campaign misses its goal.
+- **Beneficiary Physical Delivery Attestation (`confirmDelivery`) [Versathon 2.0 Innovation]**: Solves "The Phantom Delivery" problem. Even after a vendor is paid and an invoice PDF is uploaded, subsequent spending requests are strictly blocked on-chain until the designated local school principal or hospital headmaster physically signs off on-chain that the physical goods arrived.
+- **Project Dormancy & Dead-Man's Auto-Refund (`claimDormancyRefund`) [Versathon 2.0 Innovation]**: Solves "The Abandoned Student Project" problem. If student organizers graduate or abandon a project for 30+ days, contributors can pull back their exact proportional share of unspent escrow (`(donorDonation * remainingEscrow) / totalDonated`) directly from the smart contract without organizer approval.
 - **Public event ledger**: every financial event with timestamp, transaction hash, donor and recipient addresses, no login.
 - **Demo tooling**: local Hardhat network, pre-funded demo wallets and a one-command reset.
 
