@@ -1,5 +1,6 @@
 "use client";
 
+import { ethers } from "ethers";
 import React, { createContext, useContext, useState, useEffect } from "react";
 import {
   WalletState,
@@ -15,6 +16,8 @@ export const VERIFIER_ADDRESS = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC".toL
 
 interface WalletContextType {
   wallet: WalletState;
+  provider: ethers.BrowserProvider | ethers.JsonRpcProvider | null;
+  signer: ethers.Signer | null;
   isLoading: boolean;
   contractAddress: string;
   isVerifier: boolean;
@@ -27,6 +30,8 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [wallet, setWallet] = useState<WalletState>(INITIAL_WALLET_STATE);
+  const [provider, setProvider] = useState<ethers.BrowserProvider | ethers.JsonRpcProvider | null>(null);
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [contractAddress, setContractAddress] = useState<string>("");
 
@@ -74,7 +79,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setWallet((prev) => ({ ...prev, error: null }));
     try {
-      const { walletState } = await connectBrowserWallet();
+      const { provider: p, signer: s, walletState } = await connectBrowserWallet();
+      setProvider(p);
+      setSigner(s);
       setWallet(walletState);
     } catch (err: any) {
       console.error(err);
@@ -91,7 +98,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setWallet((prev) => ({ ...prev, error: null }));
     try {
-      const { walletState } = await connectDemoAccount(preset);
+      const { provider: p, signer: s, walletState } = await connectDemoAccount(preset);
+      setProvider(p);
+      setSigner(s);
       setWallet(walletState);
     } catch (err: any) {
       console.error(err);
@@ -106,6 +115,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   function disconnect() {
     setWallet(INITIAL_WALLET_STATE);
+    setProvider(null);
+    setSigner(null);
   }
 
   const isVerifier = Boolean(
@@ -116,6 +127,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     <WalletContext.Provider
       value={{
         wallet,
+        provider,
+        signer,
         isLoading,
         contractAddress,
         isVerifier,

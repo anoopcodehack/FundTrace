@@ -3,6 +3,7 @@ import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner";
 
 const fontSans = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -21,6 +22,7 @@ export default function RootLayout({
       <body className="bg-[#F7F4ED] text-[#141414] min-h-screen antialiased selection:bg-[#FF5023] selection:text-white">
         <WalletProvider>
           {children}
+          <Toaster position="top-center" richColors />
         </WalletProvider>
       </body>
     </html>
