@@ -4,6 +4,7 @@ import * as path from "path";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
+  console.log("--------------------------------------------------");
   console.log("Deploying FundTrace with account:", deployer.address);
 
   const FundTrace = await ethers.getContractFactory("FundTrace");
@@ -15,7 +16,9 @@ async function main() {
   const receipt = deploymentTx ? await deploymentTx.wait() : null;
   const blockNumber = receipt ? receipt.blockNumber : await ethers.provider.getBlockNumber();
 
-  console.log(`FundTrace deployed to: ${address} at block: ${blockNumber}`);
+  console.log(`FundTrace deployed successfully!`);
+  console.log(`Address: ${address}`);
+  console.log(`Block Number: ${blockNumber}`);
 
   const network = await ethers.provider.getNetwork();
   const deploymentsDir = path.join(__dirname, "..", "deployments");
@@ -24,10 +27,27 @@ async function main() {
   }
 
   const networkName = network.name === "unknown" ? "localhost" : network.name;
+  const deploymentData = {
+    address,
+    blockNumber,
+    chainId: Number(network.chainId),
+    deployedAt: new Date().toISOString(),
+  };
+
   fs.writeFileSync(
     path.join(deploymentsDir, `${networkName}.json`),
-    JSON.stringify({ address, blockNumber, chainId: Number(network.chainId) }, null, 2)
+    JSON.stringify(deploymentData, null, 2)
   );
+  // Also write to localhost.json if on hardhat network for convenience
+  if (networkName === "hardhat") {
+    fs.writeFileSync(
+      path.join(deploymentsDir, `localhost.json`),
+      JSON.stringify(deploymentData, null, 2)
+    );
+  }
+
+  console.log(`Saved deployment record to: deployments/${networkName}.json`);
+  console.log("--------------------------------------------------");
 }
 
 main().catch((error) => {
