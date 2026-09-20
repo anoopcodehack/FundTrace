@@ -31,7 +31,7 @@ async function main() {
   // Step 3: Deploy FundTrace Contract
   console.log("✔ Step 2: Deploying FundTrace contract...");
   const FundTraceFactory = await ethers.getContractFactory("FundTrace");
-  const fundTrace = (await FundTraceFactory.connect(deployer).deploy()) as any;
+  const fundTrace = (await FundTraceFactory.connect(deployer).deploy(creatorMain.address)) as any;
   await fundTrace.waitForDeployment();
   const contractAddress = await fundTrace.getAddress();
   const deploymentTx = fundTrace.deploymentTransaction();
