@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import MoneyFlowVisualizer from "@/components/MoneyFlowVisualizer";
+import AiReceiptFraudDetector from "@/components/AiReceiptFraudDetector";
 import { useWallet } from "@/context/WalletContext";
 import { formatAddress } from "@/lib/wallet";
 
@@ -315,6 +316,9 @@ export default function CampaignDetailPage() {
                 <div className="text-xs font-mono text-stone-500 mt-1">Vendor: 0x14dC...9955</div>
               </div>
             </div>
+
+            {/* AI RECEIPT FRAUD & INFLATION DETECTOR (ORANGE & BLACK THEME) */}
+            <AiReceiptFraudDetector />
 
             {/* Voting Bar & Threshold Meter */}
             <div className="space-y-2">
