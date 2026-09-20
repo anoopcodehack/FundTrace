@@ -18,9 +18,7 @@ export default function CampaignDetailPage() {
   const isOverdueCampaign = id === 3;
   const isPendingCampaign = id === 2;
 
-  // Voting state for Request #02
-  const [aliceVoted, setAliceVoted] = useState(false);
-  const [bobVoted, setBobVoted] = useState(false);
+  // Release state for Request #02
   const [requestReleased, setRequestReleased] = useState(false);
   const [showProofModal, setShowProofModal] = useState(false);
   const [proofSubmitted, setProofSubmitted] = useState(false);
@@ -45,9 +43,7 @@ export default function CampaignDetailPage() {
     }
   }
 
-  // Voting calculation
-  const currentWeight = (aliceVoted ? 46.9 : 0) + (bobVoted ? 31.3 : 0);
-  const isApproved = currentWeight > 50.0;
+
 
   // Connected role check
   const isCreator = wallet.address?.toLowerCase() === "0x70997970C51812dc3A010C7d01b50e0d17dc79C8".toLowerCase();
@@ -320,70 +316,31 @@ export default function CampaignDetailPage() {
             {/* AI RECEIPT FRAUD & INFLATION DETECTOR (ORANGE & BLACK THEME) */}
             <AiReceiptFraudDetector />
 
-            {/* Voting Bar & Threshold Meter */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-mono">
-                <span className="text-stone-500">Current Approval Weight:</span>
-                <span className="text-stone-700">
-                  <strong className={isApproved ? "text-emerald-700 font-bold" : "text-stone-900 font-bold"}>
-                    {currentWeight.toFixed(1)}%
-                  </strong>{" "}
-                  / 50.0% Required Threshold
-                </span>
-              </div>
-
-              <div className="w-full bg-stone-100 rounded-full h-2 relative overflow-hidden border border-stone-200">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    isApproved ? "bg-emerald-600" : "bg-[#FF5023]"
-                  }`}
-                  style={{ width: `${Math.min(currentWeight, 100)}%` }}
-                />
-                {/* 50% marker line */}
-                <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-stone-400" />
-              </div>
-            </div>
-
-            {/* Live Voting Cards for Alice & Bob */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-sm text-stone-900">Alice (Donor)</div>
-                  <div className="text-xs text-stone-500 mt-0.5">Donated 1.50 FTC · 46.9% Weight</div>
+            {/* Creator's Uploaded Invoice Details */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-stone-50 border border-stone-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-stone-200 flex items-center justify-center text-stone-500">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-stone-900">solar_inverters_quote_v2.pdf</div>
+                    <div className="text-xs text-stone-500">Uploaded by Creator (0x15d3...6A65) · 2.4 MB</div>
+                  </div>
                 </div>
-                <button
-                  onClick={() => setAliceVoted(!aliceVoted)}
-                  disabled={requestReleased}
-                  className={`py-1.5 px-3.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                    aliceVoted
-                      ? "bg-emerald-600 border border-emerald-600 text-white"
-                      : "bg-white hover:bg-stone-100 border border-stone-300 text-stone-800"
-                  }`}
-                >
-                  {aliceVoted ? "✓ Approved" : "Vote Alice"}
-                </button>
-              </div>
-
-              <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-sm text-stone-900">Bob (Donor)</div>
-                  <div className="text-xs text-stone-500 mt-0.5">Donated 1.00 FTC · 31.3% Weight</div>
-                </div>
-                <button
-                  onClick={() => setBobVoted(!bobVoted)}
-                  disabled={requestReleased}
-                  className={`py-1.5 px-3.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                    bobVoted
-                      ? "bg-emerald-600 border border-emerald-600 text-white"
-                      : "bg-white hover:bg-stone-100 border border-stone-300 text-stone-800"
-                  }`}
-                >
-                  {bobVoted ? "✓ Approved" : "Vote Bob"}
+                <button className="px-4 py-2 rounded-lg bg-white border border-stone-200 text-stone-700 text-xs font-semibold hover:bg-stone-50 transition-colors shadow-sm">
+                  View Document
                 </button>
               </div>
             </div>
 
-            {/* Controlled Release Execution Button */}
+            {/* Execution / Release Details */}
             <div className="pt-4 border-t border-stone-200">
               {requestReleased ? (
                 <div className="space-y-4">
@@ -435,17 +392,18 @@ export default function CampaignDetailPage() {
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setRequestReleased(true)}
-                  disabled={!isApproved}
-                  className={`w-full py-3.5 px-6 rounded-xl font-semibold text-xs uppercase tracking-wider transition-colors ${
-                    isApproved
-                      ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm cursor-pointer"
-                      : "bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed"
-                  }`}
-                >
-                  {isApproved ? "Execute Controlled Release (0.50 FTC)" : "Locked: Requires >50% Contributor Approval"}
-                </button>
+                <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="text-xs text-stone-600">
+                    <span className="font-bold text-stone-900 block mb-0.5">Pending Donor Sanction</span>
+                    Donors are currently reviewing this request via their personal dashboards.
+                  </div>
+                  <button
+                    onClick={() => setRequestReleased(true)}
+                    className="py-2.5 px-5 rounded-xl font-bold text-xs uppercase tracking-wider bg-stone-900 hover:bg-black text-white shadow-sm transition-colors cursor-pointer shrink-0"
+                  >
+                    Simulate Release
+                  </button>
+                </div>
               )}
             </div>
 
