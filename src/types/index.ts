@@ -54,6 +54,9 @@ export interface CampaignOnChain {
   state: CampaignState;
   requestCount: number;
   activeRequestId: number;
+  beneficiary?: string;
+  lastActivityTimestamp?: number;
+  dormancySnapshotEscrow?: string;
 }
 
 export interface SpendingRequestOnChain {
@@ -71,6 +74,8 @@ export interface SpendingRequestOnChain {
   releasedAt: number;
   proofSubmittedAt: number;
   timing: ProofTiming;
+  deliveryConfirmed?: boolean;
+  deliveryConfirmedAt?: number;
 }
 
 export interface LedgerEvent {
@@ -86,7 +91,10 @@ export interface LedgerEvent {
     | "Released"
     | "RequestClosed"
     | "ProofSubmitted"
-    | "Refunded";
+    | "Refunded"
+    | "BeneficiarySet"
+    | "DeliveryConfirmed"
+    | "DormancyRefundClaimed";
   transactionHash: string;
   blockNumber: number;
   timestamp?: number;

@@ -24,7 +24,7 @@ export class LedgerService {
 
     if (!contract || !deployment) {
       this.logger.warn('Contract not ready for ledger querying');
-      return this.getMockLedgerEvents(campaignIdFilter);
+      return [];
     }
 
     try {
@@ -68,7 +68,7 @@ export class LedgerService {
       return events.reverse(); // Newest first
     } catch (err) {
       this.logger.error('Error fetching on-chain events from RPC', err);
-      return this.getMockLedgerEvents(campaignIdFilter);
+      return [];
     }
   }
 
@@ -99,61 +99,5 @@ export class LedgerService {
     }
   }
 
-  private getMockLedgerEvents(campaignIdFilter?: number): LedgerEvent[] {
-    const demoEvents: LedgerEvent[] = [
-      {
-        eventName: 'ProofSubmitted',
-        campaignId: 1,
-        blockNumber: 7,
-        transactionHash: '0xabc1...demo',
-        args: { campaignId: '1', requestId: '1', receiptHash: '0x7e5b...f12' },
-        summary: 'Expenditure proof receipt submitted on-chain (Hash: 0x7e5b...)',
-      },
-      {
-        eventName: 'Released',
-        campaignId: 1,
-        blockNumber: 6,
-        transactionHash: '0xabc2...demo',
-        args: { campaignId: '1', requestId: '1', recipient: '0x976EA74026E726554dB657fA54763abd0C3a0aa9', amount: '1.2 ETH' },
-        summary: 'Funds released: 1.2 ETH transferred to 0x976EA7...',
-      },
-      {
-        eventName: 'RequestApproved',
-        campaignId: 1,
-        blockNumber: 5,
-        transactionHash: '0xabc3...demo',
-        args: { campaignId: '1', requestId: '1', totalApprovalWeight: '2.5 ETH' },
-        summary: 'Request #1 reached consensus approval (Total Weight: 2.5 ETH)',
-      },
-      {
-        eventName: 'FundingClosed',
-        campaignId: 1,
-        blockNumber: 4,
-        transactionHash: '0xabc4...demo',
-        args: { campaignId: '1', totalRaised: '3.2 ETH' },
-        summary: 'Funding closed for Campaign #1 with total 3.2 ETH',
-      },
-      {
-        eventName: 'CampaignVerified',
-        campaignId: 1,
-        blockNumber: 2,
-        transactionHash: '0xabc5...demo',
-        args: { campaignId: '1', verifier: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC' },
-        summary: 'Campaign #1 verified by verifier 0x3C44Cd...',
-      },
-      {
-        eventName: 'CampaignCreated',
-        campaignId: 1,
-        blockNumber: 1,
-        transactionHash: '0xabc6...demo',
-        args: { campaignId: '1', goal: '3.0 ETH' },
-        summary: 'Campaign #1 created with goal 3.0 ETH',
-      },
-    ];
 
-    if (campaignIdFilter !== undefined) {
-      return demoEvents.filter((e) => e.campaignId === campaignIdFilter);
-    }
-    return demoEvents;
-  }
 }

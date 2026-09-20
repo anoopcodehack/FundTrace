@@ -10,6 +10,8 @@ export async function saveCampaignMetadata(data: {
   story: string;
   location?: string;
   coverImageUrl?: string;
+  creatorAddress?: string;
+  verifierAddress?: string;
 }): Promise<CampaignMetadata> {
   const response = await fetch(`${API_URL}/campaigns`, {
     method: 'POST',
@@ -24,6 +26,8 @@ export async function saveCampaignMetadata(data: {
       description: data.story, // Backend DTO expects description
       location: data.location,
       imageUrl: data.coverImageUrl, // Backend DTO expects imageUrl
+      creatorAddress: data.creatorAddress,
+      verifierAddress: data.verifierAddress,
     }),
   });
 

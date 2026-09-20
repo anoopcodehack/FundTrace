@@ -4,13 +4,13 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 describe("FundTrace Complete Rule Verification (30+ Tests)", function () {
   async function deployFixture() {
-    const [deployer, creator, verifier, donor1, donor2, donor3, recipient, other] = await ethers.getSigners();
+    const [deployer, creator, verifier, donor1, donor2, donor3, recipient, other, beneficiary] = await ethers.getSigners();
 
     const FundTraceFactory = await ethers.getContractFactory("FundTrace");
     const fundTrace = await FundTraceFactory.deploy();
     await fundTrace.waitForDeployment();
 
-    return { fundTrace, deployer, creator, verifier, donor1, donor2, donor3, recipient, other };
+    return { fundTrace, deployer, creator, verifier, donor1, donor2, donor3, recipient, other, beneficiary };
   }
 
   // Helper to create and verify a campaign
@@ -614,6 +614,236 @@ describe("FundTrace Complete Rule Verification (30+ Tests)", function () {
     it("52. ✓ successful campaign cannot refund", async function () {
       const { fundTrace, donor1 } = await setupFundedCampaign();
       await expect(fundTrace.connect(donor1).refund(1)).to.be.revertedWithCustomError(fundTrace, "InvalidState");
+    });
+  });
+
+  // ==========================================
+  // 7. BENEFICIARY DELIVERY ATTESTATION RULES (THE PHANTOM DELIVERY SOLUTION)
+  // ==========================================
+  describe("Beneficiary Physical Delivery Attestation Rules", function () {
+    async function setupWithBeneficiary() {
+      const fixture = await setupFundedCampaign();
+      const { fundTrace, creator, beneficiary } = fixture;
+      await fundTrace.connect(creator).setBeneficiary(1, beneficiary.address);
+      return { ...fixture, beneficiary };
+    }
+
+    it("53. creator or verifier can assign a ground-truth beneficiary and emit BeneficiarySet", async function () {
+      const { fundTrace, creator, verifier, beneficiary, other } = await setupFundedCampaign();
+      
+      await expect(fundTrace.connect(creator).setBeneficiary(1, beneficiary.address))
+        .to.emit(fundTrace, "BeneficiarySet")
+        .withArgs(1, beneficiary.address);
+
+      const campaign = await fundTrace.getCampaign(1);
+      expect(campaign.beneficiary).to.equal(beneficiary.address);
+
+      // Verifier can also update
+      await expect(fundTrace.connect(verifier).setBeneficiary(1, other.address))
+        .to.emit(fundTrace, "BeneficiarySet")
+        .withArgs(1, other.address);
+    });
+
+    it("54. unauthorized party cannot assign beneficiary or set zero address", async function () {
+      const { fundTrace, other, creator } = await setupFundedCampaign();
+      await expect(fundTrace.connect(other).setBeneficiary(1, other.address))
+        .to.be.revertedWithCustomError(fundTrace, "Unauthorized");
+
+      await expect(fundTrace.connect(creator).setBeneficiary(1, ethers.ZeroAddress))
+        .to.be.revertedWithCustomError(fundTrace, "InvalidAddress");
+    });
+
+    it("55. ground-truth beneficiary can confirm physical delivery after release", async function () {
+      const { fundTrace, creator, beneficiary, recipient, donor1, donor2 } = await setupWithBeneficiary();
+
+      // Create, vote, and release request 1
+      await fundTrace.connect(creator).createRequest(
+        1,
+        recipient.address,
+        ethers.parseEther("1.0"),
+        ethers.keccak256(ethers.toUtf8Bytes("req1")),
+        3600,
+        3600
+      );
+      await fundTrace.connect(donor1).vote(1, 1);
+      await fundTrace.connect(donor2).vote(1, 1);
+      await fundTrace.connect(creator).release(1, 1);
+
+      // Confirm physical delivery
+      await expect(fundTrace.connect(beneficiary).confirmDelivery(1, 1))
+        .to.emit(fundTrace, "DeliveryConfirmed");
+
+      const req = await fundTrace.getRequest(1, 1);
+      expect(req.deliveryConfirmed).to.be.true;
+      expect(req.deliveryConfirmedAt).to.be.gt(0);
+    });
+
+    it("56. unauthorized user cannot confirm physical delivery", async function () {
+      const { fundTrace, creator, recipient, donor1, donor2, other } = await setupWithBeneficiary();
+
+      await fundTrace.connect(creator).createRequest(
+        1,
+        recipient.address,
+        ethers.parseEther("1.0"),
+        ethers.keccak256(ethers.toUtf8Bytes("req1")),
+        3600,
+        3600
+      );
+      await fundTrace.connect(donor1).vote(1, 1);
+      await fundTrace.connect(donor2).vote(1, 1);
+      await fundTrace.connect(creator).release(1, 1);
+
+      await expect(fundTrace.connect(other).confirmDelivery(1, 1))
+        .to.be.revertedWithCustomError(fundTrace, "Unauthorized");
+    });
+
+    it("57. cannot confirm delivery for unreleased request or double confirm", async function () {
+      const { fundTrace, creator, beneficiary, recipient, donor1, donor2 } = await setupWithBeneficiary();
+
+      await fundTrace.connect(creator).createRequest(
+        1,
+        recipient.address,
+        ethers.parseEther("1.0"),
+        ethers.keccak256(ethers.toUtf8Bytes("req1")),
+        3600,
+        3600
+      );
+
+      // Cannot confirm before release
+      await expect(fundTrace.connect(beneficiary).confirmDelivery(1, 1))
+        .to.be.revertedWithCustomError(fundTrace, "InvalidState");
+
+      // Approve & release
+      await fundTrace.connect(donor1).vote(1, 1);
+      await fundTrace.connect(donor2).vote(1, 1);
+      await fundTrace.connect(creator).release(1, 1);
+
+      await fundTrace.connect(beneficiary).confirmDelivery(1, 1);
+
+      // Cannot double confirm
+      await expect(fundTrace.connect(beneficiary).confirmDelivery(1, 1))
+        .to.be.revertedWithCustomError(fundTrace, "InvalidState");
+    });
+
+    it("58. ✓ PHANTOM DELIVERY BLOCK: subsequent spending request is blocked until beneficiary confirms physical receipt", async function () {
+      const { fundTrace, creator, beneficiary, recipient, donor1, donor2 } = await setupWithBeneficiary();
+
+      // Release Request 1
+      await fundTrace.connect(creator).createRequest(
+        1,
+        recipient.address,
+        ethers.parseEther("1.0"),
+        ethers.keccak256(ethers.toUtf8Bytes("req1")),
+        3600,
+        3600
+      );
+      await fundTrace.connect(donor1).vote(1, 1);
+      await fundTrace.connect(donor2).vote(1, 1);
+      await fundTrace.connect(creator).release(1, 1);
+
+      // Creator submits invoice PDF
+      await fundTrace.connect(creator).submitProof(1, 1, ethers.keccak256(ethers.toUtf8Bytes("invoice.pdf")));
+
+      // Attempt to create Request 2 WITHOUT beneficiary physical attestation -> REVERTS
+      await expect(
+        fundTrace.connect(creator).createRequest(
+          1,
+          recipient.address,
+          ethers.parseEther("0.5"),
+          ethers.keccak256(ethers.toUtf8Bytes("req2")),
+          3600,
+          3600
+        )
+      ).to.be.revertedWithCustomError(fundTrace, "BeneficiaryDeliveryPending");
+
+      // Now Headmaster signs off on physical delivery of 50 kits
+      await fundTrace.connect(beneficiary).confirmDelivery(1, 1);
+
+      // Creator can now successfully create Request 2!
+      await expect(
+        fundTrace.connect(creator).createRequest(
+          1,
+          recipient.address,
+          ethers.parseEther("0.5"),
+          ethers.keccak256(ethers.toUtf8Bytes("req2")),
+          3600,
+          3600
+        )
+      ).to.emit(fundTrace, "RequestCreated");
+    });
+  });
+
+  // ==========================================
+  // 8. PROJECT DORMANCY & DEAD-MAN'S AUTO-REFUND RULES (ABANDONED STUDENT PROJECT)
+  // ==========================================
+  describe("Project Dormancy & Dead-Man's Auto-Refund Rules", function () {
+    it("59. isCampaignDormant returns false while active or within 30 days", async function () {
+      const { fundTrace } = await setupFundedCampaign();
+      expect(await fundTrace.isCampaignDormant(1)).to.be.false;
+
+      // Advance time by 20 days
+      await time.increase(20 * 86400);
+      expect(await fundTrace.isCampaignDormant(1)).to.be.false;
+    });
+
+    it("60. isCampaignDormant returns true after 30 days of inactivity with unspent escrow", async function () {
+      const { fundTrace } = await setupFundedCampaign();
+      
+      // Advance past 30-day dormancy timeout (31 days)
+      await time.increase(31 * 86400);
+      expect(await fundTrace.isCampaignDormant(1)).to.be.true;
+    });
+
+    it("61. ✓ contributors can claim exact proportional refund when project is abandoned", async function () {
+      const { fundTrace, creator, recipient, donor1, donor2, donor3 } = await setupFundedCampaign();
+      // Total donated: 3.2 ETH (donor1: 1.5 ETH, donor2: 1.0 ETH, donor3: 0.7 ETH)
+
+      // Spend 1.2 ETH on Phase 1
+      await fundTrace.connect(creator).createRequest(
+        1,
+        recipient.address,
+        ethers.parseEther("1.2"),
+        ethers.keccak256(ethers.toUtf8Bytes("phase1")),
+        3600,
+        3600
+      );
+      await fundTrace.connect(donor1).vote(1, 1);
+      await fundTrace.connect(donor2).vote(1, 1);
+      await fundTrace.connect(creator).release(1, 1);
+
+      // Remaining unspent escrow = 3.2 - 1.2 = 2.0 ETH
+      // Students graduate and abandon project for 35 days
+      await time.increase(35 * 86400);
+      expect(await fundTrace.isCampaignDormant(1)).to.be.true;
+
+      // Donor 1 donated 1.5 ETH out of 3.2 ETH total.
+      // Expected refund = (1.5 * 2.0) / 3.2 = 0.9375 ETH
+      const expectedRefund1 = (ethers.parseEther("1.5") * ethers.parseEther("2.0")) / ethers.parseEther("3.2");
+
+      const balBefore = await ethers.provider.getBalance(donor1.address);
+      const tx = await fundTrace.connect(donor1).claimDormancyRefund(1);
+      const receipt = await tx.wait();
+      const gas = receipt!.gasUsed * receipt!.gasPrice;
+      const balAfter = await ethers.provider.getBalance(donor1.address);
+
+      expect(balAfter + gas - balBefore).to.equal(expectedRefund1);
+    });
+
+    it("62. double dormancy refund claim is prevented", async function () {
+      const { fundTrace, donor1 } = await setupFundedCampaign();
+      await time.increase(31 * 86400);
+
+      await fundTrace.connect(donor1).claimDormancyRefund(1);
+      await expect(fundTrace.connect(donor1).claimDormancyRefund(1))
+        .to.be.revertedWithCustomError(fundTrace, "InvalidAmount");
+    });
+
+    it("63. non-contributor cannot claim dormancy refund", async function () {
+      const { fundTrace, other } = await setupFundedCampaign();
+      await time.increase(31 * 86400);
+
+      await expect(fundTrace.connect(other).claimDormancyRefund(1))
+        .to.be.revertedWithCustomError(fundTrace, "InvalidAmount");
     });
   });
 });

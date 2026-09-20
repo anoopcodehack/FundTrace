@@ -7,7 +7,19 @@ import Navbar from "@/components/Navbar";
 
 interface LedgerEvent {
   id: string;
-  eventName: "CampaignCreated" | "CampaignVerified" | "Donated" | "FundingClosed" | "RequestCreated" | "Approved" | "RequestApproved" | "Released" | "ProofSubmitted";
+  eventName:
+    | "CampaignCreated"
+    | "CampaignVerified"
+    | "Donated"
+    | "FundingClosed"
+    | "RequestCreated"
+    | "Approved"
+    | "RequestApproved"
+    | "Released"
+    | "ProofSubmitted"
+    | "BeneficiarySet"
+    | "DeliveryConfirmed"
+    | "DormancyRefundClaimed";
   blockNumber: number;
   txHash: string;
   timestamp: string;
@@ -17,6 +29,16 @@ interface LedgerEvent {
 }
 
 const SAMPLE_EVENTS: LedgerEvent[] = [
+  {
+    id: "0",
+    eventName: "DeliveryConfirmed",
+    blockNumber: 15,
+    txHash: "0x9f1827d01847192847291048102938471928471928471928471928471928478a",
+    timestamp: "8 mins ago",
+    actor: "0x976E...0aa9 (Principal Sharma)",
+    details: "Attested Physical Receipt: 50 Arduino Robotics Kits & Sensors arrived at School",
+    badge: "PHYSICAL DELIVERY CONFIRMED",
+  },
   {
     id: "1",
     eventName: "ProofSubmitted",
@@ -102,6 +124,57 @@ const SAMPLE_EVENTS: LedgerEvent[] = [
 export default function CampaignLedgerPage() {
   const params = useParams();
   const id = Number(params?.id || 1);
+  const [exportToast, setExportToast] = React.useState<string | null>(null);
+
+  function handleExportCSV() {
+    const headers = ["Block Number", "Event Name", "Timestamp", "Actor Address", "Details", "Transaction Hash", "Audit Status"];
+    const rows = SAMPLE_EVENTS.map((e) => [
+      e.blockNumber,
+      `"${e.eventName}"`,
+      `"${e.timestamp}"`,
+      `"${e.actor}"`,
+      `"${e.details.replace(/"/g, '""')}"`,
+      `"${e.txHash}"`,
+      `"${e.badge}"`,
+    ]);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `fundtrace-campaign-${id}-audit-ledger.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setExportToast("CSV Exported");
+    setTimeout(() => setExportToast(null), 2500);
+  }
+
+  function handleExportJSON() {
+    const jsonContent = JSON.stringify(
+      {
+        campaignId: id,
+        network: "Ethereum Local Node (Chain ID 31337)",
+        exportedAt: new Date().toISOString(),
+        totalEvents: SAMPLE_EVENTS.length,
+        events: SAMPLE_EVENTS,
+      },
+      null,
+      2
+    );
+    const blob = new Blob([jsonContent], { type: "application/json;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `fundtrace-campaign-${id}-audit-ledger.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setExportToast("JSON Exported");
+    setTimeout(() => setExportToast(null), 2500);
+  }
 
   return (
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
@@ -118,24 +191,87 @@ export default function CampaignLedgerPage() {
           <span className="text-stone-900">Public Audit Ledger</span>
         </div>
 
-        {/* Ledger Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-8 border-b border-stone-300">
-          <div>
-            <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5023]">
-              PUBLIC VERIFIABILITY · ZERO LOGIN REQUIRED
-            </span>
-            <h1 className="text-4xl sm:text-6xl font-black font-bebas uppercase leading-none text-[#141414] mt-1">
-              CAMPAIGN #{id} EVENT LEDGER
-            </h1>
+        {/* Clean Editorial Hero Banner (FinFLO Theme) */}
+        <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-8 border border-stone-800">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5 mb-3">
+                <span className="px-3 py-1 rounded-full bg-white/10 text-stone-200 text-xs font-mono font-medium border border-white/10">
+                  Public Verifiability
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 text-stone-300 text-xs font-mono font-medium border border-white/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Zero Login Required
+                </span>
+              </div>
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black font-bebas uppercase leading-[0.88] tracking-tight text-white">
+                CAMPAIGN #{id} EVENT LEDGER
+              </h1>
+              <p className="text-xs sm:text-sm text-stone-300 max-w-xl leading-relaxed">
+                Immutable chronological event log emitted by the FundTrace smart contract on Ethereum node.
+              </p>
+            </div>
+
+            <div className="hidden lg:flex flex-col items-end border-l border-stone-800 pl-8 space-y-1">
+              <span className="text-[10px] font-mono uppercase text-stone-400 font-bold tracking-widest">
+                CHAIN NETWORK
+              </span>
+              <span className="text-3xl font-black font-bebas text-amber-400 tracking-wide">
+                CHAIN ID 31337
+              </span>
+              <span className="text-xs font-mono text-emerald-400 font-semibold">
+                ● Live Contract Feed
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Table Controls & Export Action Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <h3 className="text-sm font-mono font-bold uppercase tracking-wider text-stone-800">
+              Audit Event Log ({SAMPLE_EVENTS.length} Verified Entries)
+            </h3>
           </div>
 
-          <span className="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold font-mono">
-            Direct Contract Event Feed (Chain ID: 31337)
-          </span>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-stone-50 border border-stone-300 text-stone-800 text-xs font-mono font-bold transition-all shadow-xs cursor-pointer hover:border-stone-400"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-stone-600">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Export CSV</span>
+            </button>
+
+            <button
+              onClick={handleExportJSON}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-stone-50 border border-stone-300 text-stone-800 text-xs font-mono font-bold transition-all shadow-xs cursor-pointer hover:border-stone-400"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-stone-600">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              <span>Export JSON</span>
+            </button>
+
+            {exportToast && (
+              <span className="text-xs font-mono font-bold text-emerald-600 animate-fade-in">
+                ✓ {exportToast}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Immutable Audit Ledger Table */}
-        <div className="mt-8 bg-white rounded-3xl border border-stone-300 shadow-md overflow-hidden">
+        <div className="mt-8 bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-sans">
               <thead className="bg-[#181816] text-stone-300 uppercase tracking-wider font-bold">
@@ -172,7 +308,7 @@ export default function CampaignLedgerPage() {
                     </td>
 
                     <td className="py-4 px-5">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-stone-100 text-stone-800">
+                      <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-stone-100 text-stone-700 border border-stone-200">
                         {item.badge}
                       </span>
                     </td>

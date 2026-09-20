@@ -5,12 +5,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useWallet } from "@/context/WalletContext";
 import { DEMO_PRESET_ACCOUNTS, formatAddress } from "@/lib/wallet";
+import IntroLoader from "@/components/IntroLoader";
 
-// Precision Mathematical 4-Pointed Curved Star (Astroid)
-function StarIcon({ className = "w-10 h-10 text-[#FF5023]" }: { className?: string }) {
+// Clean Verification & Cryptographic Shield Icon
+function ShieldCheckIcon({ className = "w-10 h-10 text-[#FF5023]" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 100 100" fill="currentColor" className={className}>
-      <path d="M50 0 C50 27.614 27.614 50 0 50 C27.614 50 50 72.386 50 100 C50 72.386 72.386 50 100 50 C72.386 50 50 27.614 50 0 Z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
     </svg>
   );
 }
@@ -21,6 +23,15 @@ function ArrowIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <line x1="5" y1="12" x2="19" y2="12" />
       <polyline points="12 5 19 12 12 19" />
+    </svg>
+  );
+}
+
+// Signature 4-Pointed Concave Star Diamond (from FinFLO Figma reference)
+function StarDiamondIcon({ className = "w-20 h-20 text-[#FF5023]" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" fill="currentColor" className={className}>
+      <path d="M50 0 C50 32 68 50 100 50 C68 50 50 68 50 100 C50 68 32 50 0 50 C32 50 50 32 50 0 Z" />
     </svg>
   );
 }
@@ -65,6 +76,9 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] selection:bg-[#FF5023] selection:text-white antialiased">
       
+      {/* Intro Brand Logo Drop Physics Loader */}
+      <IntroLoader />
+
       {/* ============================================================ */}
       {/* 1. TOP HEADER & DIRECT ROUTE ACCESS                          */}
       {/* ============================================================ */}
@@ -195,7 +209,7 @@ export default function HomePage() {
                 if (alice) selectDemoRole(alice);
               }}
               className={`w-full h-[30%] rounded-xl transition-all cursor-pointer ${
-                activeTab === "personal" ? "ring-2 ring-white/80 bg-white/10" : "hover:bg-black/10"
+                activeTab === "personal" ? "bg-black/10" : "hover:bg-black/10"
               }`}
               title="Personal Tab: Switch to Alice Donor (46.9%)"
             />
@@ -206,7 +220,7 @@ export default function HomePage() {
                 if (creator) selectDemoRole(creator);
               }}
               className={`w-full h-[30%] rounded-xl transition-all cursor-pointer ${
-                activeTab === "team" ? "ring-2 ring-white/80 bg-white/10" : "hover:bg-black/10"
+                activeTab === "team" ? "bg-black/10" : "hover:bg-black/10"
               }`}
               title="Team Tab: Switch to Campaign Creator"
             />
@@ -217,7 +231,7 @@ export default function HomePage() {
                 if (verifier) selectDemoRole(verifier);
               }}
               className={`w-full h-[30%] rounded-xl transition-all cursor-pointer ${
-                activeTab === "business" ? "ring-2 ring-white/80 bg-white/10" : "hover:bg-black/10"
+                activeTab === "business" ? "bg-black/10" : "hover:bg-black/10"
               }`}
               title="Business Tab: Switch to Auditor Verifier"
             />
@@ -274,7 +288,7 @@ export default function HomePage() {
       </section>
 
       {/* ============================================================ */}
-      {/* 3. SECTION: WHY THE FUTURE OF PRIVATE EQUITY MATTERS!        */}
+      {/* 3. SECTION: WHY ON-CHAIN ACCOUNTABILITY MATTERS!             */}
       {/* ============================================================ */}
       <section id="why-it-matters" className="max-w-7xl mx-auto px-6 sm:px-12 py-16 sm:py-24 relative reveal-init">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
@@ -282,16 +296,16 @@ export default function HomePage() {
           {/* Left: Giant Title + 3 Items */}
           <div className="lg:col-span-6 space-y-8">
             <h2 className="text-5xl sm:text-7xl font-black font-bebas uppercase leading-[0.88] tracking-tight text-[#141414]">
-              WHY THE <span className="text-[#FF5023]">FUTURE</span>
+              WHY ON-CHAIN <span className="text-[#FF5023]">ACCOUNTABILITY</span>
               <br />
-              OF PRIVATE EQUITY
+              &amp; ESCROW INTEGRITY
               <br />
               MATTERS!
             </h2>
 
             <div className="space-y-4 pt-2">
               
-              {/* Item 1: Emerging Markets */}
+              {/* Item 1: Independent Auditor Verification */}
               <div className="border-b border-stone-300 pb-3">
                 <button
                   onClick={() => setOpenAccordion(openAccordion === 0 ? -1 : 0)}
@@ -301,17 +315,17 @@ export default function HomePage() {
                     <span className="text-[#FF5023] font-mono text-lg font-bold">
                       {openAccordion === 0 ? "−" : "+"}
                     </span>
-                    Emerging Markets & Verification
+                    Independent Auditor Verification
                   </span>
                 </button>
                 {openAccordion === 0 && (
                   <p className="text-xs sm:text-sm text-stone-600 mt-2 pl-6 leading-relaxed">
-                    Independent registered auditors verify campaign credentials before public donations open. Creators are strictly barred from approving their own initiatives.
+                    Registered third-party auditors audit credentials and call <code>verifyCampaign()</code> before public funding can open. Creators are strictly barred from verifying their own campaigns.
                   </p>
                 )}
               </div>
 
-              {/* Item 2: Technological Innovation (Active Dark Card in Reference) */}
+              {/* Item 2: Democratic Contributor Governance */}
               <div className="pt-1">
                 <button
                   onClick={() => setOpenAccordion(openAccordion === 1 ? -1 : 1)}
@@ -326,18 +340,18 @@ export default function HomePage() {
                       <span className="text-[#FF5023] font-mono text-lg font-bold">
                         {openAccordion === 1 ? "−" : "+"}
                       </span>
-                      Technological Innovation
+                      Democratic Contributor Governance
                     </span>
                   </div>
                   {openAccordion === 1 && (
                     <p className="text-xs text-stone-300 mt-2.5 pl-6 leading-relaxed">
-                      Understand how AI, blockchain, and data analytics are revolutionizing private equity. Donors vote with their exact contribution weight. Spending requires strictly &gt;50% donor approval before any fund leaves escrow.
+                      Donors vote with their exact contribution weight. Smart contracts strictly require &gt;50% contributor approval weight before any milestone funds leave escrow.
                     </p>
                   )}
                 </button>
               </div>
 
-              {/* Item 3: Sustainable Investing */}
+              {/* Item 3: Immutable Keccak-256 Proofs */}
               <div className="border-b border-stone-300 pb-3 pt-2">
                 <button
                   onClick={() => setOpenAccordion(openAccordion === 2 ? -1 : 2)}
@@ -347,12 +361,12 @@ export default function HomePage() {
                     <span className="text-[#FF5023] font-mono text-lg font-bold">
                       {openAccordion === 2 ? "−" : "+"}
                     </span>
-                    Sustainable Investing
+                    Immutable Keccak-256 Receipts
                   </span>
                 </button>
                 {openAccordion === 2 && (
                   <p className="text-xs sm:text-sm text-stone-600 mt-2 pl-6 leading-relaxed">
-                    Raw invoice bytes are hashed with Keccak-256 and committed on-chain. Overdue receipts automatically lock future spending requests, eliminating phantom expenses.
+                    Raw invoice bytes are hashed with Keccak-256 and committed on-chain. Overdue receipts automatically lock future spending requests, preventing phantom withdrawals.
                   </p>
                 )}
               </div>
@@ -360,12 +374,12 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Right: Watermark "VALUE" + Precision Vector Tilted Statement Card */}
+          {/* Right: Watermark "ESCROW" + Precision Vector Tilted Statement Card */}
           <div className="lg:col-span-6 relative pt-6 sm:pt-0">
             
-            {/* Watermark "VALUE" */}
+            {/* Watermark "ESCROW" */}
             <div className="absolute -top-12 right-6 text-[150px] sm:text-[220px] font-black text-stone-200/50 select-none pointer-events-none font-bebas z-0">
-              VALUE
+              ESCROW
             </div>
 
             {/* Crisp Vector Tilted Card (100% Sharp, Zero Cut-Offs) */}
@@ -374,14 +388,14 @@ export default function HomePage() {
                 
                 {/* Title */}
                 <div className="font-bebas text-2xl sm:text-3xl tracking-wide uppercase text-white drop-shadow">
-                  STATEMENT OF CHANGES IN EQUITY
+                  ON-CHAIN MILESTONE ESCROW
                 </div>
 
                 {/* Pill Badges */}
                 <div className="mt-6 space-y-3.5">
                   <div className="flex items-center justify-between">
                     <span className="px-3.5 py-1.5 rounded-lg bg-black/40 text-white font-bold text-xs">
-                      CLAIM WITH US
+                      GOAL FUNDED
                     </span>
                     <span className="px-3 py-1 rounded-md bg-[#FED74C] text-stone-950 font-black text-xs">
                       107%
@@ -390,10 +404,10 @@ export default function HomePage() {
 
                   <div className="flex items-center justify-between">
                     <span className="px-3.5 py-1.5 rounded-lg bg-black/40 text-white font-bold text-xs">
-                      INDIVIDUAL CLAIM
+                      VOTING THRESHOLD
                     </span>
                     <span className="px-3 py-1 rounded-md bg-white text-[#FF5023] font-black text-xs">
-                      46.9%
+                      &gt; 50.0%
                     </span>
                   </div>
 
@@ -410,7 +424,7 @@ export default function HomePage() {
 
             {/* Clean Complete Editorial Narrative */}
             <div className="mt-8 text-xs sm:text-sm text-stone-600 leading-relaxed max-w-xl">
-              The world of private equity is undergoing significant changes, driven by technological advancements, regulatory shifts, and new market opportunities. The traditional models are being disrupted, and those who adapt will reap the benefits. Explore how these changes can impact your investment strategies and what you need to know to thrive in this dynamic environment.
+              Traditional crowdfunding platforms suffer from lack of transparency and phantom disbursements. FundTrace introduces cryptographic guarantees: donor contributions remain locked in autonomous smart contracts until spending milestones are approved by democratic consensus, and verified by immutable hash commitments.
             </div>
 
           </div>
@@ -419,7 +433,7 @@ export default function HomePage() {
       </section>
 
       {/* ============================================================ */}
-      {/* 4. SECTION: INVESTMENT RETURNS (RAZOR-SHARP VECTOR CARD)     */}
+      {/* 4. SECTION: MILESTONE ACCOUNTABILITY (RAZOR-SHARP VECTOR)    */}
       {/* ============================================================ */}
       <section id="metrics" className="max-w-7xl mx-auto px-4 sm:px-10 py-10 reveal-init">
         <div className="bg-[#161813] rounded-[36px] sm:rounded-[44px] p-6 sm:p-12 text-white shadow-2xl relative overflow-hidden flex flex-col lg:flex-row items-center gap-10">
@@ -443,19 +457,19 @@ export default function HomePage() {
                 <div className="space-y-3">
                   <div className="flex items-baseline gap-2">
                     <span className="text-6xl sm:text-7xl font-black font-bebas tracking-tight text-[#141414]">
-                      60%
+                      78%
                     </span>
                     <span className="text-xs font-semibold text-stone-500">
-                      of Investors Voted
+                      Donor Consensus Weight
                     </span>
                   </div>
 
                   <div className="flex items-baseline gap-2 pt-2 border-t border-dashed border-stone-200">
                     <span className="text-4xl sm:text-5xl font-black font-bebas text-[#FF5023]">
-                      15.8%
+                      100%
                     </span>
                     <span className="text-xs font-semibold text-stone-500">
-                      Average Annual Return
+                      Receipt Proofs Verified
                     </span>
                   </div>
                 </div>
@@ -469,11 +483,11 @@ export default function HomePage() {
                   ))}
                 </div>
                 <div className="text-[10px] uppercase font-bold text-stone-800">
-                  USD
+                  ESCROW TOTAL
                 </div>
                 <div className="flex items-baseline gap-1 my-1">
-                  <span className="text-5xl font-black font-bebas">4b</span>
-                  <span className="text-xs font-bold text-stone-800">Amount Invested</span>
+                  <span className="text-5xl font-black font-bebas">4.2</span>
+                  <span className="text-xs font-bold text-stone-800">ETH Protected</span>
                 </div>
               </div>
 
@@ -483,11 +497,11 @@ export default function HomePage() {
           {/* Right Side: Editorial Narrative Text + Controls */}
           <div className="w-full lg:w-1/2 space-y-6 lg:pl-4">
             <h3 className="text-3xl sm:text-5xl font-black uppercase font-bebas tracking-wide text-white">
-              INVESTMENT RETURNS
+              MILESTONE ACCOUNTABILITY
             </h3>
 
             <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
-              Despite the challenges of an increasingly complex global economy, private equity continues to deliver strong returns. Over the past five years, the average annual return on private equity investments has outperformed traditional asset classes. Looking forward, the focus on value creation through operational improvements, coupled with strategic exits, is likely to sustain attractive returns for investors.
+              Unlike conventional crowdfunding platforms where organizers withdraw all capital upfront with zero accountability, FundTrace locks raised capital in autonomous smart contracts. Funds are disbursed strictly in tranches upon democratic majority approval (&gt;50% donor weight). Every expenditure requires verifiable vendor invoices and Keccak-256 cryptographic proof commitments.
             </p>
 
             <div className="flex items-center justify-between pt-4 border-t border-stone-800">
@@ -511,51 +525,62 @@ export default function HomePage() {
       </section>
 
       {/* ============================================================ */}
-      {/* 5. SECTION: FUTURE OF PRIVATE EQUITY BY THE NUMBERS          */}
+      {/* 5. SECTION: CROWDFUNDING GOVERNANCE BY THE NUMBERS           */}
       {/* ============================================================ */}
       <section className="max-w-7xl mx-auto px-6 sm:px-14 py-20 sm:py-28 reveal-init">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-12 border-b border-stone-300">
           <h2 className="text-5xl sm:text-7xl font-black font-bebas uppercase leading-[0.88] tracking-tight text-[#141414]">
-            FUTURE OF PRIVATE +
+            ON-CHAIN CROWDFUNDING +
             <br />
-            EQUITY <span className="text-[#FF5023]">BY THE NUMBERS.</span>
+            INTEGRITY <span className="text-[#FF5023]">BY THE NUMBERS.</span>
           </h2>
           <p className="text-xs sm:text-sm text-stone-600 max-w-md leading-relaxed">
-            Private equity is rapidly evolving, and understanding the key figures behind this growth is essential for anyone looking to stay ahead in the industry.
+            Transparent Web3 crowdfunding replaces centralized trust with smart contracts. Discover the metrics powering trustless fundraising and verifiable accountability.
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mt-12 items-center">
           <div className="lg:col-span-6 space-y-6">
             <div className="flex items-center gap-3">
-              <StarIcon className="w-12 h-12 text-[#FF5023]" />
+              <ShieldCheckIcon className="w-10 h-10 text-[#FF5023]" />
               <h3 className="text-3xl sm:text-4xl font-black font-bebas uppercase text-[#141414] tracking-wide">
-                Streamlining Investments with Cutting-Edge Technology
+                Streamlining Investments with Cryptographic Transparency
               </h3>
             </div>
 
             <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-              In the evolving world of private equity, technology is key to speeding up and simplifying investment processes. Through AI and advanced data analytics, we quickly identify the best opportunities with unmatched precision. Blockchain and smart contracts enhance security and transparency, reducing costs and eliminating barriers.
+              In decentralized crowdfunding, cryptographic integrity guarantees that donor funds are spent precisely as promised. Through deterministic Keccak-256 byte hashing and on-chain milestones, spending proofs are permanently verifiable. Donors retain democratic voting power before escrow releases, completely eliminating phantom disbursements.
             </p>
           </div>
 
-          {/* Layered 3D Isometric Cards Graphic with Continuous Floating Wave */}
+          {/* Telemetry Stat Cards */}
           <div className="lg:col-span-6 flex flex-col items-center sm:items-end">
-            <div className="space-y-4 text-center sm:text-right">
-              <div className="flex items-center justify-center sm:justify-end gap-2.5">
-                <div className="w-14 sm:w-16 h-28 rounded-2xl bg-[#FF5023] shadow-xl animate-deck-1 cursor-pointer transition-transform" />
-                <div className="w-14 sm:w-16 h-28 rounded-2xl bg-[#FF7043] shadow-xl animate-deck-2 cursor-pointer transition-transform" />
-                <div className="w-14 sm:w-16 h-28 rounded-2xl bg-[#161813] shadow-xl animate-deck-3 cursor-pointer transition-transform" />
-                <div className="w-14 sm:w-16 h-28 rounded-2xl bg-stone-300 shadow-xl animate-deck-4 cursor-pointer transition-transform" />
-                <div className="w-14 sm:w-16 h-28 rounded-2xl bg-[#FED74C] shadow-xl animate-deck-5 cursor-pointer transition-transform" />
+            <div className="space-y-4 text-center sm:text-right w-full max-w-md">
+              <div className="grid grid-cols-2 gap-3 text-left">
+                <div className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm">
+                  <div className="text-[10px] font-mono uppercase text-stone-500">Hash Algorithm</div>
+                  <div className="text-sm font-mono font-bold text-stone-900 mt-0.5">Keccak-256</div>
+                </div>
+                <div className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm">
+                  <div className="text-[10px] font-mono uppercase text-stone-500">Consensus Rule</div>
+                  <div className="text-sm font-mono font-bold text-stone-900 mt-0.5">&gt;50% Donor Vote</div>
+                </div>
+                <div className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm">
+                  <div className="text-[10px] font-mono uppercase text-stone-500">Smart Contracts</div>
+                  <div className="text-sm font-mono font-bold text-emerald-600 mt-0.5">Audited &amp; Locked</div>
+                </div>
+                <div className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm">
+                  <div className="text-[10px] font-mono uppercase text-stone-500">Receipt Verification</div>
+                  <div className="text-sm font-mono font-bold text-[#FF5023] mt-0.5">Byte-for-Byte</div>
+                </div>
               </div>
 
-              <div className="pt-4">
-                <div className="text-7xl sm:text-8xl font-black font-bebas tracking-tight text-[#141414]">
-                  516<span className="text-5xl text-[#FF5023]">K</span>
+              <div className="pt-2">
+                <div className="text-6xl sm:text-7xl font-black font-bebas tracking-tight text-[#141414]">
+                  516<span className="text-4xl text-[#FF5023]">K</span>
                 </div>
-                <div className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                  Data Delivered & Audited
+                <div className="text-xs font-mono font-semibold uppercase tracking-wider text-stone-500">
+                  Data Delivered &amp; Audited On-Chain
                 </div>
               </div>
             </div>
@@ -568,14 +593,14 @@ export default function HomePage() {
       {/* ============================================================ */}
       <section className="max-w-7xl mx-auto px-6 sm:px-14 py-10 space-y-4">
         
-        {/* Row 1: NETWORKING OPPORTUNITIES */}
+        {/* Row 1: INSTITUTIONAL AUDIT VERIFICATION */}
         <div className="p-7 rounded-3xl bg-white border border-stone-300 shadow-sm card-hover-effect flex flex-col sm:flex-row sm:items-center justify-between gap-4 reveal-init">
           <div>
             <div className="text-xl sm:text-2xl font-black font-bebas uppercase text-[#141414]">
-              NETWORKING OPPORTUNITIES
+              INSTITUTIONAL AUDIT &amp; CREDENTIAL VERIFICATION
             </div>
             <p className="text-xs text-stone-600 mt-0.5">
-              Connect with industry peers and verified auditors.
+              Accredited verifiers review licenses on-chain before public funding opens.
             </p>
           </div>
           <button
@@ -587,13 +612,13 @@ export default function HomePage() {
         </div>
 
         {/* Row 2: WEBINARS AND EVENTS (Snapshot Voting Sandbox) */}
-        <div className="p-7 sm:p-9 rounded-3xl bg-[#161813] text-white shadow-xl card-hover-effect flex flex-col lg:flex-row lg:items-center justify-between gap-6 reveal-init delay-100">
+        <div className="p-7 sm:p-9 rounded-2xl bg-[#141613] text-white shadow-sm border border-stone-800 flex flex-col lg:flex-row lg:items-center justify-between gap-6 reveal-init delay-100">
           <div className="space-y-2">
-            <div className="text-2xl sm:text-4xl font-black font-bebas uppercase text-white">
-              WEBINARS AND EVENTS
+            <div className="text-xl sm:text-2xl font-bold font-sans text-white">
+              Democratized Governance &amp; Voting Sandbox
             </div>
             <p className="text-xs text-stone-300 max-w-lg leading-relaxed">
-              Participate in live snapshot voting. Approval weight requires &gt;50% contribution. Currently at{" "}
+              Experience decentralized milestone voting. Smart contracts enforce &gt;50% contribution approval before funds unlock. Currently at{" "}
               <strong className={isThresholdMet ? "text-emerald-400" : "text-[#FF5023]"}>
                 {currentVoteWeight.toFixed(1)}% / 50%
               </strong>.
@@ -602,8 +627,10 @@ export default function HomePage() {
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 onClick={() => setAliceVoted(!aliceVoted)}
-                className={`py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  aliceVoted ? "bg-emerald-500 text-white shadow" : "bg-stone-800 text-stone-200 hover:bg-stone-700"
+                className={`py-1.5 px-3.5 rounded-lg text-xs font-medium transition-colors cursor-pointer border ${
+                  aliceVoted
+                    ? "bg-emerald-600 border-emerald-500 text-white"
+                    : "bg-stone-800/80 hover:bg-stone-800 border-stone-700 text-stone-200"
                 }`}
               >
                 {aliceVoted ? "✓ Alice Voted (46.9%)" : "+ Cast Alice (46.9%)"}
@@ -611,8 +638,10 @@ export default function HomePage() {
 
               <button
                 onClick={() => setBobVoted(!bobVoted)}
-                className={`py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  bobVoted ? "bg-emerald-500 text-white shadow" : "bg-stone-800 text-stone-200 hover:bg-stone-700"
+                className={`py-1.5 px-3.5 rounded-lg text-xs font-medium transition-colors cursor-pointer border ${
+                  bobVoted
+                    ? "bg-emerald-600 border-emerald-500 text-white"
+                    : "bg-stone-800/80 hover:bg-stone-800 border-stone-700 text-stone-200"
                 }`}
               >
                 {bobVoted ? "✓ Bob Voted (31.3%)" : "+ Cast Bob (31.3%)"}
@@ -622,126 +651,174 @@ export default function HomePage() {
 
           <div className="flex items-center gap-4">
             {requestReleased ? (
-              <span className="px-5 py-2.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300 font-bold text-xs">
-                ✓ 1.2 ETH Released
+              <span className="px-4 py-2 rounded-lg bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 font-semibold text-xs">
+                ✓ 1.20 ETH Released
               </span>
             ) : (
               <button
                 onClick={() => setRequestReleased(true)}
                 disabled={!isThresholdMet}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                className={`w-11 h-11 rounded-lg flex items-center justify-center transition-colors ${
                   isThresholdMet
-                    ? "bg-[#FF5023] hover:bg-[#ff5d32] text-white shadow-lg cursor-pointer"
-                    : "bg-stone-800 text-stone-600 cursor-not-allowed"
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm cursor-pointer"
+                    : "bg-stone-800 text-stone-600 border border-stone-800 cursor-not-allowed"
                 }`}
               >
-                <ArrowIcon className="w-5 h-5" />
+                <ArrowIcon className="w-4 h-4" />
               </button>
             )}
           </div>
         </div>
-
-        {/* Row 3: NEWSLETTER (Instant Cryptographic Tamper Check) */}
-        <div className="p-7 rounded-3xl bg-white border border-stone-300 shadow-sm card-hover-effect flex flex-col sm:flex-row sm:items-center justify-between gap-4 reveal-init delay-200">
-          <div>
-            <div className="text-xl sm:text-2xl font-black font-bebas uppercase text-[#141414]">
-              NEWSLETTER · CRYPTOGRAPHIC AUDIT DEMO
-            </div>
-            <p className="text-xs text-stone-600 mt-0.5">
-              Subscribe to receive updates, or test client-side Keccak-256 tamper verification instantly.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setTamperTestState("original")}
-              className={`py-2 px-4 rounded-full text-xs font-bold uppercase transition-all cursor-pointer ${
-                tamperTestState === "original"
-                  ? "bg-emerald-600 text-white shadow"
-                  : "bg-stone-100 hover:bg-stone-200 text-stone-800"
-              }`}
-            >
-              Test Original (Match)
-            </button>
-            <button
-              onClick={() => setTamperTestState("tampered")}
-              className={`py-2 px-4 rounded-full text-xs font-bold uppercase transition-all cursor-pointer ${
-                tamperTestState === "tampered"
-                  ? "bg-red-600 text-white shadow"
-                  : "bg-stone-100 hover:bg-stone-200 text-stone-800"
-              }`}
-            >
-              Test Tampered (Mismatch)
-            </button>
-          </div>
-        </div>
-
-        {tamperTestState === "original" && (
-          <div className="p-4 rounded-2xl bg-emerald-100 border border-emerald-400 text-emerald-900 text-xs font-semibold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-600" />
-            <span>TAMPER FREE: Keccak-256 hash matches the on-chain commitment (0xb80dd...25fd). File is 100% authentic!</span>
-          </div>
-        )}
-        {tamperTestState === "tampered" && (
-          <div className="p-4 rounded-2xl bg-red-100 border border-red-400 text-red-900 text-xs font-semibold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-600" />
-            <span>TAMPER DETECTED: Hash mismatch! The document has been modified or altered. Verification failed.</span>
-          </div>
-        )}
-
       </section>
 
       {/* ============================================================ */}
-      {/* 7. MASSIVE DARK FOOTER (2026 NOTE & SENIOR DEVELOPER POLISH) */}
+      {/* 6. SLANTED ORANGE CALL-TO-ACTION BANNER (MATCHING IMAGE 1)   */}
       {/* ============================================================ */}
-      <footer className="w-full bg-[#12140E] text-[#F9EFE6] px-6 sm:px-14 pt-20 pb-14 mt-16 border-t border-stone-800 reveal-init">
-        <div className="max-w-7xl mx-auto space-y-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-10 py-12 reveal-init">
+        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-8">
           
+          {/* Big Orange Heroic Banner Block */}
+          <div className="flex-1 bg-[#FF5023] rounded-[32px] p-8 sm:p-14 text-[#141414] shadow-2xl relative overflow-hidden flex flex-col justify-between">
+            <div>
+              <h2 className="text-5xl sm:text-7xl lg:text-8xl font-black font-bebas uppercase leading-[0.86] tracking-tight text-[#141414]">
+                READY TO LAUNCH
+                <br />
+                YOUR CAMPAIGN?
+              </h2>
+            </div>
+
+            <div className="pt-10 sm:pt-16 space-y-4">
+              <div className="flex flex-wrap gap-8 text-[11px] font-mono font-bold tracking-widest uppercase text-black/70">
+                <div>ON-CHAIN ESCROW</div>
+                <div>PUBLIC MERKLE AUDITS</div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href="/create"
+                  className="py-3 px-6 rounded-xl bg-[#141414] hover:bg-black text-white text-xs font-bold font-mono tracking-wider transition-all shadow-md"
+                >
+                  contracts/FundTrace.sol
+                </Link>
+                <Link
+                  href="/campaigns"
+                  className="py-3 px-6 rounded-xl bg-[#141414] hover:bg-black text-white text-xs font-bold font-mono tracking-wider transition-all shadow-md"
+                >
+                  protocol.fundtrace.eth
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side On Warm Cream (Matching Image 1) */}
+          <div className="lg:w-80 flex flex-col justify-between py-2 sm:py-6 text-left lg:text-right">
+            <div>
+              <span className="font-bebas text-3xl font-black tracking-wider text-[#FF5023]">
+                FundTrace
+              </span>
+            </div>
+            <div className="pt-6 sm:pt-12">
+              <h3 className="text-5xl sm:text-6xl font-black font-bebas uppercase text-[#FF5023] leading-[0.9] tracking-tight">
+                VERIFIED
+                <br />
+                TRANSPARENCY!
+              </h3>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* 7. EXACT NEWSLETTER ROW (MATCHING IMAGE 2)                   */}
+      {/* ============================================================ */}
+      <section className="max-w-7xl mx-auto px-6 sm:px-14 py-10 border-t border-stone-300 reveal-init">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="space-y-1 max-w-xl">
+            <h3 className="text-3xl sm:text-4xl font-black font-bebas uppercase tracking-wide text-[#141414]">
+              NEWSLETTER
+            </h3>
+            <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
+              Subscribe to receive the latest transparent campaign disbursements and milestone verification updates directly to your inbox.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 self-start sm:self-center">
+            <Link
+              href="/verify-proof"
+              className="py-2.5 px-5 rounded-full border border-stone-300 hover:border-stone-900 bg-white hover:bg-stone-50 text-stone-900 text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
+            >
+              Verify Receipt Proofs
+            </Link>
+            <Link
+              href="/campaigns"
+              className="w-10 h-10 rounded-full border border-stone-400 hover:border-stone-900 flex items-center justify-center text-stone-800 hover:text-black transition-colors cursor-pointer bg-white shrink-0 shadow-xs"
+              title="Explore Campaigns"
+            >
+              <ArrowIcon className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* 8. EXACT MASSIVE DARK FOOTER (MATCHING IMAGE 2 DOWN TO PIXEL) */}
+      {/* ============================================================ */}
+      <footer className="w-full bg-[#12140E] text-[#F9EFE6] px-6 sm:px-14 pt-20 pb-14 mt-8 border-t border-stone-800 reveal-init">
+        <div className="max-w-7xl mx-auto space-y-16">
+          
+          {/* Top Row: Massive Title & Orange Star Diamond */}
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
             <h2 className="text-6xl sm:text-8xl lg:text-9xl font-black uppercase font-bebas leading-[0.85] tracking-tight text-[#F9EFE6]">
-              THE TIME IS NOW
+              ON-CHAIN TRANSPARENCY
               <br />
-              THE PATH IS FORWARD
+              IMMUTABLE ACCOUNTABILITY
             </h2>
             <div className="self-start lg:self-center">
-              <StarIcon className="w-16 h-16 sm:w-20 sm:h-20 text-[#FF5023]" />
+              <StarDiamondIcon className="w-20 h-20 sm:w-28 sm:h-28 text-[#FF5023]" />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8 border-t border-stone-800 text-xs text-stone-400 font-medium">
-            <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-white transition-colors">Cookie Policy</a>
-            <a href="#" className="hover:text-white transition-colors">Disclaimer</a>
-          </div>
-
-          <div className="pt-8 border-t border-stone-800/80 flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-stone-500">
-            {/* Social Links */}
-            <div className="flex items-center gap-5 text-stone-400 font-bold text-xs uppercase tracking-wider">
-              <a href="#" className="hover:text-white transition-colors">in</a>
-              <a href="#" className="hover:text-white transition-colors">fb</a>
-              <a href="#" className="hover:text-white transition-colors">x</a>
-              <a href="#" className="hover:text-white transition-colors">md</a>
-            </div>
-
-            {/* Coordinates / Chain Details in Orange */}
-            <div className="flex flex-wrap items-center gap-6 font-mono text-[11px]">
-              <div>
-                <span className="text-stone-400">Latitude</span>{" "}
-                <span className="text-[#FF5023] font-bold">37.7749</span>
+          {/* Bottom Row: Socials/Copyright, Protocol Metrics, Legal Links */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pt-10 border-t border-stone-800/80 items-end">
+            
+            {/* Left: Socials & Copyright */}
+            <div className="md:col-span-5 space-y-4">
+              <div className="flex items-center gap-5 text-stone-300 font-bold text-xs uppercase tracking-wider">
+                <a href="#" className="hover:text-[#FF5023] transition-colors">in</a>
+                <a href="#" className="hover:text-[#FF5023] transition-colors">f</a>
+                <a href="#" className="hover:text-[#FF5023] transition-colors">X</a>
+                <a href="#" className="hover:text-[#FF5023] transition-colors">M</a>
               </div>
-              <div>
-                <span className="text-stone-400">Longitude</span>{" "}
-                <span className="text-[#FF5023] font-bold">-122.4194</span>
-              </div>
-              <div>
-                <span className="text-stone-400">Chain ID</span>{" "}
-                <span className="text-amber-400 font-bold">31337</span>
+              <div className="text-xs text-stone-400">
+                Copyright &copy;2026 <strong className="text-white font-bold">FundTrace</strong>. All Rights Reserved
               </div>
             </div>
-          </div>
 
-          <div className="pt-4 border-t border-stone-800/40 text-center sm:text-left text-xs text-stone-400">
-            Copyright © <strong className="text-white font-bold">2026</strong> <strong className="text-white font-bold">FundTrace</strong>. All Rights Reserved.
+            {/* Center: Real Protocol Metrics (Matching Image 2 Number Style) */}
+            <div className="md:col-span-4 flex items-end gap-10">
+              <div>
+                <div className="text-xs text-stone-400 font-sans">Smart Contract Tests</div>
+                <div className="text-3xl sm:text-4xl font-black font-bebas text-[#FF5023] tracking-wide mt-0.5">
+                  63 / 63 PASS
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-stone-400 font-sans">Consensus Quorum</div>
+                <div className="text-3xl sm:text-4xl font-black font-bebas text-[#FF5023] tracking-wide mt-0.5">
+                  &gt; 50.0%
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Legal Links */}
+            <div className="md:col-span-3 flex flex-col md:items-end gap-2 text-xs text-stone-400 font-medium">
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+              <a href="#" className="hover:text-white transition-colors">Cookie Policy</a>
+              <a href="#" className="hover:text-white transition-colors">Disclaimer</a>
+            </div>
+
           </div>
 
         </div>

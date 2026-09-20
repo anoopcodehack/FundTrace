@@ -16,9 +16,20 @@ async function main() {
 
   // Create tables
   const sql = `
+  CREATE TABLE IF NOT EXISTS public.users (
+      wallet_address TEXT PRIMARY KEY,
+      name TEXT,
+      avatar_url TEXT,
+      role TEXT CHECK (role IN ('DONOR', 'CREATOR', 'VERIFIER', 'BENEFICIARY')),
+      bio TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
   CREATE TABLE IF NOT EXISTS public.campaigns (
       id BIGSERIAL PRIMARY KEY,
       on_chain_id INTEGER UNIQUE NOT NULL,
+      creator_address TEXT REFERENCES public.users(wallet_address),
+      verifier_address TEXT REFERENCES public.users(wallet_address),
       title TEXT NOT NULL,
       tagline TEXT DEFAULT '',
       category TEXT NOT NULL DEFAULT 'Community',
@@ -32,7 +43,7 @@ async function main() {
 
   CREATE TABLE IF NOT EXISTS public.spending_requests (
       id BIGSERIAL PRIMARY KEY,
-      on_chain_campaign_id INTEGER NOT NULL,
+      on_chain_campaign_id INTEGER REFERENCES public.campaigns(on_chain_id),
       on_chain_request_id INTEGER NOT NULL,
       title TEXT NOT NULL,
       description TEXT NOT NULL,
@@ -46,7 +57,7 @@ async function main() {
 
   CREATE TABLE IF NOT EXISTS public.proof_documents (
       id BIGSERIAL PRIMARY KEY,
-      campaign_id INTEGER NOT NULL,
+      campaign_id INTEGER REFERENCES public.campaigns(on_chain_id),
       request_id INTEGER NOT NULL,
       document_type TEXT NOT NULL CHECK (document_type IN ('quote', 'invoice_original', 'invoice_tampered', 'receipt')),
       file_name TEXT NOT NULL,
@@ -58,18 +69,32 @@ async function main() {
       UNIQUE(campaign_id, request_id, document_type)
   );
 
+  CREATE TABLE IF NOT EXISTS public.campaign_updates (
+      id BIGSERIAL PRIMARY KEY,
+      campaign_id INTEGER REFERENCES public.campaigns(on_chain_id),
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      image_url TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
+  ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
   ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
   ALTER TABLE public.spending_requests ENABLE ROW LEVEL SECURITY;
   ALTER TABLE public.proof_documents ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE public.campaign_updates ENABLE ROW LEVEL SECURITY;
   `;
 
   await client.query(sql);
-  console.log("✔ Created tables: public.campaigns, public.spending_requests, public.proof_documents");
+  console.log("✔ Created tables: public.users, public.campaigns, public.spending_requests, public.proof_documents, public.campaign_updates");
 
   // Create RLS policies
   const policies = `
   DO $$
   BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public read on users') THEN
+      CREATE POLICY "Allow public read on users" ON public.users FOR SELECT USING (true);
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public read on campaigns') THEN
       CREATE POLICY "Allow public read on campaigns" ON public.campaigns FOR SELECT USING (true);
     END IF;
@@ -79,6 +104,13 @@ async function main() {
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public read on proofs') THEN
       CREATE POLICY "Allow public read on proofs" ON public.proof_documents FOR SELECT USING (true);
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public read on updates') THEN
+      CREATE POLICY "Allow public read on updates" ON public.campaign_updates FOR SELECT USING (true);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public write on users') THEN
+      CREATE POLICY "Allow public write on users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public write on campaigns') THEN
       CREATE POLICY "Allow public write on campaigns" ON public.campaigns FOR ALL USING (true) WITH CHECK (true);
     END IF;
@@ -87,6 +119,9 @@ async function main() {
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public write on proofs') THEN
       CREATE POLICY "Allow public write on proofs" ON public.proof_documents FOR ALL USING (true) WITH CHECK (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public write on updates') THEN
+      CREATE POLICY "Allow public write on updates" ON public.campaign_updates FOR ALL USING (true) WITH CHECK (true);
     END IF;
   END $$;
   `;
