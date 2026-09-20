@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import RoleGuard from '@/components/RoleGuard';
-import { MOCK_CAMPAIGNS_ONCHAIN, MOCK_CAMPAIGNS_METADATA, MOCK_QUOTATIONS } from '@/lib/mock';
 import { getFundTraceContract } from '@/lib/contract';
 import { getQuotationsByCampaign } from '@/services/quotationService';
 import { formatFtu, QuotationState } from '@/types';
@@ -71,16 +70,6 @@ export default function DonorTrackingPage() {
           }
         } catch {}
 
-        for (let i = 1; i <= count; i++) {
-          seen.add(i);
-          const dbMeta = dbCampaigns.find((db: any) => Number(db.on_chain_id) === i);
-          const mockMeta = MOCK_CAMPAIGNS_METADATA[i];
-          options.push({
-            id: i,
-            title: dbMeta?.title || mockMeta?.title || `Campaign #${i}`
-          });
-        }
-
         for (const db of dbCampaigns) {
           const cId = Number(db.on_chain_id > 0 ? db.on_chain_id : db.id);
           if (!seen.has(cId)) {
@@ -88,17 +77,6 @@ export default function DonorTrackingPage() {
             options.push({
               id: cId,
               title: db.title || `Campaign #${cId}`
-            });
-          }
-        }
-
-        for (const mock of MOCK_CAMPAIGNS_ONCHAIN) {
-          if (!seen.has(mock.id)) {
-            const meta = MOCK_CAMPAIGNS_METADATA[mock.id];
-            seen.add(mock.id);
-            options.push({
-              id: mock.id,
-              title: meta?.title || `Campaign #${mock.id}`
             });
           }
         }
@@ -116,15 +94,24 @@ export default function DonorTrackingPage() {
     async function loadCampaignDetails() {
       setIsLoading(true);
       try {
-        let meta: any = MOCK_CAMPAIGNS_METADATA[selectedId];
-        let onchain: any = MOCK_CAMPAIGNS_ONCHAIN.find(c => c.id === selectedId);
+        let meta: any = null;
+        let onchain: any = null;
 
         // Try DB fetch
         try {
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/campaigns/${selectedId}`);
           if (res.ok) {
             const dbData = await res.json();
-            meta = dbData.metadata || meta;
+            meta = dbData.metadata || dbData;
+            onchain = {
+              id: selectedId,
+              totalDonatedWei: Number(dbData.raised_ftu || 0),
+              totalAllocatedWei: 0,
+              totalSanctionedWei: 0,
+              totalClaimedWei: 0,
+              goalWei: Number(dbData.goal_ftu || 10000),
+              state: Number(dbData.on_chain_id > 0 ? 1 : 0)
+            };
           }
         } catch {}
 
@@ -143,15 +130,11 @@ export default function DonorTrackingPage() {
           };
         } catch {}
 
-        // Try quotations fetch
+        // Try quotations fetch directly from Supabase API
         let quotes: any[] = [];
         try {
           quotes = await getQuotationsByCampaign(selectedId);
         } catch {}
-
-        if (quotes.length === 0) {
-          quotes = MOCK_QUOTATIONS.filter(q => q.campaignId === selectedId);
-        }
 
         setCampaignData({
           meta: meta || { title: `Campaign #${selectedId}` },

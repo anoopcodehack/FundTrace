@@ -7,7 +7,6 @@ import RoleGuard from "@/components/RoleGuard";
 import { getFundTraceContract } from "@/lib/contract";
 import { getQuotationsByCampaign, sanctionQuotation, rejectQuotation, reviewQuotation } from "@/services/quotationService";
 import { formatFtu } from "@/types";
-import { MOCK_CAMPAIGNS_ONCHAIN, MOCK_CAMPAIGNS_METADATA } from "@/lib/mock";
 import { toast } from "sonner";
 import { 
   Sparkles,
@@ -75,15 +74,7 @@ export default function DonorPortfolioPage() {
   async function loadDonorData() {
     setIsLoading(true);
     try {
-      const contract = getFundTraceContract();
-      let count = 0;
-      try {
-        count = Number(await contract.campaignCount());
-      } catch (e) {
-        console.warn("Could not read contract count:", e);
-      }
-
-      // Fetch DB campaigns
+      // 1. Fetch Supabase DB campaigns first
       let dbCampaigns: any[] = [];
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/campaigns`);
@@ -94,92 +85,73 @@ export default function DonorPortfolioPage() {
         console.warn("Could not fetch DB campaigns:", e);
       }
 
-      const campaignList: CampaignSummary[] = [];
-      const seenIds = new Set<number>();
+      // Initial instant render from Supabase data
+      const initialCampaigns: CampaignSummary[] = dbCampaigns.map((db: any) => {
+        const onChainId = Number(db.on_chain_id);
+        const cId = onChainId > 0 ? onChainId : Number(db.id);
+        return {
+          id: cId,
+          title: db.title || `Campaign #${cId}`,
+          totalDonatedFtu: Number(db.raised_ftu || 0),
+          totalReleasedFtu: 0,
+          remainingFtu: Number(db.raised_ftu || 0),
+          automationEnabled: false,
+          donationFtu: 0,
+          state: onChainId > 0 ? 1 : 0,
+          isFundedByMe: false
+        };
+      });
 
-      // 1. Fetch all on-chain campaigns
-      for (let i = 1; i <= count; i++) {
-        try {
-          const c = await contract.getCampaign(i);
-          let donation = 0n;
-          let automation = false;
-          if (wallet.address) {
-            try {
-              donation = await contract.donations(i, wallet.address);
-              automation = await contract.automationEnabled(i);
-            } catch {}
-          }
+      setCampaigns(initialCampaigns);
+      if (initialCampaigns.length > 0 && selectedCampaign === null) {
+        setSelectedCampaign(initialCampaigns[0].id);
+      }
+      setIsLoading(false);
 
-          const dbMeta = dbCampaigns.find((db: any) => Number(db.on_chain_id) === i);
-          const mockMeta = MOCK_CAMPAIGNS_METADATA[i];
-          const title = dbMeta?.title || mockMeta?.title || `Campaign #${i}`;
+      // 2. Query contract in background with quick timeout
+      try {
+        const contract = getFundTraceContract();
+        const countPromise = contract.campaignCount();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
+        const count = Number(await Promise.race([countPromise, timeoutPromise]));
 
-          const totalDonated = parseContractFtu(c.totalDonated);
-          const totalReleased = parseContractFtu(c.totalReleased);
-          const totalClaimed = parseContractFtu(c.totalClaimed || 0n);
-          const donationAmount = parseContractFtu(donation);
+        if (count > 0) {
+          const updated = await Promise.all(initialCampaigns.map(async (camp) => {
+            if (camp.id <= count) {
+              try {
+                const c = await contract.getCampaign(camp.id);
+                let donationAmount = 0;
+                let automation = false;
+                if (wallet.address) {
+                  try {
+                    const d = await contract.donations(camp.id, wallet.address);
+                    donationAmount = parseContractFtu(d);
+                    automation = await contract.automationEnabled(camp.id);
+                  } catch {}
+                }
+                const totalDonated = parseContractFtu(c.totalDonated);
+                const totalReleased = parseContractFtu(c.totalReleased);
+                const totalClaimed = parseContractFtu(c.totalClaimed || 0n);
 
-          seenIds.add(i);
-          campaignList.push({
-            id: i,
-            title,
-            totalDonatedFtu: totalDonated,
-            totalReleasedFtu: totalReleased,
-            remainingFtu: Math.max(0, totalDonated - totalReleased - totalClaimed),
-            automationEnabled: automation,
-            donationFtu: donationAmount,
-            state: Number(c.state),
-            isFundedByMe: donationAmount > 0
-          });
-        } catch (err) {
-          console.warn(`Error reading on-chain campaign #${i}:`, err);
+                return {
+                  ...camp,
+                  totalDonatedFtu: totalDonated,
+                  totalReleasedFtu: totalReleased,
+                  remainingFtu: Math.max(0, totalDonated - totalReleased - totalClaimed),
+                  automationEnabled: automation,
+                  donationFtu: donationAmount,
+                  state: Number(c.state),
+                  isFundedByMe: donationAmount > 0
+                };
+              } catch {
+                return camp;
+              }
+            }
+            return camp;
+          }));
+          setCampaigns(updated);
         }
-      }
-
-      // 2. Fetch all database campaigns (including off-chain pending ones)
-      for (const db of dbCampaigns) {
-        const cId = Number(db.on_chain_id > 0 ? db.on_chain_id : db.id);
-        if (!seenIds.has(cId)) {
-          seenIds.add(cId);
-          campaignList.push({
-            id: cId,
-            title: db.title || `Campaign #${cId}`,
-            totalDonatedFtu: 0,
-            totalReleasedFtu: 0,
-            remainingFtu: 0,
-            automationEnabled: false,
-            donationFtu: 0,
-            state: 0,
-            isFundedByMe: false
-          });
-        }
-      }
-
-      // 3. Fallback/merge mock campaigns so donor demo accounts always have full data
-      for (const mock of MOCK_CAMPAIGNS_ONCHAIN) {
-        if (!seenIds.has(mock.id)) {
-          const meta = MOCK_CAMPAIGNS_METADATA[mock.id];
-          const isAlice = wallet.address?.toLowerCase() === "0x90F79bf6EB2c4f870365E785982E1f101E93b906".toLowerCase();
-          const mockDonation = (isAlice && mock.id === 1) ? 155000 : 0;
-          seenIds.add(mock.id);
-          campaignList.push({
-            id: mock.id,
-            title: meta?.title || `Campaign #${mock.id}`,
-            totalDonatedFtu: Number(mock.totalDonatedWei),
-            totalReleasedFtu: Number(mock.totalReleasedWei),
-            remainingFtu: Math.max(0, Number(mock.totalDonatedWei) - Number(mock.totalReleasedWei)),
-            automationEnabled: false,
-            donationFtu: mockDonation,
-            state: mock.state,
-            isFundedByMe: mockDonation > 0
-          });
-        }
-      }
-
-      setCampaigns(campaignList);
-      if (campaignList.length > 0 && selectedCampaign === null) {
-        setSelectedCampaign(campaignList[0].id);
-      }
+      } catch {}
     } catch (err: any) {
       console.error("Failed to load donor data:", err);
     } finally {

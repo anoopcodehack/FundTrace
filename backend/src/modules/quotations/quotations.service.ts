@@ -212,6 +212,16 @@ export class QuotationsService {
     return data || [];
   }
 
+  async findAll(creatorAddress?: string) {
+    let query = this.supabase.from('quotations').select('*').order('submitted_at', { ascending: false });
+    if (creatorAddress) {
+      query = query.ilike('creator_address', creatorAddress);
+    }
+    const { data, error } = await query;
+    if (error) throw new BadRequestException(error.message);
+    return data || [];
+  }
+
   async findOne(id: number) {
     const { data, error } = await this.supabase
       .from('quotations')

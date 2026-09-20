@@ -85,9 +85,16 @@ export default function CreatorPortfolioPage() {
       setScore(scoreData);
       setScoreHistory(historyData);
 
-      // Fetch quotations across all campaigns for this creator
-      // In production, this would be a dedicated endpoint
-      // For now, fetch from Supabase via the score data
+      // Fetch quotations for this creator directly from Supabase
+      try {
+        const qRes = await fetch(`/api/quotations?creator=${addr}`);
+        if (qRes.ok) {
+          const qData = await qRes.json();
+          setQuotations(qData);
+        }
+      } catch (qErr) {
+        console.warn("Could not fetch creator quotations:", qErr);
+      }
     } catch (err) {
       console.error("Failed to load creator data:", err);
     } finally {
@@ -98,28 +105,7 @@ export default function CreatorPortfolioPage() {
   const scoreData = score?.supabase || score?.onChain || null;
   const currentScore = scoreData?.current_score ?? scoreData?.score ?? 70;
 
-  const MOCK_QUOTATIONS = [
-    {
-      id: 1, purpose: "Purchase 50 STEM Lab Kits", vendor_name: "EduTech Supplies Pvt Ltd",
-      requested_amount_ftu: 25000, allocated_amount_ftu: 22000, claimed_amount_ftu: 22000,
-      state: "Completed", submitted_at: "2026-09-01T10:00:00Z",
-      ai_recommendation: { recommendation: "APPROVE", confidence: 0.92, riskLevel: "LOW" },
-    },
-    {
-      id: 2, purpose: "3D Printers & Filament Stock", vendor_name: "MakerSpace India",
-      requested_amount_ftu: 18000, allocated_amount_ftu: 15000, claimed_amount_ftu: 15000,
-      state: "ProofPending", submitted_at: "2026-09-12T14:30:00Z",
-      ai_recommendation: { recommendation: "APPROVE", confidence: 0.87, riskLevel: "LOW" },
-    },
-    {
-      id: 3, purpose: "IT Infrastructure Setup", vendor_name: "NetServ Solutions",
-      requested_amount_ftu: 50000, allocated_amount_ftu: null, claimed_amount_ftu: 0,
-      state: "AIEvaluated", submitted_at: "2026-09-19T09:00:00Z",
-      ai_recommendation: { recommendation: "REVIEW", confidence: 0.61, riskLevel: "MEDIUM", flags: ["Requested amount exceeds 60% of remaining balance"] },
-    },
-  ];
-
-  const displayQuotations = quotations.length > 0 ? quotations : MOCK_QUOTATIONS;
+  const displayQuotations = quotations;
 
   return (
     <RoleGuard allowedRoles={["CREATOR"]}>
@@ -231,10 +217,10 @@ export default function CreatorPortfolioPage() {
             {/* Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
               {[
-                { label: "Total Quotations", value: scoreData?.total_quotations ?? MOCK_QUOTATIONS.length, icon: "ðŸ“‹" },
-                { label: "Approved", value: scoreData?.approved_quotations ?? 2, icon: "âœ…" },
-                { label: "Unresolved", value: scoreData?.unresolved_requests ?? 1, icon: "â³", warn: true },
-                { label: "Completed", value: scoreData?.completed_campaigns ?? 1, icon: "ðŸ†" },
+                { label: "Total Quotations", value: scoreData?.total_quotations ?? quotations.length, icon: "📋" },
+                { label: "Approved", value: scoreData?.approved_quotations ?? (quotations.filter(q => q.state === 'Completed' || q.state === 'Claimable').length), icon: "✅" },
+                { label: "Unresolved", value: scoreData?.unresolved_requests ?? (quotations.filter(q => q.state === 'Pending' || q.state === 'ProofPending').length), icon: "⏳", warn: true },
+                { label: "Completed", value: scoreData?.completed_campaigns ?? 0, icon: "🏆" },
               ].map((stat) => (
                 <div key={stat.label} className={`bg-white rounded-2xl border shadow-sm p-4 ${stat.warn && (scoreData?.unresolved_requests ?? 1) > 0 ? "border-amber-200 bg-amber-50" : "border-stone-200"}`}>
                   <div className="text-2xl mb-2">{stat.icon}</div>

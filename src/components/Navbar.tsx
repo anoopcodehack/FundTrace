@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useWallet } from "@/context/WalletContext";
-import { DEMO_PRESET_ACCOUNTS, formatAddress } from "@/lib/wallet";
+import { DEMO_PRESET_ACCOUNTS, DemoPresetAccount, formatAddress } from "@/lib/wallet";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, User, Check } from "lucide-react";
 
@@ -74,7 +74,7 @@ export default function Navbar() {
     links.push({ name: "Verifier Panel", href: "/verifier" });
   }
 
-  const handleRoleSwitch = (preset: any) => {
+  const handleRoleSwitch = (preset: DemoPresetAccount) => {
     selectDemoRole(preset);
     const roleStr = preset.role.toUpperCase();
     if (roleStr === "VERIFIER" || roleStr === "ADMIN") {
@@ -120,6 +120,7 @@ export default function Navbar() {
         {/* Native Responsive Role Switcher Dropdown */}
         <div className="relative" ref={menuRef}>
           <button
+            id="demo-role-trigger"
             onClick={() => setShowRoleMenu(!showRoleMenu)}
             className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 text-xs font-bold text-stone-900 shadow-sm transition-all hover:bg-stone-100 hover:border-stone-300 focus:outline-none cursor-pointer"
           >
@@ -132,10 +133,12 @@ export default function Navbar() {
                 Switch Role (Instant Local Persona)
               </div>
               <div className="py-1 space-y-1 max-h-80 overflow-y-auto">
-                {DEMO_PRESET_ACCOUNTS.map((preset) => {
+                {DEMO_PRESET_ACCOUNTS.map((preset: DemoPresetAccount) => {
                   const isCurrent = preset.address.toLowerCase() === wallet.address?.toLowerCase();
+                  const roleSlug = preset.appRole ? preset.appRole.toLowerCase() : preset.role.toLowerCase().replace(/[^a-z0-9]/g, '-');
                   return (
                     <button
+                      id={`demo-role-${roleSlug}`}
                       key={preset.address}
                       onClick={() => {
                         handleRoleSwitch(preset);
@@ -176,6 +179,7 @@ export default function Navbar() {
         </div>
 
         <Button
+          id="connect-wallet-button"
           onClick={connectMetaMask}
           disabled={isLoading}
           variant="secondary"

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { MOCK_CAMPAIGNS_ONCHAIN, MOCK_CAMPAIGNS_METADATA } from '@/lib/mock';
 import { getFundTraceContract } from '@/lib/contract';
 import { formatFtu, CampaignState } from '@/types';
 import Link from 'next/link';
@@ -56,94 +55,75 @@ export default function PublicCampaignsPage() {
         const loaded: PublicCampaign[] = [];
         const seenIds = new Set<number>();
 
-        // 1. Fetch DB campaigns
+        // 1. Fetch DB campaigns directly from Supabase API (via Next.js proxy or direct backend)
         let dbCampaigns: any[] = [];
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/campaigns`);
+          const res = await fetch("/api/campaigns");
           if (res.ok) {
             dbCampaigns = await res.json();
+          } else {
+            const fallback = await fetch("http://localhost:3001/api/campaigns");
+            if (fallback.ok) dbCampaigns = await fallback.json();
           }
         } catch (e) {
-          console.warn("Could not fetch DB campaigns:", e);
-        }
-
-        // 2. Fetch contract campaigns
-        let contract: any = null;
-        let count = 0;
-        try {
-          contract = getFundTraceContract();
-          count = Number(await contract.campaignCount());
-        } catch {}
-
-        for (let i = 1; i <= count; i++) {
-          seenIds.add(i);
           try {
-            const c = await contract.getCampaign(i);
-            const dbMeta = dbCampaigns.find((db: any) => Number(db.on_chain_id) === i);
-            const mockMeta = MOCK_CAMPAIGNS_METADATA[i];
-
-            const raisedFtu = parseContractFtu(c.totalDonated);
-            const goalFtu = parseContractFtu(c.goal);
-            const state = Number(c.state) as CampaignState;
-
-            loaded.push({
-              id: i,
-              title: dbMeta?.title || mockMeta?.title || `Campaign #${i}`,
-              tagline: dbMeta?.tagline || mockMeta?.tagline || "Decentralized audited fund initiative",
-              category: dbMeta?.category || mockMeta?.category || "Community",
-              location: dbMeta?.location || mockMeta?.location || "Global",
-              coverImageUrl: dbMeta?.cover_image_url || mockMeta?.coverImageUrl || "",
-              fundingDeadline: dbMeta?.funding_deadline || (c.deadline ? new Date(Number(c.deadline) * 1000).toISOString() : null),
-              raisedFtu,
-              goalFtu,
-              state
-            });
+            const fallback = await fetch("http://localhost:3001/api/campaigns");
+            if (fallback.ok) dbCampaigns = await fallback.json();
           } catch (err) {
-            console.warn(`Error reading campaign #${i}:`, err);
+            console.warn("Could not fetch DB campaigns:", err);
           }
         }
 
-        // 3. Add DB campaigns (including pending verification ones)
-        for (const db of dbCampaigns) {
-          const cId = Number(db.on_chain_id > 0 ? db.on_chain_id : db.id);
-          if (!seenIds.has(cId)) {
-            seenIds.add(cId);
-            loaded.push({
-              id: cId,
-              title: db.title || `Campaign #${cId}`,
-              tagline: db.tagline || db.story || "Decentralized audited fund initiative",
-              category: db.category || "Community",
-              location: db.location || "Global",
-              coverImageUrl: db.cover_image_url || "",
-              fundingDeadline: db.funding_deadline || null,
-              raisedFtu: 0,
-              goalFtu: db.goal_ftu || 10000,
-              state: db.on_chain_id > 0 ? CampaignState.Verified : CampaignState.PendingVerification
-            });
-          }
-        }
+        // Render Supabase data immediately so there's zero UI loading delay
+        const initialLoaded: PublicCampaign[] = dbCampaigns.map((db: any) => {
+          const onChainId = Number(db.on_chain_id);
+          const cId = onChainId > 0 ? onChainId : Number(db.id);
+          return {
+            id: cId,
+            title: db.title || `Campaign #${cId}`,
+            tagline: db.tagline || db.story || "Decentralized audited fund initiative",
+            category: db.category || "Community",
+            location: db.location || "Global",
+            coverImageUrl: db.cover_image_url || "",
+            fundingDeadline: db.funding_deadline || null,
+            raisedFtu: Number(db.raised_ftu || 0),
+            goalFtu: Number(db.goal_ftu || 10000),
+            state: onChainId > 0 ? CampaignState.Verified : CampaignState.PendingVerification
+          };
+        });
 
-        // 4. Merge mock campaigns so demo always has complete initial items
-        for (const mock of MOCK_CAMPAIGNS_ONCHAIN) {
-          if (!seenIds.has(mock.id)) {
-            const meta = MOCK_CAMPAIGNS_METADATA[mock.id];
-            seenIds.add(mock.id);
-            loaded.push({
-              id: mock.id,
-              title: meta?.title || `Campaign #${mock.id}`,
-              tagline: meta?.tagline || "",
-              category: meta?.category || "Community",
-              location: meta?.location || "India",
-              coverImageUrl: meta?.coverImageUrl || "",
-              fundingDeadline: meta?.fundingDeadline || null,
-              raisedFtu: Number(mock.totalDonatedWei),
-              goalFtu: Number(mock.goalWei),
-              state: mock.state
-            });
-          }
-        }
+        setCampaigns(initialLoaded);
+        setIsLoading(false);
 
-        setCampaigns(loaded);
+        // 2. Optionally augment with live contract state if local node is available (with quick timeout)
+        try {
+          const contract = getFundTraceContract();
+          const countPromise = contract.campaignCount();
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
+          const count = Number(await Promise.race([countPromise, timeoutPromise]));
+
+          if (count > 0) {
+            const updated = await Promise.all(initialLoaded.map(async (camp) => {
+              if (camp.id <= count) {
+                try {
+                  const c = await contract.getCampaign(camp.id);
+                  return {
+                    ...camp,
+                    raisedFtu: parseContractFtu(c.totalDonated),
+                    goalFtu: parseContractFtu(c.goal),
+                    state: Number(c.state) as CampaignState
+                  };
+                } catch {
+                  return camp;
+                }
+              }
+              return camp;
+            }));
+            setCampaigns(updated);
+          }
+        } catch {
+          // Node not responding or timeout; Supabase data remains authoritative
+        }
       } catch (err) {
         console.error("Failed to load campaigns:", err);
       } finally {

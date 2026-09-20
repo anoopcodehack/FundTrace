@@ -8,6 +8,7 @@ import {
   connectBrowserWallet,
   connectDemoAccount,
   DEMO_PRESET_ACCOUNTS,
+  DemoPresetAccount,
 } from "@/lib/wallet";
 import { getContractAddress } from "@/lib/contract";
 
@@ -23,7 +24,7 @@ interface WalletContextType {
   contractAddress: string;
   userRole: "ADMIN" | "CREATOR" | "DONOR" | null;
   connectMetaMask: () => Promise<void>;
-  selectDemoRole: (preset: (typeof DEMO_PRESET_ACCOUNTS)[0]) => Promise<void>;
+  selectDemoRole: (preset: DemoPresetAccount) => Promise<void>;
   disconnect: () => void;
 }
 

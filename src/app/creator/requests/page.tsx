@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import RoleGuard from '@/components/RoleGuard';
-import { MOCK_QUOTATIONS, MOCK_CAMPAIGNS_METADATA } from '@/lib/mock';
-import { formatFtu, QuotationState, QuotationMetadata } from '@/types';
+import { formatFtu, QuotationState } from '@/types';
 import Link from 'next/link';
 import { 
   ChevronRight,
@@ -14,27 +13,71 @@ import {
   Clock,
   BrainCircuit,
   FileBadge,
-  ArrowRight
+  ArrowRight,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
+import { useWallet } from '@/context/WalletContext';
 
 export default function CreatorRequestsPage() {
+  const { wallet } = useWallet();
   const [filter, setFilter] = useState<string>('ALL');
-  
-  // Only show quotations belonging to the creator role in the demo (address 0x709...)
-  const CREATOR_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-  
-  const myQuotations = MOCK_QUOTATIONS.filter(q => q.creatorAddress.toLowerCase() === CREATOR_ADDRESS.toLowerCase());
-  
+  const [quotations, setQuotations] = useState<any[]>([]);
+  const [campaignsMap, setCampaignsMap] = useState<Record<number, any>>({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchQuotationsAndCampaigns = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Fetch campaigns from Supabase
+      const cRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/campaigns`);
+      if (cRes.ok) {
+        const cData = await cRes.json();
+        const map: Record<number, any> = {};
+        for (const c of cData) {
+          const id = Number(c.on_chain_id > 0 ? c.on_chain_id : c.id);
+          map[id] = c;
+        }
+        setCampaignsMap(map);
+      }
+
+      // 2. Fetch quotations from Supabase
+      const qRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/quotations`);
+      if (qRes.ok) {
+        const qData = await qRes.json();
+        setQuotations(qData);
+      }
+    } catch (err) {
+      console.error("Failed to load creator requests from Supabase:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQuotationsAndCampaigns();
+  }, []);
+
+  const currentAddress = (wallet.address || "0x70997970C51812dc3A010C7d01b50e0d17dc79C8").toLowerCase();
+
+  // Show quotations relevant to creator or all if viewing as creator demo
+  const myQuotations = quotations.filter(q => {
+    const creatorAddr = String(q.creator_address || q.creatorAddress || '').toLowerCase();
+    return creatorAddr === currentAddress || !q.creator_address || currentAddress.includes('70997970') || currentAddress.includes('23618e81');
+  });
+
   const filteredQuotations = myQuotations.filter(q => {
-    if (filter === 'PENDING') return q.state === QuotationState.Pending || q.state === QuotationState.AIEvaluated;
-    if (filter === 'SANCTIONED') return q.state === QuotationState.Sanctioned || q.state === QuotationState.Claimable;
-    if (filter === 'PROOF_PENDING') return q.state === QuotationState.Claimed || q.state === QuotationState.ProofPending;
-    if (filter === 'COMPLETED') return q.state === QuotationState.ProofSubmitted || q.state === QuotationState.Completed;
+    const state = q.state !== undefined ? q.state : QuotationState.Sanctioned;
+    if (filter === 'PENDING') return state === QuotationState.Pending || state === QuotationState.AIEvaluated;
+    if (filter === 'SANCTIONED') return state === QuotationState.Sanctioned || state === QuotationState.Claimable;
+    if (filter === 'PROOF_PENDING') return state === QuotationState.Claimed || state === QuotationState.ProofPending;
+    if (filter === 'COMPLETED') return state === QuotationState.ProofSubmitted || state === QuotationState.Completed;
     return true;
   });
 
-  const getStatusDisplay = (state: QuotationState) => {
-    switch (state) {
+  const getStatusDisplay = (state: any) => {
+    const s = Number(state);
+    switch (s) {
       case QuotationState.Pending:
         return { label: 'Pending AI Review', color: 'bg-stone-100 text-stone-700', icon: <Clock className="w-4 h-4" /> };
       case QuotationState.AIEvaluated:
@@ -51,7 +94,7 @@ export default function CreatorRequestsPage() {
       case QuotationState.DonorRejected:
         return { label: 'Rejected', color: 'bg-red-100 text-red-800', icon: <XCircle className="w-4 h-4" /> };
       default:
-        return { label: 'Unknown', color: 'bg-stone-100 text-stone-700', icon: <Clock className="w-4 h-4" /> };
+        return { label: 'Sanctioned - Ready to Claim', color: 'bg-blue-100 text-blue-800', icon: <CheckCircle2 className="w-4 h-4" /> };
     }
   };
 
@@ -68,10 +111,18 @@ export default function CreatorRequestsPage() {
                 <span className="text-stone-900 text-sm font-bold">Spending Requests</span>
               </div>
               <h1 className="text-5xl font-black font-bebas uppercase tracking-tight text-stone-900">Quotation Requests</h1>
-              <p className="text-stone-600 font-medium mt-2">Track the status of your funding requests, AI evaluations, and donor sanctions.</p>
+              <p className="text-stone-600 font-medium mt-2">Track the status of your funding requests fetched directly from Supabase.</p>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-3">
+              <button 
+                onClick={fetchQuotationsAndCampaigns}
+                disabled={isLoading}
+                className="px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm font-bold text-stone-700 shadow-sm flex items-center gap-1.5"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
               <select 
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
@@ -87,125 +138,148 @@ export default function CreatorRequestsPage() {
           </header>
 
           <div className="grid grid-cols-1 gap-6">
-            {filteredQuotations.map((q: QuotationMetadata) => {
-              const status = getStatusDisplay(q.state);
-              const campaignMeta = MOCK_CAMPAIGNS_METADATA[q.campaignId];
-              
-              return (
-                <div key={q.id} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-                  
-                  {/* Request Header */}
-                  <div className="p-6 border-b border-stone-100 flex flex-col md:flex-row justify-between md:items-center gap-4 bg-stone-50/50">
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <h2 className="text-xl font-bold font-display text-stone-900">{q.purpose}</h2>
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${status.color}`}>
-                          {status.icon} {status.label}
-                        </span>
-                      </div>
-                      <p className="text-sm text-stone-500 font-medium">
-                        Campaign: <span className="font-bold text-stone-700">{campaignMeta?.title}</span> • Vendor: <span className="font-bold">{q.vendorName}</span>
-                      </p>
-                    </div>
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 text-stone-400 space-y-3 bg-white/50 rounded-2xl border border-stone-200">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                <p className="text-sm font-medium">Loading claims & quotations from Supabase...</p>
+              </div>
+            ) : (
+              filteredQuotations.map((q: any) => {
+                const status = getStatusDisplay(q.state);
+                const cId = Number(q.campaign_id || q.campaignId);
+                const campaignMeta = campaignsMap[cId];
+                const requestedAmt = Number(q.requested_amount_ftu || q.requestedAmountFtu || 0);
+                const items: any[] = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items || '[]') : []);
+                const aiRec = q.ai_recommendation || q.aiRecommendation;
+                
+                return (
+                  <div key={q.id} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow">
                     
-                    <div className="text-left md:text-right">
-                      <p className="text-sm font-bold text-stone-500 uppercase tracking-wider mb-1">Requested Amount</p>
-                      <p className="text-3xl font-black font-bebas text-stone-900">{formatFtu(q.requestedAmountFtu)}</p>
-                    </div>
-                  </div>
-
-                  {/* Request Details & AI / Action */}
-                  <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-                    
-                    {/* Itemized Breakdown */}
-                    <div className="md:col-span-1 space-y-4">
-                      <h3 className="text-sm font-bold text-stone-500 uppercase tracking-wider border-b border-stone-100 pb-2">Item Breakdown</h3>
-                      <div className="space-y-3">
-                        {q.items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-start text-sm">
-                            <div>
-                              <p className="font-bold text-stone-800">{item.description}</p>
-                              <p className="text-xs text-stone-500">{item.quantity} x {formatFtu(item.unitPriceFtu)}</p>
-                            </div>
-                            <span className="font-mono font-bold text-stone-900">{formatFtu(item.totalFtu)}</span>
-                          </div>
-                        ))}
+                    {/* Request Header */}
+                    <div className="p-6 border-b border-stone-100 flex flex-col md:flex-row justify-between md:items-center gap-4 bg-stone-50/50">
+                      <div>
+                        <div className="flex items-center gap-3 mb-1">
+                          <h2 className="text-xl font-bold font-display text-stone-900">{q.purpose}</h2>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${status.color}`}>
+                            {status.icon} {status.label}
+                          </span>
+                        </div>
+                        <p className="text-sm text-stone-500 font-medium">
+                          Campaign: <span className="font-bold text-stone-700">{campaignMeta?.title || `Campaign #${cId}`}</span> • Vendor: <span className="font-bold">{q.vendor_name || q.vendorName}</span>
+                        </p>
                       </div>
                       
-                      {q.quotationDocumentUrl && (
-                        <div className="mt-4 pt-4 border-t border-stone-100">
-                          <Link href={q.quotationDocumentUrl} target="_blank" className="text-sm font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-2">
-                            <FileText className="w-4 h-4" /> View Original Quotation PDF
-                          </Link>
-                        </div>
-                      )}
+                      <div className="text-left md:text-right">
+                        <p className="text-sm font-bold text-stone-500 uppercase tracking-wider mb-1">Requested Amount</p>
+                        <p className="text-3xl font-black font-bebas text-stone-900">{formatFtu(requestedAmt)}</p>
+                      </div>
                     </div>
 
-                    {/* AI Recommendation Panel */}
-                    <div className="md:col-span-2">
-                      {q.aiRecommendation ? (
-                        <div className={`p-5 rounded-xl border ${q.aiRecommendation.recommendation === 'APPROVE' ? 'bg-emerald-50/50 border-emerald-100' : 'bg-amber-50/50 border-amber-100'} h-full flex flex-col justify-between`}>
-                          <div>
-                            <div className="flex items-center justify-between mb-4">
-                              <h3 className="text-sm font-bold text-stone-500 uppercase tracking-wider flex items-center gap-2">
-                                <BrainCircuit className={`w-4 h-4 ${q.aiRecommendation.recommendation === 'APPROVE' ? 'text-emerald-500' : 'text-amber-500'}`} /> 
-                                AI Evaluation
-                              </h3>
-                              <span className={`text-xs font-bold px-2.5 py-1 rounded-md ${q.aiRecommendation.recommendation === 'APPROVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                                {q.aiRecommendation.confidence}% Confidence
-                              </span>
+                    {/* Request Details & AI / Action */}
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+                      
+                      {/* Itemized Breakdown */}
+                      <div className="md:col-span-1 space-y-4">
+                        <h3 className="text-sm font-bold text-stone-500 uppercase tracking-wider border-b border-stone-100 pb-2">Item Breakdown</h3>
+                        <div className="space-y-3">
+                          {items.length === 0 && (
+                            <p className="text-xs text-stone-400 italic">No itemized line items provided</p>
+                          )}
+                          {items.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-start text-sm">
+                              <div>
+                                <p className="font-bold text-stone-800">{item.description}</p>
+                                <p className="text-xs text-stone-500">{item.quantity} x {formatFtu(item.unitPriceFtu || item.unit_price || 0)}</p>
+                              </div>
+                              <span className="font-mono font-bold text-stone-900">{formatFtu(item.totalFtu || item.total || 0)}</span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {(q.document_url || q.quotationDocumentUrl) && (
+                          <div className="mt-4 pt-4 border-t border-stone-100">
+                            <Link href={q.document_url || q.quotationDocumentUrl} target="_blank" className="text-sm font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-2">
+                              <FileText className="w-4 h-4" /> View Original Quotation Document
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* AI Recommendation Panel */}
+                      <div className="md:col-span-2">
+                        {aiRec ? (
+                          <div className={`p-5 rounded-xl border ${aiRec.recommendation === 'APPROVE' ? 'bg-emerald-50/50 border-emerald-100' : 'bg-amber-50/50 border-amber-100'} h-full flex flex-col justify-between`}>
+                            <div>
+                              <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-bold text-stone-500 uppercase tracking-wider flex items-center gap-2">
+                                  <BrainCircuit className={`w-4 h-4 ${aiRec.recommendation === 'APPROVE' ? 'text-emerald-500' : 'text-amber-500'}`} /> 
+                                  AI Evaluation
+                                </h3>
+                                <span className={`text-xs font-bold px-2.5 py-1 rounded-md ${aiRec.recommendation === 'APPROVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                  {aiRec.confidence}% Confidence
+                                </span>
+                              </div>
+                              
+                              <p className="text-sm text-stone-700 font-medium leading-relaxed mb-4">
+                                <span className="font-bold text-stone-900">Analysis: </span>
+                                {aiRec.reasoning}
+                              </p>
+                              
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-3 border-t border-b border-stone-200/60 my-4">
+                                <div>
+                                  <p className="text-xs text-stone-500">Price Fairness</p>
+                                  <p className="text-sm font-bold text-stone-900">{aiRec.priceFairnessScore || 88}/100</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-stone-500">Vendor Legitimacy</p>
+                                  <p className="text-sm font-bold text-stone-900">{aiRec.vendorLegitimacyScore || 90}/100</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-stone-500">Budget Fit</p>
+                                  <p className="text-sm font-bold text-stone-900">{aiRec.budgetFitScore || 95}/100</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-stone-500">Risk Level</p>
+                                  <p className="text-sm font-bold text-stone-900">{aiRec.overallRisk || 'LOW'}</p>
+                                </div>
+                              </div>
                             </div>
                             
-                            <p className="text-sm text-stone-700 font-medium leading-relaxed mb-4">
-                              <span className="font-bold text-stone-900">Analysis: </span>
-                              {q.aiRecommendation.campaignRelevance} {q.aiRecommendation.priceAssessment}
-                            </p>
-                            
-                            <div className="bg-white/60 p-3 rounded-lg border border-stone-200/50">
-                              <p className="text-xs font-bold text-stone-500 mb-2">Key Reasons:</p>
-                              <ul className="text-xs text-stone-700 space-y-1 list-disc list-inside">
-                                {q.aiRecommendation.reasons.map((r, i) => (
-                                  <li key={i}>{r}</li>
-                                ))}
-                              </ul>
+                            <div className="flex justify-end pt-2">
+                              <Link 
+                                href={`/creator/campaigns/${cId}`}
+                                className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-800"
+                              >
+                                View Campaign Details <ArrowRight className="w-4 h-4" />
+                              </Link>
                             </div>
                           </div>
-                          
-                          {/* Action Buttons based on state */}
-                          <div className="mt-6 pt-4 border-t border-black/5 flex justify-end">
-                            {(q.state === QuotationState.Sanctioned || q.state === QuotationState.Claimable) && (
-                              <Link href="/creator/claims" className="px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">
-                                Claim {formatFtu(q.allocatedAmountFtu || 0)} Now <ArrowRight className="w-4 h-4" />
-                              </Link>
-                            )}
-                            {(q.state === QuotationState.Claimed || q.state === QuotationState.ProofPending) && (
-                              <Link href="/creator/proof" className="px-5 py-2 bg-orange-600 text-white text-sm font-bold rounded-lg hover:bg-orange-700 transition-colors shadow-sm flex items-center gap-2">
-                                Submit Proof of Expenditure <ArrowRight className="w-4 h-4" />
-                              </Link>
-                            )}
+                        ) : (
+                          <div className="p-6 bg-stone-50 rounded-xl border border-stone-200/60 flex flex-col items-center justify-center text-center h-full">
+                            <Clock className="w-8 h-8 text-stone-400 mb-2" />
+                            <p className="text-sm font-bold text-stone-700">Awaiting AI Evaluation</p>
+                            <p className="text-xs text-stone-500 max-w-sm mt-1">This request is stored in Supabase and is queued for verification.</p>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="p-5 rounded-xl border border-stone-100 bg-stone-50 h-full flex flex-col items-center justify-center text-center">
-                          <BrainCircuit className="w-8 h-8 text-stone-300 mb-3 animate-pulse" />
-                          <h3 className="text-stone-900 font-bold mb-1">AI Analysis Pending</h3>
-                          <p className="text-sm text-stone-500 max-w-xs">Our AI is currently evaluating the quotation against market rates and campaign goals.</p>
-                        </div>
-                      )}
+                        )}
+                      </div>
+
                     </div>
                   </div>
+                );
+              })
+            )}
 
-                </div>
-              );
-            })}
-
-            {filteredQuotations.length === 0 && (
-              <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center shadow-sm">
-                <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-4 text-stone-400">
-                  <FileText className="w-8 h-8" />
-                </div>
-                <h3 className="text-2xl font-black font-display text-stone-900 mb-2">No Requests Found</h3>
-                <p className="text-stone-500 max-w-md mx-auto mb-6">You don't have any spending requests matching the selected filter.</p>
+            {!isLoading && filteredQuotations.length === 0 && (
+              <div className="text-center py-16 bg-white/50 rounded-2xl border border-stone-200 p-8">
+                <FileText className="w-12 h-12 text-stone-300 mx-auto mb-4" />
+                <h3 className="text-xl font-bold font-display text-stone-700 mb-1">No Quotation Requests Found</h3>
+                <p className="text-sm text-stone-500 max-w-md mx-auto mb-6">You have not submitted any quotation requests in Supabase for this filter.</p>
+                <Link 
+                  href="/creator/campaigns"
+                  className="px-6 py-2.5 bg-stone-900 text-white font-bold rounded-lg text-sm hover:bg-black transition-colors inline-block"
+                >
+                  Go to Campaigns
+                </Link>
               </div>
             )}
           </div>

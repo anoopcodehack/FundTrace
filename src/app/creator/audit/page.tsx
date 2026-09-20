@@ -1,22 +1,55 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import RoleGuard from '@/components/RoleGuard';
-import { MOCK_LEDGER_EVENTS } from '@/lib/mock';
 import Link from 'next/link';
 import { 
   ChevronRight, 
   Activity, 
-  Box,
-  Link as LinkIcon
+  Box, 
+  Link as LinkIcon,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
+import { useWallet } from '@/context/WalletContext';
 
 export default function CreatorAuditPage() {
-  const CREATOR_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-  
-  // Filter events related to campaigns owned by the creator
-  // For the demo, we assume campaignId 1 belongs to the creator
-  const creatorEvents = MOCK_LEDGER_EVENTS.filter(ev => ev.args.campaignId === 1 || ev.args.creator === CREATOR_ADDRESS);
+  const { wallet } = useWallet();
+  const [events, setEvents] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchLedgerEvents = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/ledger`);
+      if (res.ok) {
+        const data = await res.json();
+        setEvents(data);
+      }
+    } catch (err) {
+      console.error("Failed to load creator audit ledger:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLedgerEvents();
+  }, []);
+
+  const creatorAddress = (wallet.address || "0x70997970C51812dc3A010C7d01b50e0d17dc79C8").toLowerCase();
+  const isSarah = creatorAddress === "0x70997970C51812dc3A010C7d01b50e0d17dc79C8".toLowerCase();
+
+  // Filter events related to creator's campaigns or actions
+  const creatorEvents = events.filter(ev => {
+    const args = ev.args || {};
+    const creatorArg = String(args.creator || '').toLowerCase();
+    const cId = Number(ev.campaignId || args.campaignId);
+
+    if (creatorArg === creatorAddress) return true;
+    if (isSarah && (cId === 1 || creatorArg.includes('sarah') || creatorArg.includes('70997970'))) return true;
+    return false;
+  });
 
   return (
     <RoleGuard allowedRoles={["CREATOR"]}>
@@ -31,11 +64,16 @@ export default function CreatorAuditPage() {
                 <span className="text-stone-900 text-sm font-bold">Audit Ledger</span>
               </div>
               <h1 className="text-5xl font-black font-bebas uppercase tracking-tight text-stone-900">My Audit Trail</h1>
-              <p className="text-stone-600 font-medium mt-2">Immutable cryptographic log of your campaign and spending actions.</p>
+              <p className="text-stone-600 font-medium mt-2">Cryptographic ledger events fetched directly from Supabase & on-chain logs.</p>
             </div>
             <div className="flex gap-3">
-              <button className="px-6 py-2.5 bg-white border border-stone-200 text-stone-700 font-bold rounded-lg hover:bg-stone-50 transition-colors shadow-sm flex items-center gap-2">
-                <Box className="w-4 h-4" /> Export CSV
+              <button 
+                onClick={fetchLedgerEvents}
+                disabled={isLoading}
+                className="px-4 py-2.5 bg-white border border-stone-200 text-stone-700 font-bold rounded-lg hover:bg-stone-50 transition-colors shadow-sm flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
               </button>
             </div>
           </header>
@@ -43,52 +81,72 @@ export default function CreatorAuditPage() {
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-stone-100 bg-stone-50/50 flex justify-between items-center">
               <h2 className="text-lg font-bold font-display text-stone-900 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-indigo-500" /> Event Stream
+                <Activity className="w-5 h-5 text-indigo-500" /> Live Supabase Audit Ledger ({creatorEvents.length} records)
               </h2>
             </div>
             
             <div className="p-6 space-y-6">
-              {creatorEvents.map((ev, idx) => (
-                <div key={idx} className="relative pl-8 md:pl-0">
-                  <div className="md:grid md:grid-cols-12 md:gap-4 items-start">
-                    
-                    <div className="hidden md:block col-span-2 text-right pt-1">
-                      <div className="text-sm font-bold text-stone-900">{new Date(ev.timestamp || 0).toLocaleDateString()}</div>
-                      <div className="text-xs text-stone-500">{new Date(ev.timestamp || 0).toLocaleTimeString()}</div>
-                    </div>
-                    
-                    <div className="md:col-span-1 relative flex justify-center mt-1">
-                      <div className="absolute top-0 bottom-0 w-px bg-stone-200 -z-10 h-full" style={{ left: '50%', transform: 'translateX(-50%)' }}></div>
-                      <div className="w-4 h-4 rounded-full bg-indigo-500 ring-4 ring-white shadow-sm z-10"></div>
-                    </div>
-                    
-                    <div className="md:col-span-9 bg-white border border-stone-100 p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow group">
-                      <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-2">
-                        <div>
-                          <h4 className="text-lg font-black font-display text-stone-900">{ev.eventName}</h4>
-                          <div className="text-xs font-mono text-stone-500 flex items-center gap-1 mt-1">
-                            <Box className="w-3 h-3" /> Block {ev.blockNumber}
-                          </div>
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 text-stone-400 space-y-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                  <p className="text-sm font-medium">Fetching cryptographic audit events from Supabase...</p>
+                </div>
+              ) : (
+                creatorEvents.map((ev, idx) => (
+                  <div key={ev.id || idx} className="relative pl-8 md:pl-0">
+                    <div className="md:grid md:grid-cols-12 md:gap-4 items-start">
+                      
+                      <div className="hidden md:block col-span-2 text-right pt-1">
+                        <div className="text-sm font-bold text-stone-900">
+                          {ev.timestamp ? new Date(Number(ev.timestamp)).toLocaleDateString() : 'Recent'}
                         </div>
-                        <div className="text-xs font-mono bg-stone-100 text-stone-600 px-2 py-1 rounded-md flex items-center gap-1 max-w-full truncate overflow-hidden" title={ev.transactionHash}>
-                          <LinkIcon className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate w-32 sm:w-auto">{ev.transactionHash}</span>
+                        <div className="text-xs text-stone-500">
+                          {ev.timestamp ? new Date(Number(ev.timestamp)).toLocaleTimeString() : ''}
                         </div>
                       </div>
                       
-                      <div className="mt-4 bg-stone-50 rounded-lg p-3 text-sm font-mono text-stone-700">
-                        <pre className="whitespace-pre-wrap break-words text-xs">
-                          {JSON.stringify(ev.args, null, 2)}
-                        </pre>
+                      <div className="md:col-span-1 relative flex justify-center mt-1">
+                        <div className="absolute top-0 bottom-0 w-px bg-stone-200 -z-10 h-full" style={{ left: '50%', transform: 'translateX(-50%)' }}></div>
+                        <div className="w-4 h-4 rounded-full bg-indigo-500 ring-4 ring-white shadow-sm z-10"></div>
+                      </div>
+                      
+                      <div className="md:col-span-9 bg-white border border-stone-100 p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow group">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-lg font-black font-display text-stone-900">{ev.eventName || ev.event_name}</h4>
+                              <span className="text-xs font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-600">
+                                Campaign #{ev.campaignId || ev.campaign_id}
+                              </span>
+                            </div>
+                            <div className="text-xs font-mono text-stone-500 flex items-center gap-1 mt-1">
+                              <Box className="w-3 h-3" /> Block {ev.blockNumber || ev.block_number || '150+'}
+                            </div>
+                          </div>
+                          <div className="text-xs font-mono bg-stone-100 text-stone-600 px-2 py-1 rounded-md flex items-center gap-1 max-w-full truncate overflow-hidden" title={ev.transactionHash || ev.tx_hash}>
+                            <LinkIcon className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate w-32 sm:w-auto">{ev.transactionHash || ev.tx_hash}</span>
+                          </div>
+                        </div>
+                        
+                        {ev.summary && (
+                          <p className="text-sm text-stone-600 font-medium mb-3">{ev.summary}</p>
+                        )}
+
+                        <div className="mt-2 bg-stone-50 rounded-lg p-3 text-sm font-mono text-stone-700">
+                          <pre className="whitespace-pre-wrap break-words text-xs">
+                            {JSON.stringify(ev.args, null, 2)}
+                          </pre>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
 
-              {creatorEvents.length === 0 && (
+              {!isLoading && creatorEvents.length === 0 && (
                 <div className="text-center py-12 text-stone-500 font-medium">
-                  No on-chain events found for your campaigns.
+                  No cryptographic audit events found in Supabase for your campaigns.
                 </div>
               )}
             </div>

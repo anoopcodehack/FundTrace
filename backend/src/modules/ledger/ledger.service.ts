@@ -1,8 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_CLIENT } from '../database/supabase.provider';
 import { ethers } from 'ethers';
 import { BlockchainService } from '../blockchain/blockchain.service';
 
 export interface LedgerEvent {
+  id?: number;
   eventName: string;
   campaignId?: number;
   blockNumber: number;
@@ -16,9 +19,44 @@ export interface LedgerEvent {
 export class LedgerService {
   private readonly logger = new Logger(LedgerService.name);
 
-  constructor(private readonly blockchainService: BlockchainService) {}
+  constructor(
+    @Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient,
+    private readonly blockchainService: BlockchainService
+  ) {}
 
   async getEvents(campaignIdFilter?: number): Promise<LedgerEvent[]> {
+    // 1. Primary: Fetch all transparency audit events from Supabase
+    try {
+      let query = this.supabase
+        .from('audit_events')
+        .select('*')
+        .order('recorded_at', { ascending: false });
+
+      if (campaignIdFilter !== undefined) {
+        query = query.eq('campaign_id', campaignIdFilter);
+      }
+
+      const { data: dbEvents, error } = await query;
+      if (!error && dbEvents && dbEvents.length > 0) {
+        return dbEvents.map((ev) => {
+          const args = ev.event_data || {};
+          return {
+            id: ev.id,
+            eventName: ev.event_name,
+            campaignId: ev.campaign_id ? Number(ev.campaign_id) : undefined,
+            blockNumber: Number(ev.block_number || 0),
+            transactionHash: ev.tx_hash || '0x',
+            timestamp: ev.recorded_at ? new Date(ev.recorded_at).getTime() : Date.now(),
+            args,
+            summary: this.generateSummary(ev.event_name, args),
+          };
+        });
+      }
+    } catch (dbErr) {
+      this.logger.warn('Could not query audit_events from Supabase, attempting on-chain query:', dbErr);
+    }
+
+    // 2. Secondary fallback: Query on-chain RPC logs
     const contract = this.blockchainService.getContract();
     const deployment = this.blockchainService.getDeploymentInfo();
 
@@ -38,7 +76,6 @@ export class LedgerService {
           log.fragment.inputs.forEach((input, index) => {
             const val = log.args[index];
             if (typeof val === 'bigint') {
-              // Format WEI to ETH for known amount fields
               if (['amount', 'goal', 'totalDonated', 'totalRaised', 'weight', 'currentApprovalWeight', 'totalApprovalWeight'].includes(input.name)) {
                 parsedArgs[input.name] = ethers.formatEther(val) + ' ETH';
               } else {
@@ -65,7 +102,7 @@ export class LedgerService {
         }
       }
 
-      return events.reverse(); // Newest first
+      return events.reverse();
     } catch (err) {
       this.logger.error('Error fetching on-chain events from RPC', err);
       return [];
@@ -75,29 +112,33 @@ export class LedgerService {
   private generateSummary(eventName: string, args: Record<string, any>): string {
     switch (eventName) {
       case 'CampaignCreated':
-        return `Campaign #${args.campaignId} created with goal ${args.goal}`;
+        return `Campaign #${args.campaignId || ''} created with goal ${args.goal || ''}`;
       case 'CampaignVerified':
-        return `Campaign #${args.campaignId} verified by verifier ${args.verifier?.slice(0, 8)}...`;
+        return `Campaign #${args.campaignId || ''} verified by verifier ${args.verifier?.slice(0, 8) || 'Auditor'}...`;
       case 'Donated':
-        return `Donation of ${args.amount} by ${args.donor?.slice(0, 8)}... (Total: ${args.totalDonated})`;
+        return `Donation of ${args.amount || ''} by ${args.donor?.slice(0, 8) || 'Donor'}... (Total: ${args.totalDonated || ''})`;
       case 'FundingClosed':
-        return `Funding closed for Campaign #${args.campaignId} with total ${args.totalRaised}`;
+        return `Funding closed for Campaign #${args.campaignId || ''} with total ${args.totalRaised || ''}`;
+      case 'QuotationRegistered':
+        return `Quotation #${args.quotationId || ''} registered for Campaign #${args.campaignId || ''}: ${args.purpose || ''}`;
+      case 'QuotationSanctioned':
+        return `Quotation #${args.quotationId || ''} sanctioned for ${args.allocatedAmount || ''}`;
+      case 'AutomationToggled':
+        return `AI Auto-Sanction ${args.enabled ? 'ENABLED' : 'DISABLED'} for Campaign #${args.campaignId || ''}`;
       case 'RequestCreated':
-        return `Spending Request #${args.requestId} created for ${args.amount} to ${args.recipient?.slice(0, 8)}...`;
+        return `Spending Request #${args.requestId || ''} created for ${args.amount || ''} to ${args.recipient?.slice(0, 8) || ''}...`;
       case 'Approved':
-        return `Vote cast for Request #${args.requestId} with weight ${args.weight}`;
+        return `Vote cast for Request #${args.requestId || ''} with weight ${args.weight || ''}`;
       case 'RequestApproved':
-        return `Request #${args.requestId} reached consensus approval (Total Weight: ${args.totalApprovalWeight})`;
+        return `Request #${args.requestId || ''} reached consensus approval (Total Weight: ${args.totalApprovalWeight || ''})`;
       case 'Released':
-        return `Funds released: ${args.amount} transferred to ${args.recipient?.slice(0, 8)}...`;
+        return `Funds released: ${args.amount || ''} transferred to ${args.recipient?.slice(0, 8) || ''}...`;
       case 'ProofSubmitted':
-        return `Expenditure proof receipt submitted on-chain (Hash: ${args.receiptHash?.slice(0, 10)}...)`;
+        return `Expenditure proof receipt submitted on-chain (Hash: ${args.receiptHash?.slice(0, 10) || ''}...)`;
       case 'Refunded':
-        return `Refund of ${args.amount} withdrawn by donor ${args.donor?.slice(0, 8)}...`;
+        return `Refund of ${args.amount || ''} withdrawn by donor ${args.donor?.slice(0, 8) || ''}...`;
       default:
-        return `${eventName} triggered`;
+        return `${eventName} recorded on ledger`;
     }
   }
-
-
 }

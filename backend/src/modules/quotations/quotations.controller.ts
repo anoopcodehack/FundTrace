@@ -1,6 +1,6 @@
 import {
   Controller, Post, Get, Patch, Param, Body, UploadedFile,
-  UseInterceptors, ParseIntPipe, UseGuards,
+  UseInterceptors, ParseIntPipe, UseGuards, Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { QuotationsService } from './quotations.service';
@@ -29,6 +29,11 @@ export class QuotationsController {
       items: typeof body.items === 'string' ? JSON.parse(body.items) : body.items || [],
     };
     return this.quotationsService.createQuotation(dto, file);
+  }
+
+  @Get()
+  async findAll(@Query('creator') creator?: string) {
+    return this.quotationsService.findAll(creator);
   }
 
   @Get('campaign/:campaignId')
