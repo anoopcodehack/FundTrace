@@ -23,16 +23,21 @@ import {
   Wallet,
   Heart,
   BarChart3,
-  Settings,
+  Settings, BrainCircuit, Layers,
   AlertCircle,
   Zap,
   RefreshCw,
   ExternalLink,
   Lock,
+  XCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
 import { getFundTraceContract, parseContractError } from '@/lib/contract';
 import { getQuotationsByCampaign } from '@/services/quotationService';
+import { sanctionQuotation, rejectQuotation, reviewQuotation } from '@/services/quotationService';
+import { AIRecommendation } from '@/types';
+
 import { DEMO_PRESET_ACCOUNTS } from '@/lib/wallet';
 
 // ─────────────────────────────────────────────────────────
@@ -47,7 +52,113 @@ export default function CampaignDetailPage() {
   const { wallet, signer, selectDemoRole } = useWallet();
   const { isConnected, appRole, address } = wallet;
 
-  const [activeTab, setActiveTab] = useState<'STORY' | 'LEDGER'>('STORY');
+  const [activeTab, setActiveTab] = useState<'CAMPAIGN_FUNDING' | 'MILESTONE_QUOTATIONS'>('CAMPAIGN_FUNDING');
+
+  // ─────────────────────────────────────────────────────────
+  // Action Handlers: Milestone Quotation Sanction
+  // ─────────────────────────────────────────────────────────
+  const [processingId, setProcessingId] = useState<number | null>(null);
+
+  const handleSanctionQuotation = async (q: any) => {
+    if (!signer || !wallet.address) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+    setProcessingId(q.id);
+    const toastId = toast.loading('Sanctioning quotation on blockchain...');
+
+    try {
+      const contract = getFundTraceContract(signer);
+      
+      let allocatedAmountOnChain: bigint;
+      try {
+        const onchainQ = await contract.getQuotation(onchain.id, q.onChainQuotationId || q.id);
+        if (onchainQ.requestedAmount > 0n) {
+          allocatedAmountOnChain = onchainQ.requestedAmount;
+        } else {
+          const reqStr = q.requestedAmountFtu?.toString() || '0';
+          allocatedAmountOnChain = reqStr.includes('.')
+            ? ethers.parseEther(reqStr)
+            : BigInt(Math.floor(Number(reqStr) || 0));
+        }
+      } catch {
+        const reqStr = q.requestedAmountFtu?.toString() || '0';
+        allocatedAmountOnChain = reqStr.includes('.')
+          ? ethers.parseEther(reqStr)
+          : BigInt(Math.floor(Number(reqStr) || 0));
+      }
+
+      const tx = await contract.sanctionQuotation(
+        onchain.id,
+        q.onChainQuotationId || q.id,
+        allocatedAmountOnChain,
+        false,
+        ethers.ZeroAddress
+      );
+      await tx.wait();
+
+      try {
+        await sanctionQuotation(q.id, wallet.address, q.requestedAmountFtu, false);
+      } catch (syncErr) {
+        console.warn('Backend sanction sync note:', syncErr);
+      }
+
+      setCampaignQuotations(prev => prev.filter(a => a.id !== q.id));
+      toast.success(`Sanctioned ${formatFtu(q.requestedAmountFtu)} milestone disbursement!`, { id: toastId });
+      loadCampaign();
+    } catch (err: any) {
+      const errorMsg = parseContractError(err);
+      toast.error(errorMsg, { id: toastId });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleRejectQuotation = async (q: any) => {
+    if (!signer || !wallet.address) return;
+    const reason = window.prompt('Provide rejection reason:');
+    if (!reason) return;
+
+    setProcessingId(q.id);
+    const toastId = toast.loading('Rejecting quotation on blockchain...');
+    try {
+      const contract = getFundTraceContract(signer);
+      const tx = await contract.rejectQuotation(onchain.id, q.onChainQuotationId || q.id, reason);
+      await tx.wait();
+
+      try {
+        await rejectQuotation(q.id, wallet.address, reason);
+      } catch {}
+
+      setCampaignQuotations(prev => prev.filter(a => a.id !== q.id));
+      toast.success('Quotation rejected on blockchain', { id: toastId });
+      loadCampaign();
+    } catch (err: any) {
+      const errorMsg = parseContractError(err);
+      toast.error(errorMsg, { id: toastId });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReviewQuotation = async (q: any) => {
+    if (!wallet.address) return;
+    const reason = window.prompt('Reason for flagging manual review:');
+    if (!reason) return;
+
+    setProcessingId(q.id);
+    try {
+      await reviewQuotation(q.id, wallet.address, reason);
+      setCampaignQuotations(prev => prev.filter(a => a.id !== q.id));
+      toast.success('Quotation flagged for manual review');
+      loadCampaign();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to flag quotation');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const [isAccepting, setIsAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
   const [onchain, setOnchain] = useState<any>(null);
@@ -1079,18 +1190,37 @@ export default function CampaignDetailPage() {
 
         {/* Tabs & Content */}
         <div className="max-w-7xl mx-auto px-8 lg:px-12">
-          <div className="flex border-b border-stone-200 mb-8">
-            <button onClick={() => setActiveTab('STORY')}
-              className={`px-8 py-4 font-black font-display text-lg border-b-4 transition-colors ${activeTab === 'STORY' ? 'border-indigo-600 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-600'}`}>
-              The Story
+          <div className="flex border-b border-stone-300 gap-4 sm:gap-8 mb-8">
+            <button
+              onClick={() => setActiveTab('CAMPAIGN_FUNDING')}
+              className={`pb-4 text-sm sm:text-base font-black font-display tracking-wide uppercase transition-all relative flex items-center gap-2.5 ${
+                activeTab === 'CAMPAIGN_FUNDING'
+                  ? 'text-stone-900 border-b-2 border-stone-900'
+                  : 'text-stone-400 hover:text-stone-700'
+              }`}
+            >
+              <Heart className="w-4 h-4" />
+              Campaign Funding Approval
             </button>
-            <button onClick={() => setActiveTab('LEDGER')}
-              className={`px-8 py-4 font-black font-display text-lg border-b-4 transition-colors flex items-center gap-2 ${activeTab === 'LEDGER' ? 'border-indigo-600 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-600'}`}>
-              Public Ledger <span className="bg-stone-100 text-stone-500 text-xs px-2 py-0.5 rounded-full font-bold">{campaignQuotations.length}</span>
+            <button
+              onClick={() => setActiveTab('MILESTONE_QUOTATIONS')}
+              className={`pb-4 text-sm sm:text-base font-black font-display tracking-wide uppercase transition-all relative flex items-center gap-2.5 ${
+                activeTab === 'MILESTONE_QUOTATIONS'
+                  ? 'text-stone-900 border-b-2 border-stone-900'
+                  : 'text-stone-400 hover:text-stone-700'
+              }`}
+            >
+              <BrainCircuit className="w-4 h-4" />
+              Milestone Quotation Sanction
+              <span className={`px-2 py-0.5 text-xs rounded-full font-mono font-bold ${
+                activeTab === 'MILESTONE_QUOTATIONS' ? 'bg-stone-900 text-white' : 'bg-stone-200 text-stone-600'
+              }`}>
+                {campaignQuotations.length}
+              </span>
             </button>
           </div>
 
-          {activeTab === 'STORY' && (
+          {activeTab === 'CAMPAIGN_FUNDING' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
               <div className="lg:col-span-2 prose prose-stone max-w-none prose-p:text-stone-600 prose-headings:font-display prose-headings:font-black">
                 {(meta?.story || '').split('\n').map((para: string, i: number) => (
@@ -1205,75 +1335,133 @@ export default function CampaignDetailPage() {
             </div>
           )}
 
-          {activeTab === 'LEDGER' && (
+          {activeTab === 'MILESTONE_QUOTATIONS' && (
             <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
-              <div className="p-8 border-b border-stone-100 bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="p-8 border-b border-stone-100 bg-stone-50/50 flex flex-col justify-between items-start gap-4">
                 <div>
                   <h3 className="text-2xl font-black font-display text-stone-900 flex items-center gap-2">
-                    <Activity className="w-6 h-6 text-indigo-500" /> Public Spend Log
+                    <BrainCircuit className="w-6 h-6 text-indigo-500" /> Pending Milestone Sanctions
                   </h3>
-                  <p className="text-sm text-stone-500 font-medium mt-1">Complete transparency into how funds are being requested and spent.</p>
+                  <p className="text-sm text-stone-500 font-medium mt-1">
+                    Review and sanction milestone spending requests for this campaign using AI verification.
+                  </p>
                 </div>
+                {/* Auto-Sanction Controls for this campaign */}
+                {(isDonor || hasContributed) && (
+                  <div className="bg-indigo-50/50 border border-indigo-200 p-4 rounded-xl w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                         <Zap className="w-4 h-4 text-indigo-500" />
+                         <span className="font-bold text-indigo-900 text-sm">Campaign AI Auto-Sanction</span>
+                      </div>
+                      <p className="text-xs text-indigo-700 max-w-lg">
+                        Automatically sanction valid milestone requests (AI confidence ≥ 85%) and reject risky ones. You have {myVotingWeight}% contribution share in this campaign.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleToggleAutomation}
+                      disabled={isTogglingAutomation}
+                      className={`px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer shrink-0 shadow-sm ${
+                        isAutomationEnabled
+                          ? 'bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-50'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      } disabled:opacity-50`}
+                    >
+                      {isTogglingAutomation ? (
+                        <span className="flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Updating...</span>
+                      ) : isAutomationEnabled ? (
+                        'Disable Auto-Sanction'
+                      ) : (
+                        'Enable Auto-Sanction'
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="p-8">
                 {campaignQuotations.length === 0 ? (
                   <div className="text-center py-12">
                     <FileText className="w-12 h-12 text-stone-300 mx-auto mb-3" />
-                    <p className="text-stone-500 font-medium">No spending requests have been made yet.</p>
+                    <p className="text-stone-500 font-medium">No milestone requests have been filed by the creator yet.</p>
                   </div>
                 ) : (
                   <div className="space-y-6">
                     {campaignQuotations.map((q: any) => {
-                      const getStatusColor = (state: QuotationState) => {
-                        if (state === QuotationState.Completed || state === QuotationState.ProofSubmitted) return 'border-emerald-200 bg-emerald-50/30';
-                        if (state === QuotationState.Claimed || state === QuotationState.ProofPending) return 'border-purple-200 bg-purple-50/30';
-                        if (state === QuotationState.Sanctioned || state === QuotationState.Claimable) return 'border-blue-200 bg-blue-50/30';
-                        return 'border-stone-200 bg-white';
-                      };
-                      const getStatusBadge = (state: QuotationState) => {
-                        if (state === QuotationState.Completed || state === QuotationState.ProofSubmitted) return <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold">Proof Verified</span>;
-                        if (state === QuotationState.Claimed || state === QuotationState.ProofPending) return <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold">Funds Claimed</span>;
-                        if (state === QuotationState.Sanctioned || state === QuotationState.Claimable) return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold">Sanctioned</span>;
-                        return <span className="bg-stone-100 text-stone-700 px-3 py-1 rounded-full text-xs font-bold">Pending Review</span>;
-                      };
+                      let ai: AIRecommendation | undefined = typeof q.aiRecommendation === 'string'
+                        ? JSON.parse(q.aiRecommendation)
+                        : q.aiRecommendation;
+                      const isPending = q.state === QuotationState.Pending || q.state === QuotationState.AIEvaluated;
+                      
                       return (
-                        <div key={q.id} className={`rounded-2xl border ${getStatusColor(q.state)} p-6`}>
-                          <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
-                            <div>
-                              <div className="flex items-center gap-3 mb-1">
-                                <h4 className="text-lg font-bold font-display text-stone-900">{q.purpose}</h4>
-                                {getStatusBadge(q.state)}
-                              </div>
-                              <p className="text-sm text-stone-500">Vendor: <span className="font-bold text-stone-700">{q.vendorName}</span></p>
+                        <div key={q.id} className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden flex flex-col xl:flex-row">
+                          <div className="xl:w-1/3 p-6 border-b xl:border-b-0 xl:border-r border-stone-100 bg-stone-50/50">
+                            <div className="flex flex-wrap items-center gap-2 mb-4">
+                              <span className={`px-3 py-1 text-xs font-bold rounded-full ${isPending ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                                {isPending ? 'Awaiting Sanction' : 'Sanctioned / Processed'}
+                              </span>
                             </div>
-                            <div className="text-left md:text-right">
-                              <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">Amount Requested</p>
-                              <p className="text-2xl font-black font-mono text-stone-900">{formatFtu(q.requestedAmountFtu)}</p>
-                            </div>
+                            <h2 className="text-xl font-black font-display text-stone-900 leading-tight mb-2">{q.purpose}</h2>
+                            <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1 mt-4">Requested Disbursement</p>
+                            <p className="text-4xl font-black font-bebas text-stone-900">{formatFtu(q.requestedAmountFtu)}</p>
+                            <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1 mt-4">Vendor</p>
+                            <p className="text-sm font-bold text-stone-800">{q.vendorName}</p>
+                            {q.quotationDocumentUrl && (
+                              <Link href={q.quotationDocumentUrl} target="_blank" className="mt-6 w-full flex items-center justify-center gap-2 py-2 px-4 bg-white border border-stone-300 text-stone-700 font-bold rounded-lg hover:bg-stone-50 transition-colors shadow-sm text-xs">
+                                <FileText className="w-4 h-4" /> View Invoice
+                              </Link>
+                            )}
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-stone-200/60">
-                            <div>
-                              <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                <ShieldCheck className={`w-3 h-3 ${q.aiRecommendation ? 'text-indigo-500' : 'text-stone-400'}`} /> AI Audit Note
-                              </p>
-                              {q.aiRecommendation ? (
-                                <p className="text-sm text-stone-700 bg-white/60 p-3 rounded-xl border border-stone-200/50">{q.aiRecommendation.priceAssessment}</p>
-                              ) : (
-                                <p className="text-sm text-stone-400 italic">Pending AI review.</p>
+                          
+                          <div className="xl:w-2/3 flex flex-col bg-white">
+                            <div className="p-6 flex-1">
+                              {ai && (
+                                <>
+                                  <div className="flex items-center gap-4 mb-4">
+                                    <h3 className="text-lg font-bold font-display text-stone-900 flex items-center gap-2">
+                                      <BrainCircuit className="w-5 h-5 text-indigo-500" /> AI Risk Assessment
+                                    </h3>
+                                    <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-md">
+                                      {Math.round((ai.confidence || 0) * 100)}% Confidence
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
+                                      <p className="text-xs font-bold text-stone-400 uppercase mb-1">Price Assessment</p>
+                                      <p className="text-sm text-stone-700 font-medium">{ai.priceAssessment}</p>
+                                    </div>
+                                    <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
+                                      <p className="text-xs font-bold text-stone-400 uppercase mb-1">Budget Impact</p>
+                                      <p className="text-sm text-stone-700 font-medium">{ai.budgetImpact}</p>
+                                    </div>
+                                  </div>
+                                </>
                               )}
                             </div>
-                            <div>
-                              <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Cryptographic Proof</p>
-                              {q.proofDocumentUrl ? (
-                                <Link href={q.proofDocumentUrl} target="_blank" className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-100">
-                                  <FileText className="w-4 h-4" /> View Verified Receipt
-                                </Link>
-                              ) : (
-                                <div className="inline-flex items-center gap-2 text-sm font-bold text-stone-400 bg-stone-100/50 px-4 py-2 rounded-lg border border-stone-200/50 cursor-not-allowed">
-                                  <Clock className="w-4 h-4" /> Receipt Pending
-                                </div>
-                              )}
-                            </div>
+                            {isPending && (isDonor || hasContributed) && (
+                              <div className="p-6 bg-stone-50/50 border-t border-stone-200 flex flex-wrap justify-end gap-3">
+                                <button
+                                  onClick={() => handleRejectQuotation(q)}
+                                  disabled={processingId === q.id}
+                                  className="px-5 py-2.5 bg-white border border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-50 text-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                                >
+                                  <XCircle className="w-4 h-4" /> Reject
+                                </button>
+                                <button
+                                  onClick={() => handleReviewQuotation(q)}
+                                  disabled={processingId === q.id}
+                                  className="px-5 py-2.5 bg-white border border-amber-200 text-amber-600 font-bold rounded-xl hover:bg-amber-50 text-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                                >
+                                  <AlertTriangle className="w-4 h-4" /> Flag for Review
+                                </button>
+                                <button
+                                  onClick={() => handleSanctionQuotation(q)}
+                                  disabled={processingId === q.id}
+                                  className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 text-xs shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" /> Sanction {formatFtu(q.requestedAmountFtu)}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
