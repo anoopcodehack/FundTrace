@@ -78,7 +78,7 @@ export default function CreateCampaignPage() {
       const responseText = await apiResponse.text();
       if (!apiResponse.ok) {
         console.error("API Error Response:", responseText);
-        throw new Error(\`Failed to prepare campaign via API: \${responseText}\`);
+        throw new Error(`Failed to prepare campaign via API: ${responseText}`);
       }
       
       const { transactionData, metadataHash, offChainId } = JSON.parse(responseText);
