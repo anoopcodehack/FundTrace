@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { useWallet } from "@/context/WalletContext";
+import RoleGuard from "@/components/RoleGuard";
 import { getCreatorScore, getScoreHistory } from "@/services/scoreService";
 import { getQuotationsByCampaign } from "@/services/quotationService";
 import { getFundTraceContract } from "@/lib/contract";
@@ -122,8 +123,9 @@ export default function CreatorPortfolioPage() {
   const displayQuotations = quotations.length > 0 ? quotations : MOCK_QUOTATIONS;
 
   return (
-    <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
-      <Navbar />
+    <RoleGuard allowedRoles={["CREATOR"]}>
+      <div className="min-h-screen bg-stone-50 text-stone-900 pb-24">
+        <Navbar />
       <main className="max-w-6xl mx-auto px-6 sm:px-12 pt-8 pb-16">
 
         {/* Header */}
@@ -386,6 +388,7 @@ export default function CreatorPortfolioPage() {
           </>
         )}
       </main>
-    </div>
+      </div>
+    </RoleGuard>
   );
 }

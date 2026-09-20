@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { useWallet } from "@/context/WalletContext";
+import RoleGuard from "@/components/RoleGuard";
 import { getFundTraceContract } from "@/lib/contract";
 import { getQuotationsByCampaign, sanctionQuotation, rejectQuotation } from "@/services/quotationService";
 import { formatFtu } from "@/types";
@@ -164,7 +165,8 @@ export default function DonorPortfolioPage() {
   const processedQuotations = quotations.filter(q => !["AIEvaluated", "Pending"].includes(q.state));
 
   return (
-    <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
+    <RoleGuard allowedRoles={["DONOR"]}>
+      <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
       <Navbar />
       <main className="max-w-6xl mx-auto px-6 sm:px-12 pt-8 pb-16">
 
@@ -408,6 +410,7 @@ export default function DonorPortfolioPage() {
           </div>
         )}
       </main>
-    </div>
+      </div>
+    </RoleGuard>
   );
 }

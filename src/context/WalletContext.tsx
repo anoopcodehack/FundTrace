@@ -20,7 +20,7 @@ interface WalletContextType {
   signer: ethers.Signer | null;
   isLoading: boolean;
   contractAddress: string;
-  isVerifier: boolean;
+  userRole: "ADMIN" | "CREATOR" | "DONOR" | null;
   connectMetaMask: () => Promise<void>;
   selectDemoRole: (preset: (typeof DEMO_PRESET_ACCOUNTS)[0]) => Promise<void>;
   disconnect: () => void;
@@ -119,9 +119,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setSigner(null);
   }
 
-  const isVerifier = Boolean(
-    wallet.address && wallet.address.toLowerCase() === VERIFIER_ADDRESS
-  );
+  const userRole = wallet.appRole || null;
 
   return (
     <WalletContext.Provider
@@ -131,7 +129,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         signer,
         isLoading,
         contractAddress,
-        isVerifier,
+        userRole,
         connectMetaMask,
         selectDemoRole,
         disconnect,

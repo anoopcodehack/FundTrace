@@ -4,24 +4,19 @@ import React, { useState } from "react";
 import Navbar from "@/components/Navbar";
 import { useWallet } from "@/context/WalletContext";
 import { DEMO_PRESET_ACCOUNTS } from "@/lib/wallet";
+import RoleGuard from "@/components/RoleGuard";
 
 export default function VerifierPortalPage() {
-  const { wallet, isVerifier, selectDemoRole } = useWallet();
+  const { wallet, userRole, selectDemoRole } = useWallet();
 
   const [campaign2Status, setCampaign2Status] = useState<"PENDING" | "VERIFIED" | "REJECTED">("PENDING");
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectModal, setShowRejectModal] = useState(false);
 
-  function handleSwitchToVerifier() {
-    const verifierPreset = DEMO_PRESET_ACCOUNTS.find((a) => a.role.includes("Verifier"));
-    if (verifierPreset) {
-      selectDemoRole(verifierPreset);
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
-      <Navbar />
+    <RoleGuard allowedRoles={["ADMIN"]}>
+      <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
+        <Navbar />
 
       <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-8 pb-16">
         
@@ -61,30 +56,7 @@ export default function VerifierPortalPage() {
           </div>
         </div>
 
-        {/* Warning if connected account is not verifier */}
-        {!isVerifier && (
-          <div className="mt-6 p-6 rounded-3xl bg-amber-50 border border-amber-300 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 flex-shrink-0 text-amber-900 mt-0.5">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-              <div>
-                <div className="font-bold text-sm">Verifier Access Only</div>
-                <div className="text-xs text-amber-800 mt-0.5">
-                  Your current wallet is not the designated auditor (<code>0x3C44...93BC</code>).
-                </div>
-              </div>
-            </div>
 
-            <button
-              onClick={handleSwitchToVerifier}
-              className="py-2 px-4 rounded-lg bg-[#181816] text-white text-xs font-semibold hover:bg-black transition-colors self-start sm:self-center shadow-xs"
-            >
-              Switch to Verifier Role
-            </button>
-          </div>
-        )}
 
         {/* Pending Campaigns List */}
         <div className="mt-8 space-y-6">
@@ -158,7 +130,7 @@ export default function VerifierPortalPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowRejectModal(true)}
-                  disabled={campaign2Status !== "PENDING" || !isVerifier}
+                  disabled={campaign2Status !== "PENDING"}
                   className="py-2.5 px-4 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold uppercase tracking-wider transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   Reject
@@ -166,7 +138,7 @@ export default function VerifierPortalPage() {
 
                 <button
                   onClick={() => setCampaign2Status("VERIFIED")}
-                  disabled={campaign2Status !== "PENDING" || !isVerifier}
+                  disabled={campaign2Status !== "PENDING"}
                   className="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold uppercase tracking-wider shadow-sm transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   {campaign2Status === "VERIFIED" ? "✓ Verified" : "Verify & Unlock Funding"}
@@ -217,6 +189,7 @@ export default function VerifierPortalPage() {
         )}
 
       </main>
-    </div>
+      </div>
+    </RoleGuard>
   );
 }

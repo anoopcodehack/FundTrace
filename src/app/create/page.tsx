@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Navbar from "@/components/Navbar";
+import RoleGuard from "@/components/RoleGuard";
 import { useWallet } from "@/context/WalletContext";
 import { computeCanonicalMetadataHash } from "@/lib/canonical";
 import { ethers } from "ethers";
@@ -71,7 +72,10 @@ export default function CreateCampaignPage() {
       // Mocking the backend API call here. In reality this calls the NestJS backend.
       const apiResponse = await fetch("http://localhost:3001/api/campaigns/prepare", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-wallet-address": wallet.address || "" 
+        },
         body: JSON.stringify(payload)
       });
 
@@ -97,7 +101,10 @@ export default function CreateCampaignPage() {
       // Assuming the backend has a webhook or we notify the backend it succeeded
       await fetch(`http://localhost:3001/api/campaigns/${offChainId}/confirm`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-wallet-address": wallet.address || ""
+        },
         body: JSON.stringify({ txHash: receipt?.hash })
       });
 
@@ -118,10 +125,11 @@ export default function CreateCampaignPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
-      <Navbar />
+    <RoleGuard allowedRoles={["CREATOR"]}>
+      <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
+        <Navbar />
 
-      <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-8 pb-16">
+        <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-8 pb-16">
         
         {/* Colorful Editorial Hero Banner (FinFLO Theme) */}
         <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-8 border border-stone-800">
@@ -430,6 +438,7 @@ export default function CreateCampaignPage() {
         </form>
 
       </main>
-    </div>
+      </div>
+    </RoleGuard>
   );
 }

@@ -10,19 +10,60 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 
+type NavLink = { name: string; href: string };
+
 export default function Navbar() {
   const pathname = usePathname();
-  const { wallet, isLoading, isVerifier, connectMetaMask, selectDemoRole, disconnect } = useWallet();
+  const { wallet, isLoading, userRole, connectMetaMask, selectDemoRole, disconnect } = useWallet();
 
-  const isHome = pathname === "/";
   // The landing page uses a light theme
   const navBg = "bg-white/80 border-stone-200 text-stone-900";
+
+  let links: NavLink[] = [];
+
+  if (userRole === "ADMIN") {
+    links = [
+      { name: "Dashboard", href: "/admin" },
+      { name: "Campaigns", href: "/admin/campaigns" },
+      { name: "Verification", href: "/verifier" },
+      { name: "Users", href: "/admin/users" },
+      { name: "Audit Ledger", href: "/admin/ledger" },
+      { name: "System", href: "/admin/system" },
+    ];
+  } else if (userRole === "CREATOR") {
+    links = [
+      { name: "Dashboard", href: "/portfolio/creator" },
+      { name: "My Campaigns", href: "/portfolio/creator/campaigns" },
+      { name: "Create Campaign", href: "/create" },
+      { name: "Requests", href: "/portfolio/creator/requests" },
+      { name: "Claims", href: "/portfolio/creator/claims" },
+      { name: "Proof", href: "/portfolio/creator/proof" },
+      { name: "Score", href: "/portfolio/creator/score" },
+      { name: "Audit", href: "/portfolio/creator/audit" },
+    ];
+  } else if (userRole === "DONOR") {
+    links = [
+      { name: "Dashboard", href: "/portfolio/donor" },
+      { name: "Explore", href: "/campaigns" },
+      { name: "My Contributions", href: "/portfolio/donor/contributions" },
+      { name: "Approvals", href: "/portfolio/donor/approvals" },
+      { name: "Settings", href: "/portfolio/donor/settings" },
+      { name: "Fund Tracking", href: "/portfolio/donor/tracking" },
+      { name: "Audit Ledger", href: "/portfolio/donor/ledger" },
+    ];
+  } else {
+    // Public unauthenticated
+    links = [
+      { name: "Explore", href: "/campaigns" },
+      { name: "How it works", href: "/#why-it-matters" },
+      { name: "Verify Proof", href: "/verify-proof" },
+    ];
+  }
 
   return (
     <header className={`w-full ${navBg} px-6 sm:px-12 py-4 flex items-center justify-between border-b transition-colors relative z-50 backdrop-blur-xl`}>
@@ -36,45 +77,20 @@ export default function Navbar() {
       </div>
 
       {/* Nav Links */}
-      <nav className="hidden md:flex items-center gap-7 text-xs font-semibold">
-        <Link
-          href="/campaigns"
-          className={`transition-colors hover:text-stone-900 ${pathname === "/campaigns" ? "text-stone-900 font-bold underline underline-offset-4 decoration-[#FF5023]" : "text-stone-500"}`}
-        >
-          Explore
-        </Link>
-
-        <Link
-          href="/#why-it-matters"
-          className="text-stone-500 hover:text-stone-900 transition-colors"
-        >
-          How it works
-        </Link>
-
-        <Link
-          href="/verify-proof"
-          className={`transition-colors hover:text-stone-900 ${pathname === "/verify-proof" ? "text-stone-900 font-bold underline underline-offset-4 decoration-[#FF5023]" : "text-stone-500"}`}
-        >
-          Verify Proof
-        </Link>
-
-        <Link
-          href="/create"
-          className={`transition-colors hover:text-stone-900 ${pathname === "/create" ? "text-stone-900 font-bold underline underline-offset-4 decoration-[#FF5023]" : "text-stone-500"}`}
-        >
-          Create Campaign
-        </Link>
-
-        {/* Verifier Link: Shown only when connected as Verifier address or if demo mode enables it */}
-        {isVerifier && (
+      <nav className="hidden md:flex items-center gap-5 lg:gap-7 text-xs font-semibold overflow-x-auto">
+        {links.map((link) => (
           <Link
-            href="/verifier"
-            className="text-amber-300 hover:text-amber-200 font-bold flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-950/60 border border-amber-600/50 animate-pulse"
+            key={link.href}
+            href={link.href}
+            className={`transition-colors whitespace-nowrap hover:text-stone-900 ${
+              pathname === link.href
+                ? "text-stone-900 font-bold underline underline-offset-4 decoration-[#FF5023]"
+                : "text-stone-500"
+            }`}
           >
-            <span>Verifier Panel</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            {link.name}
           </Link>
-        )}
+        ))}
       </nav>
 
       {/* Right Actions: Demo Role Switcher & Connect Wallet Button */}

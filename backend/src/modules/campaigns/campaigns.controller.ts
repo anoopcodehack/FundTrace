@@ -1,14 +1,18 @@
-import { Body, Controller, Get, Param, Post, HttpException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, HttpException, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CampaignsService } from './campaigns.service';
 import { CreateCampaignDto, PrepareCampaignDto, ConfirmCampaignDto } from './dto/create-campaign.dto';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
 
 @ApiTags('Campaigns')
 @Controller('campaigns')
+@UseGuards(RolesGuard)
 export class CampaignsController {
   constructor(private readonly campaignsService: CampaignsService) {}
 
   @Post()
+  @Roles('CREATOR')
   @ApiOperation({ summary: 'Create campaign metadata and compute on-chain metadataHash' })
   @ApiResponse({ status: 201, description: 'Campaign metadata stored and hash calculated' })
   async create(@Body() createDto: CreateCampaignDto) {
@@ -16,6 +20,7 @@ export class CampaignsController {
   }
 
   @Post('prepare')
+  @Roles('CREATOR')
   @ApiOperation({ summary: 'Prepare campaign transaction and store off-chain metadata' })
   @ApiResponse({ status: 201, description: 'Transaction data generated' })
   async prepare(@Body() prepareDto: PrepareCampaignDto) {
@@ -27,6 +32,7 @@ export class CampaignsController {
   }
 
   @Post(':id/confirm')
+  @Roles('CREATOR')
   @ApiOperation({ summary: 'Confirm a campaign creation transaction' })
   @ApiResponse({ status: 201, description: 'Campaign confirmed' })
   async confirm(@Param('id') id: string, @Body() confirmDto: ConfirmCampaignDto) {
