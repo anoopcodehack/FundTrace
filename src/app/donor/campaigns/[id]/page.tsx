@@ -62,6 +62,11 @@ export default function CampaignDetailPage() {
   const [customAmount, setCustomAmount] = useState('');
   const [isContributing, setIsContributing] = useState(false);
 
+  // Auto-Sanction State (Per-Campaign)
+  const [isAutomationEnabled, setIsAutomationEnabled] = useState(false);
+  const [isTogglingAutomation, setIsTogglingAutomation] = useState(false);
+  const [autoEnableOnBacking, setAutoEnableOnBacking] = useState(false);
+
   const loadCampaign = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -176,6 +181,12 @@ export default function CampaignDetailPage() {
           if (totalRaisedNum > 0 && donatedNum > 0) {
             setMyVotingWeight(Math.min(100, Math.round((donatedNum / totalRaisedNum) * 100)));
           }
+
+          // Read on-chain automation status for this particular campaign
+          try {
+            const isAuto = await contract.automationEnabled(effectiveOnChainId);
+            setIsAutomationEnabled(isAuto);
+          } catch {}
         } catch {}
       }
 
@@ -222,6 +233,18 @@ export default function CampaignDetailPage() {
       const contract = getFundTraceContract(signer);
       const tx = await contract.donate(onchain.id, { value: remainingWei });
       await tx.wait();
+
+      if (autoEnableOnBacking) {
+        try {
+          const autoTx = await contract.enableAutomation(onchain.id);
+          await autoTx.wait();
+          setIsAutomationEnabled(true);
+          toast.success('⚡ AI Auto-Sanction enabled for this campaign!');
+        } catch (autoErr: any) {
+          console.warn('Auto-enable automation failed:', autoErr);
+        }
+      }
+
       toast.success('Campaign Accepted & Fully Funded with requested target!');
       await loadCampaign();
     } catch (err: any) {
@@ -282,6 +305,18 @@ export default function CampaignDetailPage() {
       const contract = getFundTraceContract(signer);
       const tx = await contract.donate(onchain.id, { value: valueToSend });
       await tx.wait();
+
+      if (autoEnableOnBacking) {
+        try {
+          const autoTx = await contract.enableAutomation(onchain.id);
+          await autoTx.wait();
+          setIsAutomationEnabled(true);
+          toast.success('⚡ AI Auto-Sanction enabled for this campaign!');
+        } catch (autoErr: any) {
+          console.warn('Auto-enable automation failed:', autoErr);
+        }
+      }
+
       toast.success(`Contributed ${formatFtu(amt)} successfully!`);
       setShowContributeModal(false);
       setCustomAmount('');
@@ -291,6 +326,42 @@ export default function CampaignDetailPage() {
       toast.error(errorMsg);
     } finally {
       setIsContributing(false);
+    }
+  }
+
+  async function handleToggleAutomation() {
+    if (!signer || !address) {
+      toast.error('Please connect your wallet or select a Donor Demo role first!');
+      return;
+    }
+    if (!onchain || !onchain.existsOnChain) return;
+
+    setIsTogglingAutomation(true);
+    const toastId = toast.loading(
+      isAutomationEnabled
+        ? 'Disabling AI Auto-Sanction for this campaign...'
+        : 'Enabling AI Auto-Sanction (Approve & Reject) on blockchain...'
+    );
+
+    try {
+      const contract = getFundTraceContract(signer);
+      const tx = isAutomationEnabled
+        ? await contract.disableAutomation(onchain.id)
+        : await contract.enableAutomation(onchain.id);
+      await tx.wait();
+
+      setIsAutomationEnabled(!isAutomationEnabled);
+      toast.success(
+        isAutomationEnabled
+          ? 'Auto-Sanction disabled for this campaign. Manual donor review active.'
+          : '⚡ AI Auto-Sanction enabled for this campaign! Invoices meeting AI policy will be automatically processed.',
+        { id: toastId }
+      );
+    } catch (err: any) {
+      const errorMsg = parseContractError(err);
+      toast.error(errorMsg, { id: toastId });
+    } finally {
+      setIsTogglingAutomation(false);
     }
   }
 
@@ -573,6 +644,26 @@ export default function CampaignDetailPage() {
             </span>
           </div>
 
+          {/* Auto-Enable AI Sanction checkbox (only appears during approval/donation) */}
+          <div className="bg-white p-3 rounded-xl border border-stone-200 flex items-start gap-2 text-xs shadow-sm">
+            <input
+              type="checkbox"
+              id="auto-enable-backing"
+              checked={autoEnableOnBacking}
+              onChange={(e) => setAutoEnableOnBacking(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-stone-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+            <label htmlFor="auto-enable-backing" className="cursor-pointer select-none text-stone-700">
+              <span className="font-bold text-stone-900 flex items-center gap-1">
+                <Zap className="w-3.5 h-3.5 text-indigo-600" />
+                Auto-enable AI Sanction (Approve & Reject)
+              </span>
+              <span className="text-[11px] text-stone-500 block mt-0.5">
+                Automatically approve verified vendor invoices and reject flagged ones for this particular campaign.
+              </span>
+            </label>
+          </div>
+
           {/* Primary Contribution CTA */}
           <button
             onClick={() => handleCustomContribute()}
@@ -721,6 +812,80 @@ export default function CampaignDetailPage() {
             className="mt-4 w-full py-3 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
             Vote on Spending Requests <ArrowRight className="w-4 h-4" />
           </Link>
+        </div>
+
+        {/* Campaign-Specific AI Auto-Sanction & Governance Card (Only appears when donor has contributed) */}
+        <div className={`lg:col-span-2 rounded-3xl border p-6 transition-all ${
+          isAutomationEnabled
+            ? 'bg-gradient-to-r from-emerald-50/90 to-teal-50/50 border-emerald-300 shadow-sm'
+            : 'bg-white border-stone-200 shadow-sm'
+        }`}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-stone-100">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-mono font-bold uppercase text-stone-400">Campaign ID #{onchain.id}</span>
+                <span className={`text-xs font-bold uppercase px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
+                  isAutomationEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'
+                }`}>
+                  {isAutomationEnabled ? <><Zap className="w-3 h-3 text-emerald-600" /> AI Auto-Sanction Active</> : 'Manual Sanction Mode'}
+                </span>
+              </div>
+              <h3 className="text-xl font-black font-display text-stone-900">
+                AI Auto-Sanction & Governance Controls
+              </h3>
+              <p className="text-xs text-stone-600 mt-0.5">
+                Scoped exclusively to this campaign. Controls appear because you are an active contributor with {myVotingWeight}% voting weight.
+              </p>
+            </div>
+
+            <button
+              onClick={handleToggleAutomation}
+              disabled={isTogglingAutomation}
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 cursor-pointer shrink-0 shadow-sm ${
+                isAutomationEnabled
+                  ? 'bg-white border border-stone-300 text-stone-700 hover:bg-stone-50'
+                  : 'bg-stone-900 text-white hover:bg-stone-800'
+              } disabled:opacity-50`}
+            >
+              {isTogglingAutomation ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Updating On-Chain...</>
+              ) : isAutomationEnabled ? (
+                'Disable Auto-Sanction'
+              ) : (
+                <><Zap className="w-4 h-4 text-amber-300" /> Enable Auto-Sanction</>
+              )}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-1">
+            <div className="bg-white/80 p-4 rounded-2xl border border-stone-100 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wide text-stone-800">Auto-Approve Policy</h4>
+                <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">
+                  {isAutomationEnabled 
+                    ? 'Active: Valid milestone quotations meeting AI budget thresholds (confidence ≥ 85%) will be automatically sanctioned.'
+                    : 'Inactive: All quotations require manual donor approval.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white/80 p-4 rounded-2xl border border-stone-100 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-red-600 shrink-0">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wide text-stone-800">Auto-Reject Policy</h4>
+                <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">
+                  {isAutomationEnabled 
+                    ? 'Active: Flagged high-risk quotations, pricing mismatches, or anomalous claims will be automatically rejected or escalated.'
+                    : 'Inactive: Rejections require manual donor review.'}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {campaignQuotations.length > 0 && (

@@ -60,6 +60,17 @@ interface CampaignApprovalItem {
   myVotingWeight: number;
 }
 
+export interface BackedCampaignGovernance {
+  campaignId: number;
+  title: string;
+  category: string;
+  myDonationFtu: number;
+  myVotingWeight: number;
+  automationEnabled: boolean;
+  totalDonatedFtu: number;
+  goalFtu: number;
+}
+
 interface QuotationApprovalItem extends QuotationMetadata {
   campaignTitle: string;
   campaignOnChainId: number;
@@ -67,6 +78,7 @@ interface QuotationApprovalItem extends QuotationMetadata {
   donorVotingWeight: number;
   campaignGoalFtu: number;
   campaignRaisedFtu: number;
+  campaignAutomationEnabled: boolean;
 }
 
 function parseFtu(val: any): number {
@@ -92,6 +104,7 @@ export default function DonorApprovalsPage() {
   
   const [campaignApprovals, setCampaignApprovals] = useState<CampaignApprovalItem[]>([]);
   const [quotationApprovals, setQuotationApprovals] = useState<QuotationApprovalItem[]>([]);
+  const [backedCampaigns, setBackedCampaigns] = useState<BackedCampaignGovernance[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -99,7 +112,9 @@ export default function DonorApprovalsPage() {
   // Action processing state
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [approvingCampaignId, setApprovingCampaignId] = useState<number | null>(null);
+  const [togglingAutomationCampId, setTogglingAutomationCampId] = useState<number | null>(null);
   const [contributionInputs, setContributionInputs] = useState<{ [id: number]: string }>({});
+  const [autoEnableOnApproval, setAutoEnableOnApproval] = useState<{ [id: number]: boolean }>({});
 
   const donorPresets = DEMO_PRESET_ACCOUNTS.filter(p => p.appRole === 'DONOR');
 
@@ -134,6 +149,7 @@ export default function DonorApprovalsPage() {
 
       const pendingCampaigns: CampaignApprovalItem[] = [];
       const pendingQuotations: QuotationApprovalItem[] = [];
+      const backedCamps: BackedCampaignGovernance[] = [];
       const seenCampaignIds = new Set<number>();
 
       for (let i = 1; i <= count; i++) {
@@ -198,8 +214,26 @@ export default function DonorApprovalsPage() {
           }
 
           // 2. Check for Milestone Quotation Sanctions
-          // "ONLY FOR CERTAIN DONOR": Only show quotation sanction requests for campaigns THIS donor has backed
+          // "ONLY FOR CERTAIN DONOR": Only show quotation sanction requests & auto-sanction for campaigns THIS donor has backed
           if (myDonationFtu > 0) {
+            let isAuto = false;
+            try {
+              isAuto = await contract.automationEnabled(i);
+            } catch (aErr) {
+              console.warn(`Could not fetch automationEnabled for campaign #${i}:`, aErr);
+            }
+
+            backedCamps.push({
+              campaignId: i,
+              title,
+              category,
+              myDonationFtu,
+              myVotingWeight,
+              automationEnabled: isAuto,
+              totalDonatedFtu: raisedFtu,
+              goalFtu,
+            });
+
             try {
               const quotes = await getQuotationsByCampaign(i);
               const needsDonorAction = quotes.filter(
@@ -215,6 +249,7 @@ export default function DonorApprovalsPage() {
                   donorVotingWeight: myVotingWeight,
                   campaignGoalFtu: goalFtu,
                   campaignRaisedFtu: raisedFtu,
+                  campaignAutomationEnabled: isAuto,
                 });
               });
             } catch (qErr) {
@@ -228,6 +263,7 @@ export default function DonorApprovalsPage() {
 
       setCampaignApprovals(pendingCampaigns);
       setQuotationApprovals(pendingQuotations);
+      setBackedCampaigns(backedCamps);
 
       // Auto-focus the tab with active pending approvals if one is empty
       if (pendingCampaigns.length === 0 && pendingQuotations.length > 0) {
@@ -284,6 +320,17 @@ export default function DonorApprovalsPage() {
       const tx = await contract.donate(camp.onChainId, { value: valueToSend });
       await tx.wait();
 
+      // If donor selected to auto-enable AI Sanction upon funding this particular campaign
+      if (autoEnableOnApproval[camp.id]) {
+        try {
+          const autoTx = await contract.enableAutomation(camp.onChainId);
+          await autoTx.wait();
+          toast.success(`⚡ AI Auto-Sanction (Approve & Reject) enabled for "${camp.title}"!`);
+        } catch (autoErr: any) {
+          console.warn('Auto-enable automation error:', autoErr);
+        }
+      }
+
       toast.success(
         `Campaign Funding Approved! Successfully backed ${camp.title} with ${formatFtu(amt)}.`,
         { id: toastId }
@@ -296,6 +343,47 @@ export default function DonorApprovalsPage() {
       toast.error(errorMsg, { id: toastId });
     } finally {
       setApprovingCampaignId(null);
+    }
+  };
+
+  const handleToggleCampaignAutomation = async (campaignId: number, currentlyEnabled: boolean) => {
+    if (!signer || !wallet.address) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    setTogglingAutomationCampId(campaignId);
+    const toastId = toast.loading(
+      currentlyEnabled 
+        ? `Disabling AI Auto-Sanction for Campaign #${campaignId}...` 
+        : `Enabling AI Auto-Sanction (Approve & Reject) for Campaign #${campaignId}...`
+    );
+
+    try {
+      const contract = getFundTraceContract(signer);
+      const tx = currentlyEnabled
+        ? await contract.disableAutomation(campaignId)
+        : await contract.enableAutomation(campaignId);
+      await tx.wait();
+
+      setBackedCampaigns(prev => prev.map(c => 
+        c.campaignId === campaignId ? { ...c, automationEnabled: !currentlyEnabled } : c
+      ));
+      setQuotationApprovals(prev => prev.map(q => 
+        q.campaignOnChainId === campaignId ? { ...q, campaignAutomationEnabled: !currentlyEnabled } : q
+      ));
+
+      toast.success(
+        currentlyEnabled
+          ? `Auto-Sanction disabled for Campaign #${campaignId}. Manual donor review active.`
+          : `⚡ AI Auto-Sanction enabled for Campaign #${campaignId}! Invoices meeting AI policy will be automatically processed.`,
+        { id: toastId }
+      );
+    } catch (err: any) {
+      const errorMsg = parseContractError(err);
+      toast.error(errorMsg, { id: toastId });
+    } finally {
+      setTogglingAutomationCampId(null);
     }
   };
 
@@ -697,7 +785,30 @@ export default function DonorApprovalsPage() {
                             </div>
 
                             {/* Action Buttons: Approve / Reject */}
-                            <div className="pt-6 mt-6 border-t border-stone-200 space-y-2.5">
+                            <div className="pt-6 mt-6 border-t border-stone-200 space-y-3">
+                              {/* Auto-Enable AI Sanction checkbox (only for this particular campaign) */}
+                              <div className="bg-white p-3.5 rounded-2xl border border-stone-200 flex items-start gap-2.5 shadow-sm">
+                                <input
+                                  type="checkbox"
+                                  id={`auto-enable-${camp.id}`}
+                                  checked={!!autoEnableOnApproval[camp.id]}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setAutoEnableOnApproval(prev => ({ ...prev, [camp.id]: checked }));
+                                  }}
+                                  className="mt-1 h-4 w-4 rounded border-stone-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                />
+                                <label htmlFor={`auto-enable-${camp.id}`} className="text-xs text-stone-700 leading-snug cursor-pointer select-none">
+                                  <span className="font-bold text-stone-900 flex items-center gap-1">
+                                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                                    Auto-enable AI Sanctions (Approve & Reject) for this campaign
+                                  </span>
+                                  <span className="text-stone-500 text-[11px] block mt-0.5">
+                                    When you fund this campaign, automatically allow AI to sanction verified milestone invoices and reject flagged ones.
+                                  </span>
+                                </label>
+                              </div>
+
                               <button
                                 onClick={() => handleApproveCampaignFunding(camp)}
                                 disabled={isApproving}
@@ -773,6 +884,96 @@ export default function DonorApprovalsPage() {
                     </div>
                   </div>
 
+                  {/* ─────────────────────────────────────────────────────────── */}
+                  {/* Per-Campaign Auto-Sanction Controls (Only for Backed Camps)  */}
+                  {/* ─────────────────────────────────────────────────────────── */}
+                  {backedCampaigns.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4 text-indigo-500" />
+                          Campaign-Specific AI Auto-Sanction Controls ({backedCampaigns.length} Backed)
+                        </h3>
+                        <span className="text-[11px] text-stone-400 font-medium">
+                          Auto-sanction approve/reject policies are scoped to each campaign you backed
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {backedCampaigns.map((camp) => (
+                          <div 
+                            key={camp.campaignId}
+                            className={`p-5 rounded-2xl border transition-all ${
+                              camp.automationEnabled 
+                                ? 'bg-gradient-to-br from-emerald-50/90 to-teal-50/40 border-emerald-300 shadow-sm' 
+                                : 'bg-white border-stone-200 shadow-sm'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <span className="text-[10px] font-mono font-bold uppercase text-stone-500 bg-stone-100 px-2 py-0.5 rounded">
+                                    Campaign #{camp.campaignId}
+                                  </span>
+                                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                                    camp.automationEnabled 
+                                      ? 'bg-emerald-100 text-emerald-800' 
+                                      : 'bg-stone-100 text-stone-600'
+                                  }`}>
+                                    {camp.automationEnabled ? (
+                                      <>
+                                        <Sparkles className="w-3 h-3 text-emerald-600" /> Auto-Sanction ON
+                                      </>
+                                    ) : (
+                                      'Manual Sanction'
+                                    )}
+                                  </span>
+                                </div>
+                                <h4 className="font-black font-display text-stone-900 text-base line-clamp-1">{camp.title}</h4>
+                                <p className="text-xs text-stone-600 font-medium mt-1">
+                                  Your Backing: <strong className="text-stone-900">{formatFtu(camp.myDonationFtu)}</strong> ({camp.myVotingWeight}% voting weight)
+                                </p>
+                              </div>
+
+                              <button
+                                onClick={() => handleToggleCampaignAutomation(camp.campaignId, camp.automationEnabled)}
+                                disabled={togglingAutomationCampId === camp.campaignId}
+                                className={`px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer shrink-0 shadow-sm ${
+                                  camp.automationEnabled
+                                    ? 'bg-white border border-stone-300 text-stone-700 hover:bg-stone-50'
+                                    : 'bg-stone-900 text-white hover:bg-stone-800'
+                                } disabled:opacity-50`}
+                              >
+                                {togglingAutomationCampId === camp.campaignId ? (
+                                  <span className="flex items-center gap-1.5">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Updating...
+                                  </span>
+                                ) : camp.automationEnabled ? (
+                                  'Disable Auto-Sanction'
+                                ) : (
+                                  <span className="flex items-center gap-1">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Enable Auto-Sanction
+                                  </span>
+                                )}
+                              </button>
+                            </div>
+
+                            <div className="mt-3.5 pt-3 border-t border-stone-200/60 text-[11px] text-stone-600 flex flex-wrap items-center justify-between gap-2">
+                              <span className="flex items-center gap-1">
+                                <CheckCircle2 className={`w-3.5 h-3.5 ${camp.automationEnabled ? 'text-emerald-600' : 'text-stone-300'}`} />
+                                Auto-Approve: Safe invoices (confidence ≥ 85%)
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <XCircle className={`w-3.5 h-3.5 ${camp.automationEnabled ? 'text-red-500' : 'text-stone-300'}`} />
+                                Auto-Reject: High risk invoices
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 gap-8">
                     {quotationApprovals.map((q) => {
                       let ai: AIRecommendation | undefined = typeof q.aiRecommendation === 'string'
@@ -800,6 +1001,11 @@ export default function DonorApprovalsPage() {
                                 <span className="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-bold rounded-full flex items-center gap-1">
                                   Your Weight: {q.donorVotingWeight}%
                                 </span>
+                                {q.campaignAutomationEnabled && (
+                                  <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full flex items-center gap-1">
+                                    <Sparkles className="w-3 h-3 text-emerald-600" /> Auto-Sanction Enabled
+                                  </span>
+                                )}
                               </div>
 
                               <h2 className="text-2xl font-black font-display text-stone-900 leading-tight mb-2">

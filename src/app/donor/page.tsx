@@ -22,7 +22,8 @@ import {
   ShieldCheck,
   RefreshCw,
   HeartHandshake,
-  FileText
+  FileText,
+  Lock
 } from "lucide-react";
 import { ethers } from "ethers";
 
@@ -452,36 +453,51 @@ export default function DonorPortfolioPage() {
                     </div>
                   </div>
 
-                  {/* Automation Toggle */}
-                  <div className={`rounded-2xl border p-6 ${selectedCampaignData.automationEnabled ? "bg-emerald-50 border-emerald-200" : "bg-white border-stone-200 shadow-sm"}`}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <Sparkles className="w-5 h-5 text-emerald-600" />
-                          <h3 className="font-bold text-stone-900">Automated Approval Mode</h3>
-                          {selectedCampaignData.automationEnabled && (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">ENABLED</span>
-                          )}
+                  {/* Automation Toggle: ONLY appears when donor has funded/approved this campaign */}
+                  {selectedCampaignData.isFundedByMe ? (
+                    <div className={`rounded-2xl border p-6 ${selectedCampaignData.automationEnabled ? "bg-emerald-50 border-emerald-200" : "bg-white border-stone-200 shadow-sm"}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Sparkles className="w-5 h-5 text-emerald-600" />
+                            <h3 className="font-bold text-stone-900">Automated Approval Mode</h3>
+                            {selectedCampaignData.automationEnabled && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">ENABLED</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-stone-500 leading-relaxed max-w-sm">
+                            {selectedCampaignData.automationEnabled
+                              ? "AI Policy is ACTIVE for this campaign. Valid milestone quotes will be auto-sanctioned, and risky quotes will be auto-rejected. You retain full override control."
+                              : "Enable to allow AI to automatically sanction safe invoices and reject flagged ones for this campaign. You remain in control and can disable anytime."}
+                          </p>
                         </div>
-                        <p className="text-xs text-stone-500 leading-relaxed max-w-sm">
-                          {selectedCampaignData.automationEnabled
-                            ? "AI Policy is ACTIVE. Future quotations will be automatically sanctioned based on AI evaluation. You can still override individual quotations."
-                            : "Enable to allow AI to automatically sanction quotations that pass evaluation. You remain in control and can disable at any time."}
-                        </p>
+                        <button
+                          onClick={() => toggleAutomation(selectedCampaignData.id, selectedCampaignData.automationEnabled)}
+                          disabled={togglingAutomation}
+                          className={`ml-4 px-5 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer ${
+                            selectedCampaignData.automationEnabled
+                              ? "bg-stone-200 text-stone-700 hover:bg-stone-300"
+                              : "bg-[#FF5023] text-white hover:bg-[#e8431a]"
+                          } disabled:opacity-60`}
+                        >
+                          {togglingAutomation ? "..." : selectedCampaignData.automationEnabled ? "Disable" : "Enable Auto-Sanction"}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => toggleAutomation(selectedCampaignData.id, selectedCampaignData.automationEnabled)}
-                        disabled={togglingAutomation}
-                        className={`ml-4 px-5 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer ${
-                          selectedCampaignData.automationEnabled
-                            ? "bg-stone-200 text-stone-700 hover:bg-stone-300"
-                            : "bg-[#FF5023] text-white hover:bg-[#e8431a]"
-                        } disabled:opacity-60`}
-                      >
-                        {togglingAutomation ? "..." : selectedCampaignData.automationEnabled ? "Disable" : "Enable Auto-Sanction"}
-                      </button>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-stone-300 p-4 bg-stone-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-stone-500">
+                      <div className="flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-stone-400 shrink-0" />
+                        <span>AI Auto-Sanction (Approve & Reject) controls will unlock for this campaign once you back and fund it.</span>
+                      </div>
+                      <Link
+                        href={`/donor/campaigns/${selectedCampaignData.id}`}
+                        className="font-bold text-indigo-600 hover:text-indigo-800 shrink-0"
+                      >
+                        Back Campaign →
+                      </Link>
+                    </div>
+                  )}
 
                   {/* Pending Quotations (Requires Action) */}
                   {pendingQuotations.length > 0 && (
