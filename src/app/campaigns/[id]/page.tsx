@@ -298,20 +298,43 @@ export default function CampaignDetailPage() {
             <Heart className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-black font-display text-stone-900 text-base">Back This Initiative</h3>
+            <h3 className="font-black font-display text-stone-900 text-base">
+              {isFunding ? 'Approve & Back Campaign' : 'Campaign 100% Allocated'}
+            </h3>
             <p className="text-xs text-stone-500">
-              {isFunding ? 'All contributed funds are locked in smart escrow and allotted to campaign milestones.' : 'Campaign is funded and locked in milestone escrow.'}
+              {isFunding
+                ? 'Approve campaign proposal & allot funds to smart escrow pool.'
+                : '100% of funds locked in escrow. Donors sanction milestone claims.'}
             </p>
           </div>
         </div>
 
+        {/* 2-Step Fund-Flow Guide */}
+        <div className="bg-stone-50 rounded-2xl p-3.5 border border-stone-100 text-xs space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-bold">
+            <span className={`flex items-center gap-1.5 ${isFunding ? 'text-indigo-700' : 'text-emerald-700'}`}>
+              {isFunding ? <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" /> : <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+              Step 1: Approve & Back Pool
+            </span>
+            <span className={`flex items-center gap-1.5 ${!isFunding ? 'text-indigo-700 font-bold' : 'text-stone-400'}`}>
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Step 2: Sanction Quotations
+            </span>
+          </div>
+          <div className="w-full bg-stone-200 h-1 rounded-full overflow-hidden">
+            <div
+              className={`h-1 rounded-full transition-all duration-500 ${isFunding ? 'bg-indigo-600 w-1/2' : 'bg-emerald-500 w-full'}`}
+            />
+          </div>
+        </div>
+
         {isFunding ? (
-          <div className="space-y-3 pt-2">
+          <div className="space-y-3 pt-1">
             <button
               onClick={() => setShowContributeModal(true)}
               className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-black font-display text-base rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 cursor-pointer"
             >
-              <Heart className="w-5 h-5" /> Contribute to Campaign <ArrowRight className="w-4 h-4" />
+              <Heart className="w-5 h-5" /> Approve & Contribute to Campaign <ArrowRight className="w-4 h-4" />
             </button>
 
             <div className="grid grid-cols-3 gap-2">
@@ -327,18 +350,37 @@ export default function CampaignDetailPage() {
               ))}
             </div>
 
+            {remainingNeeded > 0 && (
+              <button
+                onClick={() => handleContribute(remainingNeeded)}
+                disabled={isContributing}
+                className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {isContributing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <>Fund Full Remaining ({formatFtu(remainingNeeded)})</>}
+              </button>
+            )}
+
             <p className="text-[11px] text-stone-400 text-center font-medium">
               🔒 100% of contribution is allotted to the campaign & protected by milestone sanctions
             </p>
           </div>
         ) : (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
-            <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider block mb-1">
-              ✓ Funding Goal Met ({formatFtu(raised)})
-            </span>
-            <p className="text-xs text-emerald-700 font-medium">
-              100% of funds are allocated to the campaign and governed by donor quotation sanctions.
-            </p>
+          <div className="space-y-3 pt-1">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+              <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider block mb-1">
+                ✓ Campaign Approved & 100% Allocated ({formatFtu(raised)})
+              </span>
+              <p className="text-xs text-emerald-700 font-medium">
+                Funds are locked in smart escrow. Donors can now review vendor quotations and sanction milestone claims.
+              </p>
+            </div>
+
+            <Link
+              href={`/donor/campaigns/${id}`}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black font-display text-sm rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4" /> Review & Sanction Quotations ({campaignQuotations.length}) <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         )}
 
@@ -694,8 +736,8 @@ export default function CampaignDetailPage() {
                   <Heart className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black font-display text-stone-900">Contribute to Campaign</h3>
-                  <p className="text-xs text-stone-500">1 FTU = ₹1 · Fully allotted to campaign escrow</p>
+                  <h3 className="text-xl font-black font-display text-stone-900">Approve &amp; Contribute to Campaign</h3>
+                  <p className="text-xs text-stone-500">1 FTU = ₹1 · 100% allotted to smart contract escrow</p>
                 </div>
               </div>
               <button
@@ -731,7 +773,7 @@ export default function CampaignDetailPage() {
 
               <div>
                 <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
-                  Custom Contribution Amount (FTU / ₹)
+                  Contribution Amount (FTU / ₹)
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-stone-400">₹</span>
@@ -750,13 +792,14 @@ export default function CampaignDetailPage() {
               {/* Security & Allocation Banner */}
               <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 text-xs space-y-2 text-indigo-950">
                 <div className="flex items-center gap-2 font-bold text-indigo-900">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600" /> 100% Escrow Protection
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" /> 2-Stage Escrow Protection
                 </div>
-                <p className="text-stone-600 leading-relaxed">
-                  Your contributed funds are directly deposited into the smart contract and allotted to this campaign. The creator can only claim funds after submitting verified vendor quotations and receiving donor sanction.
-                </p>
+                <div className="space-y-1 text-stone-600 leading-relaxed text-[11px]">
+                  <p>• <strong>Stage 1 (Now):</strong> Your deposit approves the campaign target and is locked in non-custodial smart escrow.</p>
+                  <p>• <strong>Stage 2 (Post-Funding):</strong> When the creator submits vendor quotations, you sanction fund releases before any money leaves escrow.</p>
+                </div>
                 {remainingNeeded > 0 && (
-                  <p className="text-stone-500 font-medium">
+                  <p className="text-stone-500 font-medium pt-1 border-t border-indigo-100/60">
                     Remaining needed to reach goal: <strong className="text-stone-800">{formatFtu(remainingNeeded)}</strong>
                   </p>
                 )}
@@ -783,7 +826,7 @@ export default function CampaignDetailPage() {
                     </>
                   ) : (
                     <>
-                      <Heart className="w-4 h-4" /> Confirm & Allot {customAmount ? formatFtu(Number(customAmount)) : ''}
+                      <Heart className="w-4 h-4" /> Approve &amp; Allot {customAmount ? formatFtu(Number(customAmount)) : ''}
                     </>
                   )}
                 </button>
