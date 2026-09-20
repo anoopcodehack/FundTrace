@@ -91,13 +91,13 @@ async function runSupabasePhase8Demo() {
   console.log("\n--- Step 3: Judge Verification Simulation ---");
   
   // Test A: Uploading Original Invoice
-  const testOriginal = verifyCandidateFileHash(invoiceOriginalBuffer, onChainReceiptHash);
+  const testOriginal = await verifyCandidateFileHash(invoiceOriginalBuffer, onChainReceiptHash);
   console.log(`[TEST A] Uploading ORIGINAL invoice:`);
   console.log(`  Result : ${testOriginal.status}`);
   console.log(`  Detail : ${testOriginal.details}`);
 
   // Test B: Uploading Tampered Invoice (Altered Amount)
-  const testTampered = verifyCandidateFileHash(invoiceTamperedBuffer, onChainReceiptHash);
+  const testTampered = await verifyCandidateFileHash(invoiceTamperedBuffer, onChainReceiptHash);
   console.log(`\n[TEST B] Uploading TAMPERED invoice:`);
   console.log(`  Result : ${testTampered.status}`);
   console.log(`  Detail : ${testTampered.details}`);

@@ -76,8 +76,8 @@ export class LedgerService {
           log.fragment.inputs.forEach((input, index) => {
             const val = log.args[index];
             if (typeof val === 'bigint') {
-              if (['amount', 'goal', 'totalDonated', 'totalRaised', 'weight', 'currentApprovalWeight', 'totalApprovalWeight'].includes(input.name)) {
-                parsedArgs[input.name] = ethers.formatEther(val) + ' ETH';
+              if (['amount', 'goal', 'totalDonated', 'totalRaised', 'weight', 'currentApprovalWeight', 'totalApprovalWeight', 'allocatedAmount', 'claimedAmount'].includes(input.name)) {
+                parsedArgs[input.name] = `${val.toString()} FTU`;
               } else {
                 parsedArgs[input.name] = val.toString();
               }

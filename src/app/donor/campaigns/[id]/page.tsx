@@ -1397,7 +1397,7 @@ export default function CampaignDetailPage() {
             {/* Actions */}
             <div className="space-y-2">
               <button
-                onClick={handleCustomContribute}
+                onClick={() => handleCustomContribute()}
                 disabled={isContributing || !customAmount || Number(customAmount) <= 0}
                 className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black font-display text-base rounded-xl transition-colors shadow-md flex items-center justify-center gap-2"
               >

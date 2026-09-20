@@ -19,13 +19,15 @@ import {
   Lock,
   Sparkles,
   ArrowRight,
-  Layers
+  Layers,
+  Zap
 } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
 import { getFundTraceContract, parseContractError } from '@/lib/contract';
 import { formatFtu } from '@/types';
 import { ethers } from 'ethers';
 import { toast } from 'sonner';
+import { getDonorAutomationSetting, upsertDonorAutomationSetting } from '@/services/automationService';
 
 interface BackedCampaignSetting {
   id: number;
@@ -98,7 +100,8 @@ export default function DonorSettingsPage() {
           let isAuto = false;
           try {
             myDonationWei = await contract.donations(i, address);
-            isAuto = await contract.automationEnabled(i);
+            // Per-donor automation: check on-chain per-donor flag (not global)
+            isAuto = await contract.isDonorAutomationEnabled(i, address);
           } catch {}
 
           const goalFtu = parseFtu(c.goal);
@@ -134,6 +137,29 @@ export default function DonorSettingsPage() {
       if (backed.length > 0 && selectedCampaignId === null) {
         setSelectedCampaignId(backed[0].id);
       }
+
+      // Load per-donor automation settings from NestJS API for each backed campaign
+      if (address && backed.length > 0) {
+        const settingsResults = await Promise.allSettled(
+          backed.map((camp) => getDonorAutomationSetting(camp.id, address))
+        );
+        setBackedCampaigns((prev) =>
+          prev.map((camp, idx) => {
+            const res = settingsResults[idx];
+            if (res.status === 'fulfilled') {
+              return { ...camp, automationEnabled: res.value.isEnabled };
+            }
+            return camp;
+          })
+        );
+        // Pre-populate policy fields from first campaign's setting
+        if (settingsResults[0]?.status === 'fulfilled') {
+          const s = (settingsResults[0] as PromiseFulfilledResult<any>).value;
+          setMaxAutoAmount(String(s.maxAutoAmount ?? 10000));
+          setRequireManualHighRisk(s.requireManualHighRisk ?? true);
+          setAutoRejectFraud(s.autoRejectFraud ?? true);
+        }
+      }
     } catch (err) {
       console.error('Failed to load backed campaigns for settings:', err);
     } finally {
@@ -148,7 +174,7 @@ export default function DonorSettingsPage() {
   const selectedCampaign = backedCampaigns.find(c => c.id === selectedCampaignId) || backedCampaigns[0];
 
   const handleToggleAutomation = async () => {
-    if (!signer || !selectedCampaign) {
+    if (!selectedCampaign || !address) {
       toast.error('Connect wallet first');
       return;
     }
@@ -158,17 +184,36 @@ export default function DonorSettingsPage() {
     const toastId = toast.loading(
       currentlyEnabled
         ? `Disabling AI Auto-Sanction for Campaign #${selectedCampaign.id}...`
-        : `Enabling AI Auto-Sanction (Approve & Reject) for Campaign #${selectedCampaign.id}...`
+        : `Enabling AI Auto-Sanction for Campaign #${selectedCampaign.id}...`
     );
 
     try {
-      const contract = getFundTraceContract(signer);
-      const tx = currentlyEnabled
-        ? await contract.disableAutomation(selectedCampaign.id)
-        : await contract.enableAutomation(selectedCampaign.id);
-      await tx.wait();
+      // 1. Save to NestJS API (primary — no gas cost, immediate)
+      await upsertDonorAutomationSetting({
+        campaignId: selectedCampaign.id,
+        donorAddress: address,
+        isEnabled: !currentlyEnabled,
+        maxAutoAmount: Number(maxAutoAmount) || 10000,
+        requireManualHighRisk,
+        autoRejectFraud,
+      });
 
-      setBackedCampaigns(prev => prev.map(c => 
+      // 2. Also toggle on-chain for audit trail (requires MetaMask signer)
+      if (signer) {
+        try {
+          const contract = getFundTraceContract(signer);
+          const tx = currentlyEnabled
+            ? await contract.disableAutomation(selectedCampaign.id)
+            : await contract.enableAutomation(selectedCampaign.id);
+          await tx.wait();
+        } catch (chainErr: any) {
+          // On-chain toggle failed — log but don't block (Supabase is source for policy)
+          console.warn('On-chain automation toggle failed:', chainErr.message);
+          toast.warning('Policy saved, but on-chain toggle failed. MetaMask may be needed.');
+        }
+      }
+
+      setBackedCampaigns(prev => prev.map(c =>
         c.id === selectedCampaign.id ? { ...c, automationEnabled: !currentlyEnabled } : c
       ));
 
@@ -186,10 +231,26 @@ export default function DonorSettingsPage() {
     }
   };
 
-  const handleSave = () => {
-    setIsSaved(true);
-    toast.success(`Policy rules saved for Campaign #${selectedCampaign?.id}`);
-    setTimeout(() => setIsSaved(false), 3000);
+  const handleSave = async () => {
+    if (!selectedCampaign || !address) {
+      toast.error('Connect wallet first');
+      return;
+    }
+    try {
+      await upsertDonorAutomationSetting({
+        campaignId: selectedCampaign.id,
+        donorAddress: address,
+        isEnabled: selectedCampaign.automationEnabled,
+        maxAutoAmount: Number(maxAutoAmount) || 10000,
+        requireManualHighRisk,
+        autoRejectFraud,
+      });
+      setIsSaved(true);
+      toast.success(`Policy rules saved for Campaign #${selectedCampaign.id}`);
+      setTimeout(() => setIsSaved(false), 3000);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save policy');
+    }
   };
 
   return (
@@ -274,12 +335,12 @@ export default function DonorSettingsPage() {
                       >
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="text-[10px] font-mono font-bold uppercase text-stone-400">Campaign #{camp.id}</span>
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
                             camp.automationEnabled 
                               ? 'bg-emerald-100 text-emerald-800' 
                               : 'bg-stone-200 text-stone-600'
                           }`}>
-                            {camp.automationEnabled ? '⚡ Auto-Sanction ON' : 'Manual Review'}
+                            {camp.automationEnabled ? <><Zap className="w-3 h-3 text-emerald-600" /> Auto-Sanction ON</> : 'Manual Review'}
                           </span>
                         </div>
                         <h3 className="font-bold text-stone-900 text-sm line-clamp-1">{camp.title}</h3>

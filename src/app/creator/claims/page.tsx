@@ -124,7 +124,7 @@ export default function CreatorClaimsPage() {
       if (isEth) {
         try {
           const onchainQ = await contract.getQuotation(q.campaignId, q.onChainQuotationId || q.id!);
-          const remainingAlloc = onchainQ.allocatedAmount - onchainQ.claimedAmount;
+          const remainingAlloc = BigInt(onchainQ.allocatedAmount) - BigInt(onchainQ.claimedAmount);
           claimWei = remainingAlloc > 0n ? remainingAlloc : ethers.parseEther(amtToClaim.toString());
         } catch {
           claimWei = ethers.parseEther(amtToClaim.toString());

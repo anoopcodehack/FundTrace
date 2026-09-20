@@ -19,6 +19,7 @@ export class BlockchainService implements OnModuleInit {
   private contract: ethers.Contract | null = null;
   private deploymentInfo: DeploymentInfo | null = null;
   private contractAbi: any[] | null = null;
+  private relaySigner: ethers.Wallet | null = null;
 
   constructor(private configService: ConfigService) {}
 
@@ -45,6 +46,15 @@ export class BlockchainService implements OnModuleInit {
         );
       } else {
         this.logger.warn('Contract deployment not loaded. Ensure Hardhat deployment has run.');
+      }
+
+      // Load relay signer for automated sanctions
+      const relayPrivateKey = this.configService.get<string>('RELAY_PRIVATE_KEY');
+      if (relayPrivateKey && this.deploymentInfo?.address && this.contractAbi) {
+        this.relaySigner = new ethers.Wallet(relayPrivateKey, this.provider);
+        this.logger.log(`Relay signer loaded: ${this.relaySigner.address}`);
+      } else {
+        this.logger.warn('RELAY_PRIVATE_KEY not set — automated sanctions will be unavailable.');
       }
     } catch (error) {
       this.logger.error('Failed to initialize contract bindings', error);
@@ -98,6 +108,23 @@ export class BlockchainService implements OnModuleInit {
     return this.deploymentInfo;
   }
 
+  /**
+   * Returns the relay signer wallet (NestJS backend signer).
+   * Used for automated sanctions triggered by donor policy.
+   */
+  public getSigner(): ethers.Wallet | null {
+    return this.relaySigner;
+  }
+
+  /**
+   * Returns the contract connected to the relay signer for write operations.
+   * Use this for automated sanction transactions.
+   */
+  public getSignedContract(): ethers.Contract | null {
+    if (!this.relaySigner || !this.contract) return null;
+    return this.contract.connect(this.relaySigner) as ethers.Contract;
+  }
+
   public async getBlockNumber(): Promise<number> {
     try {
       return await this.provider.getBlockNumber();
@@ -114,10 +141,15 @@ export class BlockchainService implements OnModuleInit {
         id: Number(c.id),
         creator: c.creator,
         verifier: c.verifier,
-        goal: ethers.formatEther(c.goal),
+        // FTU model: 1 FTU = 1 wei (raw integer). Do NOT use formatEther() here.
+        goal: c.goal.toString(),
         deadline: Number(c.deadline),
-        totalDonated: ethers.formatEther(c.totalDonated),
-        totalReleased: ethers.formatEther(c.totalReleased),
+        totalDonated: c.totalDonated.toString(),
+        totalReleased: c.totalReleased.toString(),
+        totalClaimed: c.totalClaimed?.toString() ?? '0',
+        totalAllocated: c.totalAllocated?.toString() ?? '0',
+        totalSanctioned: c.totalSanctioned?.toString() ?? '0',
+        quotationCount: Number(c.quotationCount ?? 0),
         metadataHash: c.metadataHash,
         state: Number(c.state),
         requestCount: Number(c.requestCount),

@@ -44,7 +44,7 @@ export default function Navbar() {
     links = [
       { name: "My Campaigns", href: "/creator/campaigns" },
       { name: "Create Campaign", href: "/creator/create" },
-      { name: "Requests", href: "/creator/requests" },
+      { name: "Quotations", href: "/creator/requests" },
       { name: "Claims", href: "/creator/claims" },
       { name: "Proof", href: "/creator/proof" },
       { name: "Score", href: "/creator/score" },
@@ -67,11 +67,6 @@ export default function Navbar() {
       { name: "Verify Proof", href: "/verify-proof" },
       { name: "Create Campaign", href: "/creator/create" },
     ];
-  }
-
-  const { isVerifier } = useWallet();
-  if (isVerifier) {
-    links.push({ name: "Verifier Panel", href: "/verifier" });
   }
 
   const handleRoleSwitch = (preset: DemoPresetAccount) => {

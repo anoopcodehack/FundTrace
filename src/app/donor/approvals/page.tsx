@@ -427,7 +427,8 @@ export default function DonorApprovalsPage() {
         q.campaignId,
         q.onChainQuotationId || q.id!,
         allocatedAmountOnChain,
-        false
+        false,
+        ethers.ZeroAddress  // Manual mode: donor is the caller, not a relay
       );
       await tx.wait();
 

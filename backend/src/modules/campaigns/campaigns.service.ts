@@ -121,9 +121,10 @@ export class CampaignsService {
 
       const deadline = deadlineTimestamp;
       
-      // Default institutional verifier
-      const defaultVerifier = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'; 
-      const goalWei = ethers.parseEther(dto.goalFtu.toString());
+      // Default verifier is the system admin (MVP role unification)
+      const defaultVerifier = process.env.ADMIN_ADDRESS || '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'; 
+      // FTU model: 1 FTU = 1 wei integer in prototype accounting layer
+      const goalWei = BigInt(dto.goalFtu);
 
       const txData = await contract.createCampaign.populateTransaction(
         goalWei,

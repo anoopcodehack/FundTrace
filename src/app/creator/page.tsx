@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { ClipboardList, CheckCircle2, Hourglass, Trophy } from "lucide-react";
 import { useWallet } from "@/context/WalletContext";
 import RoleGuard from "@/components/RoleGuard";
 import { getCreatorScore, getScoreHistory } from "@/services/scoreService";
@@ -217,15 +218,17 @@ export default function CreatorPortfolioPage() {
             {/* Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
               {[
-                { label: "Total Quotations", value: scoreData?.total_quotations ?? quotations.length, icon: "📋" },
-                { label: "Approved", value: scoreData?.approved_quotations ?? (quotations.filter(q => q.state === 'Completed' || q.state === 'Claimable').length), icon: "✅" },
-                { label: "Unresolved", value: scoreData?.unresolved_requests ?? (quotations.filter(q => q.state === 'Pending' || q.state === 'ProofPending').length), icon: "⏳", warn: true },
-                { label: "Completed", value: scoreData?.completed_campaigns ?? 0, icon: "🏆" },
-              ].map((stat) => (
-                <div key={stat.label} className={`bg-white rounded-2xl border shadow-sm p-4 ${stat.warn && (scoreData?.unresolved_requests ?? 1) > 0 ? "border-amber-200 bg-amber-50" : "border-stone-200"}`}>
-                  <div className="text-2xl mb-2">{stat.icon}</div>
-                  <div className="text-2xl font-black font-bebas tracking-wide text-stone-900">{stat.value}</div>
-                  <div className="text-xs font-mono font-bold uppercase tracking-wider text-stone-500">{stat.label}</div>
+                { label: "Total Quotations", value: scoreData?.total_quotations ?? quotations.length, icon: ClipboardList, color: "text-stone-700 bg-stone-100" },
+                { label: "Approved", value: scoreData?.approved_quotations ?? (quotations.filter(q => q.state === 'Completed' || q.state === 'Claimable').length), icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50" },
+                { label: "Unresolved", value: scoreData?.unresolved_requests ?? (quotations.filter(q => q.state === 'Pending' || q.state === 'ProofPending').length), icon: Hourglass, color: "text-amber-600 bg-amber-50", warn: true },
+                { label: "Completed", value: scoreData?.completed_campaigns ?? 0, icon: Trophy, color: "text-amber-600 bg-amber-50" },
+              ].map(({ label, value, icon: Icon, color, warn }) => (
+                <div key={label} className={`bg-white rounded-2xl border shadow-sm p-4 transition-all hover:shadow-md ${warn && (scoreData?.unresolved_requests ?? 1) > 0 ? "border-amber-200 bg-amber-50/40" : "border-stone-200"}`}>
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-2.5 ${color}`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div className="text-2xl font-black font-bebas tracking-wide text-stone-900">{value}</div>
+                  <div className="text-xs font-mono font-bold uppercase tracking-wider text-stone-500">{label}</div>
                 </div>
               ))}
             </div>

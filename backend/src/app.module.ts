@@ -9,6 +9,7 @@ import { LedgerModule } from './modules/ledger/ledger.module';
 import { QuotationsModule } from './modules/quotations/quotations.module';
 import { AiModule } from './modules/ai/ai.module';
 import { ScoresModule } from './modules/scores/scores.module';
+import { AutomationModule } from './modules/automation/automation.module';
 
 @Module({
   imports: [
@@ -24,7 +25,9 @@ import { ScoresModule } from './modules/scores/scores.module';
     QuotationsModule,
     AiModule,
     ScoresModule,
+    AutomationModule,
   ],
   controllers: [AppController],
 })
 export class AppModule {}
+

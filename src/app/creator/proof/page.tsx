@@ -13,15 +13,63 @@ import {
   Clock,
   Loader2,
   RefreshCw,
-  FileText
+  FileText,
+  X
 } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
+import { submitQuotationProof } from '@/services/quotationService';
+import { getFundTraceContract } from '@/lib/contract';
+import { toast } from 'sonner';
 
 export default function CreatorProofPage() {
-  const { wallet } = useWallet();
+  const { wallet, signer } = useWallet();
   const [quotations, setQuotations] = useState<any[]>([]);
   const [campaignsMap, setCampaignsMap] = useState<Record<number, any>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedQuotationForProof, setSelectedQuotationForProof] = useState<any | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
+
+  const handleUploadProof = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedQuotationForProof || !proofFile) {
+      toast.error('Please select an invoice or receipt file');
+      return;
+    }
+
+    setIsUploadingProof(true);
+    const toastId = toast.loading('Uploading proof to Supabase Storage and generating Keccak-256 hash...');
+    try {
+      const updated = await submitQuotationProof(selectedQuotationForProof.id, {
+        file: proofFile,
+      });
+
+      // If user has signer and on-chain ID, submit on-chain too
+      if (signer && selectedQuotationForProof.on_chain_quotation_id) {
+        try {
+          toast.loading('Recording proof hash on-chain...', { id: toastId });
+          const contract = getFundTraceContract(signer);
+          const cId = Number(selectedQuotationForProof.campaign_id);
+          const qId = Number(selectedQuotationForProof.on_chain_quotation_id);
+          const pHash = updated.proofHash || ('0x' + '0'.repeat(64));
+          const tx = await contract.submitQuotationProof(cId, qId, pHash);
+          await tx.wait();
+        } catch (chainErr: any) {
+          console.warn('On-chain proof record optional failure:', chainErr);
+        }
+      }
+
+      toast.success('Proof uploaded & Creator Reliability Score updated!', { id: toastId });
+      setSelectedQuotationForProof(null);
+      setProofFile(null);
+      await fetchProofs();
+    } catch (err: any) {
+      console.error('Proof upload error:', err);
+      toast.error(err.message || 'Failed to upload proof', { id: toastId });
+    } finally {
+      setIsUploadingProof(false);
+    }
+  };
 
   const fetchProofs = async () => {
     setIsLoading(true);
@@ -144,12 +192,12 @@ export default function CreatorProofPage() {
                           </div>
 
                           <div className="pt-4 border-t border-stone-100">
-                            <Link 
-                              href={`/creator/campaigns/${cId}`}
-                              className="w-full py-2.5 bg-stone-900 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 hover:bg-black transition-colors"
+                            <button 
+                              onClick={() => setSelectedQuotationForProof(q)}
+                              className="w-full py-2.5 bg-stone-900 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 hover:bg-black transition-colors cursor-pointer"
                             >
                               <UploadCloud className="w-4 h-4" /> Upload Receipt / Invoice
-                            </Link>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -210,6 +258,102 @@ export default function CreatorProofPage() {
           )}
 
         </div>
+
+        {/* Upload Proof Modal */}
+        {selectedQuotationForProof && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 relative border border-stone-200">
+              <button
+                onClick={() => {
+                  setSelectedQuotationForProof(null);
+                  setProofFile(null);
+                }}
+                className="absolute top-6 right-6 p-2 rounded-full hover:bg-stone-100 text-stone-500 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">
+                  Expenditure Verification
+                </span>
+                <h3 className="text-2xl font-black font-display text-stone-900 mt-2">
+                  Upload Invoice / Receipt
+                </h3>
+                <p className="text-xs text-stone-500 mt-1">
+                  For: <span className="font-bold text-stone-800">{selectedQuotationForProof.purpose}</span> ({formatFtu(selectedQuotationForProof.requested_amount_ftu || 0)})
+                </p>
+              </div>
+
+              <form onSubmit={handleUploadProof} className="space-y-4">
+                <div className="border-2 border-dashed border-stone-300 rounded-2xl p-6 text-center hover:border-stone-400 transition-colors bg-stone-50">
+                  <UploadCloud className="w-8 h-8 text-stone-400 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-stone-700">Choose Invoice / Receipt file</p>
+                  <p className="text-xs text-stone-400 mt-1">PDF, PNG, JPG (Keccak-256 hash computed automatically)</p>
+                  <input
+                    type="file"
+                    required
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setProofFile(e.target.files[0]);
+                      }
+                    }}
+                    className="mt-4 block w-full text-xs text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-stone-900 file:text-white hover:file:bg-black cursor-pointer"
+                  />
+                  {proofFile && (
+                    <p className="mt-2 text-xs font-mono font-bold text-emerald-600">
+                      Selected: {proofFile.name} ({(proofFile.size / 1024).toFixed(1)} KB)
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-stone-100 rounded-xl p-3 text-[11px] text-stone-600 space-y-1 font-mono">
+                  <div className="flex justify-between">
+                    <span>Storage:</span>
+                    <span className="font-bold text-stone-900">Supabase Storage</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Integrity:</span>
+                    <span className="font-bold text-stone-900">Keccak-256 Cryptographic Hash</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Score Impact:</span>
+                    <span className="font-bold text-emerald-600">+Reliability Score Bonus</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedQuotationForProof(null);
+                      setProofFile(null);
+                    }}
+                    disabled={isUploadingProof}
+                    className="px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-bold text-stone-600 hover:bg-stone-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!proofFile || isUploadingProof}
+                    className="px-6 py-2.5 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isUploadingProof ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading...
+                      </>
+                    ) : (
+                      'Submit Proof & Hash'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
       </div>
     </RoleGuard>
   );

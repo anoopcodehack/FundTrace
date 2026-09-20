@@ -6,6 +6,7 @@ import { useWallet } from "@/context/WalletContext";
 import RoleGuard from "@/components/RoleGuard";
 import { getFundTraceContract } from "@/lib/contract";
 import { getQuotationsByCampaign, sanctionQuotation, rejectQuotation, reviewQuotation } from "@/services/quotationService";
+import { getDonorAutomationSetting, upsertDonorAutomationSetting } from "@/services/automationService";
 import { formatFtu } from "@/types";
 import { toast } from "sonner";
 import { 
@@ -126,7 +127,8 @@ export default function DonorPortfolioPage() {
                   try {
                     const d = await contract.donations(camp.id, wallet.address);
                     donationAmount = parseContractFtu(d);
-                    automation = await contract.automationEnabled(camp.id);
+                    // Per-donor: use isDonorAutomationEnabled instead of global automationEnabled
+                    automation = await contract.isDonorAutomationEnabled(camp.id, wallet.address);
                   } catch {}
                 }
                 const totalDonated = parseContractFtu(c.totalDonated);
@@ -169,15 +171,32 @@ export default function DonorPortfolioPage() {
   }
 
   async function toggleAutomation(campaignId: number, currentlyEnabled: boolean) {
-    if (!signer) { toast.error("Connect wallet first"); return; }
+    if (!wallet.address) { toast.error("Connect wallet first"); return; }
     setTogglingAutomation(true);
     const toastId = toast.loading(currentlyEnabled ? "Disabling automation..." : "Enabling automation...");
     try {
-      const contract = getFundTraceContract(signer);
-      const tx = currentlyEnabled
-        ? await contract.disableAutomation(campaignId)
-        : await contract.enableAutomation(campaignId);
-      await tx.wait();
+      // 1. Save to NestJS API (primary — stores policy, no gas cost)
+      await upsertDonorAutomationSetting({
+        campaignId,
+        donorAddress: wallet.address,
+        isEnabled: !currentlyEnabled,
+        maxAutoAmount: 10000,
+        requireManualHighRisk: true,
+        autoRejectFraud: true,
+      });
+
+      // 2. Toggle on-chain for audit trail
+      if (signer) {
+        try {
+          const contract = getFundTraceContract(signer);
+          const tx = currentlyEnabled
+            ? await contract.disableAutomation(campaignId)
+            : await contract.enableAutomation(campaignId);
+          await tx.wait();
+        } catch (chainErr: any) {
+          console.warn('On-chain toggle failed:', chainErr.message);
+        }
+      }
 
       setCampaigns(prev => prev.map(c =>
         c.id === campaignId ? { ...c, automationEnabled: !currentlyEnabled } : c
@@ -199,7 +218,8 @@ export default function DonorPortfolioPage() {
       const campaign = campaigns.find(c => c.id === selectedCampaign);
       if (!campaign) throw new Error("Campaign not found");
 
-      const tx = await contract.sanctionQuotation(selectedCampaign!, quotationId, BigInt(quotationAmount), false);
+      // Manual sanction: donor calls directly. Pass ZeroAddress for _onBehalfOfDonor (not automated).
+      const tx = await contract.sanctionQuotation(selectedCampaign!, quotationId, BigInt(quotationAmount), false, ethers.ZeroAddress);
       await tx.wait();
 
       await sanctionQuotation(quotationId, wallet.address, quotationAmount, false);
