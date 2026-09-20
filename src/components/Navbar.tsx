@@ -21,15 +21,15 @@ export default function Navbar() {
   const { wallet, isLoading, isVerifier, connectMetaMask, selectDemoRole, disconnect } = useWallet();
 
   const isHome = pathname === "/";
-  // The landing page uses a dark #09090b background, so we use a translucent dark nav.
-  const navBg = isHome ? "bg-[#09090b]/80 border-white/10" : "bg-[#181A14] text-white border-stone-800";
+  // The landing page uses a light theme
+  const navBg = "bg-white/80 border-stone-200 text-stone-900";
 
   return (
-    <header className={`w-full ${navBg} text-white px-6 sm:px-12 py-4 flex items-center justify-between border-b transition-colors relative z-50 backdrop-blur-xl`}>
+    <header className={`w-full ${navBg} px-6 sm:px-12 py-4 flex items-center justify-between border-b transition-colors relative z-50 backdrop-blur-xl`}>
       {/* Brand Logo */}
       <div className="flex items-center gap-3">
         <Link href="/" className="flex items-center gap-2 group">
-          <span className="text-2xl sm:text-3xl font-black tracking-tight font-display text-white group-hover:opacity-90 transition-opacity">
+          <span className="text-2xl sm:text-3xl font-black tracking-tight font-display text-stone-900 group-hover:opacity-90 transition-opacity">
             FundTrace
           </span>
         </Link>
@@ -39,28 +39,28 @@ export default function Navbar() {
       <nav className="hidden md:flex items-center gap-7 text-xs font-semibold">
         <Link
           href="/campaigns"
-          className={`transition-colors hover:text-white ${pathname === "/campaigns" ? "text-white font-bold underline underline-offset-4 decoration-[#FF5023]" : "text-stone-300"}`}
+          className={`transition-colors hover:text-stone-900 ${pathname === "/campaigns" ? "text-stone-900 font-bold underline underline-offset-4 decoration-[#FF5023]" : "text-stone-500"}`}
         >
           Explore
         </Link>
 
         <Link
           href="/#why-it-matters"
-          className="text-stone-300 hover:text-white transition-colors"
+          className="text-stone-500 hover:text-stone-900 transition-colors"
         >
           How it works
         </Link>
 
         <Link
           href="/verify-proof"
-          className={`transition-colors hover:text-white ${pathname === "/verify-proof" ? "text-white font-bold underline underline-offset-4 decoration-[#FF5023]" : "text-stone-300"}`}
+          className={`transition-colors hover:text-stone-900 ${pathname === "/verify-proof" ? "text-stone-900 font-bold underline underline-offset-4 decoration-[#FF5023]" : "text-stone-500"}`}
         >
           Verify Proof
         </Link>
 
         <Link
           href="/create"
-          className={`transition-colors hover:text-white ${pathname === "/create" ? "text-white font-bold underline underline-offset-4 decoration-[#FF5023]" : "text-stone-300"}`}
+          className={`transition-colors hover:text-stone-900 ${pathname === "/create" ? "text-stone-900 font-bold underline underline-offset-4 decoration-[#FF5023]" : "text-stone-500"}`}
         >
           Create Campaign
         </Link>
@@ -81,10 +81,8 @@ export default function Navbar() {
       <div className="flex items-center gap-3">
         
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full bg-black/25 text-white border-white/10 hover:bg-black/35 hover:text-white">
-              Demo Role <ChevronDown className="w-4 h-4 ml-1 opacity-70" />
-            </Button>
+          <DropdownMenuTrigger className="inline-flex h-8 items-center justify-center gap-1 rounded-full border border-stone-200 bg-white px-3 text-xs font-medium text-stone-900 shadow-sm transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-950 cursor-pointer">
+            Demo Role <ChevronDown className="w-4 h-4 opacity-70" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-72">
             <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-stone-500">
