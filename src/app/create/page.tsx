@@ -5,20 +5,30 @@ import Navbar from "@/components/Navbar";
 import { useWallet } from "@/context/WalletContext";
 import { computeCanonicalMetadataHash } from "@/lib/canonical";
 import { ethers } from "ethers";
-import { getFundTraceContract } from "@/lib/contract";
-import { saveCampaignMetadata } from "@/services/campaignService";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function CreateCampaignPage() {
   const { wallet, signer } = useWallet();
+  const router = useRouter();
 
+  // Wizard State
+  const [step, setStep] = useState(1);
+
+  // Step 1 State: Campaign Details
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Education");
-  const [goalEth, setGoalEth] = useState("3.0");
-  const [durationDays, setDurationDays] = useState("30");
-  const [story, setStory] = useState("");
   const [location, setLocation] = useState("Bengaluru, India");
-  const [verifierAddress, setVerifierAddress] = useState("0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC");
+  const [shortDescription, setShortDescription] = useState("");
+  const [story, setStory] = useState("");
+  const [coverImage, setCoverImage] = useState("");
+  const [supportingDocs, setSupportingDocs] = useState("");
+
+  // Step 2 State: Funding Setup
+  const [goalFtu, setGoalFtu] = useState("100000"); // 1 FTU = ₹1
+  const [durationDays, setDurationDays] = useState("30");
+  const [approvalMode, setApprovalMode] = useState<"manual" | "ai">("manual");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedId, setSubmittedId] = useState<number | null>(null);
 
@@ -29,6 +39,8 @@ export default function CreateCampaignPage() {
         story,
         category,
         location,
+        shortDescription,
+        approvalMode
       })
     : "0x7c21b8d862db1881c3edd13b662e0815f119004521083617159f709d45b52003";
 
@@ -40,50 +52,65 @@ export default function CreateCampaignPage() {
     }
 
     setIsSubmitting(true);
-    const toastId = toast.loading("Confirming transaction in wallet...");
+    const toastId = toast.loading("Validating campaign via NestJS API...");
 
     try {
-      const contract = getFundTraceContract(signer);
-      const days = parseInt(durationDays, 10);
-      if (isNaN(days) || days <= 0) throw new Error("Invalid duration");
-      const deadline = Math.floor(Date.now() / 1000) + days * 86400;
+      // Flow: Next.js -> NestJS API -> Validate -> Supabase -> Generate Hash -> Prepare TX -> Next.js -> MetaMask -> Sign -> Solidity
+      
+      const payload = {
+        title,
+        category,
+        location,
+        shortDescription,
+        story,
+        coverImage,
+        supportingDocs,
+        goalFtu: Number(goalFtu),
+        durationDays: Number(durationDays),
+        approvalMode,
+        creatorAddress: wallet.address
+      };
 
-      const tx = await contract.createCampaign(
-        ethers.parseEther(goalEth),
-        deadline,
-        computedMetadataHash,
-        verifierAddress
-      );
+      // 1. Send to NestJS API to validate and prepare the transaction
+      // Mocking the backend API call here. In reality this calls the NestJS backend.
+      const apiResponse = await fetch("http://localhost:3001/api/campaigns/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!apiResponse.ok) {
+        throw new Error("Failed to prepare campaign via API");
+      }
+
+      const { transactionData, metadataHash, offChainId } = await apiResponse.json();
+
+      toast.loading("Please sign the transaction in MetaMask...", { id: toastId });
+
+      // 2. MetaMask signing
+      const tx = await signer.sendTransaction({
+        to: transactionData.to,
+        data: transactionData.data,
+      });
 
       toast.loading("Anchoring on blockchain...", { id: toastId });
       const receipt = await tx.wait();
 
-      const event = receipt.logs
-        .map((log: any) => {
-          try {
-            return contract.interface.parseLog(log);
-          } catch {
-            return null;
-          }
-        })
-        .find((e: any) => e?.name === "CampaignCreated");
-
-      if (!event) throw new Error("Could not find CampaignCreated event");
-      const onChainId = Number(event.args.campaignId);
-
-      toast.loading("Saving metadata off-chain...", { id: toastId });
-      await saveCampaignMetadata({
-        onChainId,
-        title,
-        category: category as any,
-        story,
-        location,
-        creatorAddress: wallet.address!,
-        verifierAddress: verifierAddress,
+      // Assuming the backend has a webhook or we notify the backend it succeeded
+      await fetch(`http://localhost:3001/api/campaigns/${offChainId}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txHash: receipt?.hash })
       });
 
-      toast.success(`Campaign #${onChainId} registered successfully!`, { id: toastId });
-      setSubmittedId(onChainId);
+      toast.success(`Campaign successfully registered!`, { id: toastId });
+      setSubmittedId(offChainId);
+      
+      // Redirect to dashboard
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 2000);
+
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to create campaign", { id: toastId });
@@ -106,200 +133,351 @@ export default function CreateCampaignPage() {
                 <span className="px-3 py-1 rounded-full bg-white/10 text-stone-200 text-xs font-mono font-medium border border-white/10">
                   Campaign Genesis
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 text-stone-300 text-xs font-mono font-medium border border-white/10">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-mono font-medium border border-emerald-500/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  Verifier-Gated
+                  FTU Model
                 </span>
               </div>
               <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black font-bebas uppercase leading-[0.88] tracking-tight text-white">
                 DEPLOY AUDITED CAMPAIGN
               </h1>
               <p className="text-xs sm:text-sm text-stone-300 max-w-xl leading-relaxed">
-                Submit campaign metadata, target goal, and designated institutional verifier. Canonical story text is cryptographically hashed with Keccak-256 and committed on-chain.
+                Submit campaign details, funding goal in FTU, and approval model. The quotation, AI analysis, donor sanction, and allocation process happens after the campaign is created.
               </p>
             </div>
 
             <div className="hidden lg:flex flex-col items-end border-l border-stone-800 pl-8 space-y-1">
               <span className="text-[10px] font-mono uppercase text-stone-400 font-bold tracking-widest">
-                PROTOCOL RULE
+                FUNDING UNIT
               </span>
               <span className="text-3xl font-black font-bebas text-[#FF5023] tracking-wide">
-                ZERO SELF-AUDIT
+                1 FTU = ₹1
               </span>
-              <span className="text-xs font-mono text-emerald-400 font-semibold">
-                ● 3rd-Party Verified
+              <span className="text-xs font-mono text-stone-400 font-semibold">
+                Fixed-Value Accounting
               </span>
             </div>
           </div>
         </div>
 
-        {/* Success Alert */}
-        {submittedId && (
-          <div className="mb-8 p-6 rounded-3xl bg-emerald-950/90 text-emerald-100 border-2 border-emerald-500 shadow-2xl flex items-start gap-4 animate-fade-in">
-            <div className="w-8 h-8 rounded-full bg-emerald-500 text-stone-950 flex items-center justify-center shrink-0 mt-0.5 text-base font-black">
-              ✓
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="font-black font-bebas text-2xl uppercase tracking-wide text-emerald-300">
-                  Campaign #{submittedId} Registered On-Chain
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  PENDING_VERIFICATION
-                </span>
+        {/* Wizard Steps Header */}
+        <div className="flex items-center justify-between mb-8 px-4">
+          {[1, 2, 3].map((s) => (
+            <div key={s} className="flex flex-col items-center gap-2 relative z-10 flex-1">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm border-2 transition-all ${
+                step === s ? "bg-[#FF5023] border-[#FF5023] text-white" :
+                step > s ? "bg-[#141414] border-[#141414] text-white" :
+                "bg-white border-stone-300 text-stone-400"
+              }`}>
+                {step > s ? "✓" : s}
               </div>
-              <p className="text-xs text-emerald-200/90 leading-relaxed font-sans">
-                Designated institutional verifier <code className="font-mono text-emerald-300 bg-black/40 px-2 py-0.5 rounded text-[11px] font-bold">{verifierAddress.slice(0, 10)}...</code> has been assigned to audit credentials before public funding opens.
-              </p>
+              <span className={`text-[10px] font-mono font-bold uppercase tracking-wider ${
+                step === s ? "text-[#FF5023]" : step > s ? "text-[#141414]" : "text-stone-400"
+              }`}>
+                {s === 1 ? "Details" : s === 2 ? "Funding" : "Review"}
+              </span>
             </div>
-          </div>
-        )}
+          ))}
+          <div className="absolute left-0 right-0 h-0.5 bg-stone-300 -z-10 top-5 mx-12 md:mx-32" />
+        </div>
 
-        {/* Create Form */}
+        {/* Wizard Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-white rounded-3xl p-8 sm:p-10 border border-stone-300 shadow-sm space-y-6">
+          <div className="bg-white rounded-3xl p-8 sm:p-10 border border-stone-300 shadow-sm space-y-6 min-h-[400px]">
             
-            {/* Title */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
-                  Campaign Title *
-                </label>
-                <span className="text-[10px] font-mono text-stone-400">Public Blockchain Record</span>
-              </div>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Build Rural STEM Lab & Robotics Center"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
-              />
-            </div>
+            {/* STEP 1: CAMPAIGN DETAILS */}
+            {step === 1 && (
+              <div className="space-y-6 animate-fade-in">
+                <h2 className="text-2xl font-black font-bebas tracking-wide uppercase text-[#141414] border-b border-stone-200 pb-3">
+                  Step 1: Campaign Details
+                </h2>
 
-            {/* Category & Location */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
-                  Category *
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Campaign Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Build Rural STEM Lab & Robotics Center"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Category *</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
+                    >
+                      <option value="Education">Education</option>
+                      <option value="Sanitation">Sanitation</option>
+                      <option value="Healthcare">Healthcare</option>
+                      <option value="Environment">Environment</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Location *</label>
+                    <input
+                      type="text"
+                      required
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Short Description *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="A brief summary of your campaign..."
+                    value={shortDescription}
+                    onChange={(e) => setShortDescription(e.target.value)}
+                    className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Campaign Story & Objectives *</label>
+                  <textarea
+                    rows={4}
+                    required
+                    placeholder="Describe project deliverables, milestone objectives, and procurement requirements..."
+                    value={story}
+                    onChange={(e) => setStory(e.target.value)}
+                    className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Cover Image URL</label>
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={coverImage}
+                      onChange={(e) => setCoverImage(e.target.value)}
+                      className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Supporting Documents URL (Optional)</label>
+                    <input
+                      type="url"
+                      placeholder="Google Drive link etc..."
+                      value={supportingDocs}
+                      onChange={(e) => setSupportingDocs(e.target.value)}
+                      className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
+                    />
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* STEP 2: FUNDING SETUP */}
+            {step === 2 && (
+              <div className="space-y-6 animate-fade-in">
+                <h2 className="text-2xl font-black font-bebas tracking-wide uppercase text-[#141414] border-b border-stone-200 pb-3">
+                  Step 2: Funding Setup
+                </h2>
+
+                <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold shrink-0">i</div>
+                  <p className="text-xs text-amber-900 leading-relaxed pt-1">
+                    <strong>FundTrace Unit: 1 FTU = ₹1.</strong> <br/>
+                    FTU is the fixed-value accounting unit used by FundTrace for the prototype. It avoids campaign-value changes caused by volatile crypto prices. Do not consider FTU as real cryptocurrency.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Funding Goal (₹ / FTU) *</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-3.5 text-stone-500 font-bold">₹</span>
+                      <input
+                        type="number"
+                        required
+                        value={goalFtu}
+                        onChange={(e) => setGoalFtu(e.target.value)}
+                        className="w-full p-3.5 pl-8 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Funding Duration (Days) *</label>
+                    <input
+                      type="number"
+                      required
+                      value={durationDays}
+                      onChange={(e) => setDurationDays(e.target.value)}
+                      className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-stone-200">
+                  <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Approval Mode *</label>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Manual Approval Card */}
+                    <div 
+                      onClick={() => setApprovalMode("manual")}
+                      className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                        approvalMode === "manual" ? "border-[#FF5023] bg-[#FF5023]/5" : "border-stone-200 hover:border-stone-300 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${approvalMode === "manual" ? "border-[#FF5023]" : "border-stone-300"}`}>
+                          {approvalMode === "manual" && <div className="w-2 h-2 rounded-full bg-[#FF5023]" />}
+                        </div>
+                        <h4 className="font-black uppercase text-sm">Manual Approval</h4>
+                      </div>
+                      <ul className="text-xs text-stone-600 space-y-1.5 pl-6 list-disc">
+                        <li>Creator submits quotations later.</li>
+                        <li>AI evaluates each quotation.</li>
+                        <li>Donor manually approves/rejects.</li>
+                      </ul>
+                    </div>
+
+                    {/* AI-Assisted Approval Card */}
+                    <div 
+                      onClick={() => setApprovalMode("ai")}
+                      className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                        approvalMode === "ai" ? "border-emerald-500 bg-emerald-500/5" : "border-stone-200 hover:border-stone-300 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${approvalMode === "ai" ? "border-emerald-500" : "border-stone-300"}`}>
+                          {approvalMode === "ai" && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                        </div>
+                        <h4 className="font-black uppercase text-sm text-emerald-700">AI-Assisted Approval</h4>
+                      </div>
+                      <ul className="text-xs text-stone-600 space-y-1.5 pl-6 list-disc">
+                        <li>Donor enables automated processing.</li>
+                        <li>Quotations automatically evaluated by AI.</li>
+                        <li>AI recommends APPROVE/REJECT based on policy.</li>
+                        <li>Donor can override the decision.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* STEP 3: REVIEW & CREATE */}
+            {step === 3 && (
+              <div className="space-y-8 animate-fade-in">
+                <h2 className="text-2xl font-black font-bebas tracking-wide uppercase text-[#141414] border-b border-stone-200 pb-3">
+                  Step 3: Review & Create
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Summary Details */}
+                  <div className="space-y-4 text-sm">
+                    <div className="flex flex-col border-b border-stone-100 pb-2">
+                      <span className="text-[10px] font-mono uppercase text-stone-500">Campaign Title</span>
+                      <strong className="text-[#141414] text-base">{title || "Untitled"}</strong>
+                    </div>
+                    <div className="flex flex-col border-b border-stone-100 pb-2">
+                      <span className="text-[10px] font-mono uppercase text-stone-500">Category & Location</span>
+                      <strong className="text-[#141414]">{category} · {location}</strong>
+                    </div>
+                    <div className="flex flex-col border-b border-stone-100 pb-2">
+                      <span className="text-[10px] font-mono uppercase text-stone-500">Goal</span>
+                      <strong className="text-[#FF5023] text-lg font-bebas tracking-wide">{goalFtu} FTU / ₹{goalFtu}</strong>
+                    </div>
+                    <div className="flex flex-col border-b border-stone-100 pb-2">
+                      <span className="text-[10px] font-mono uppercase text-stone-500">Approval Mode</span>
+                      <strong className="text-[#141414]">{approvalMode === "manual" ? "Manual Approval" : "AI-Assisted Approval"}</strong>
+                    </div>
+                    <div className="flex flex-col border-b border-stone-100 pb-2">
+                      <span className="text-[10px] font-mono uppercase text-stone-500">Creator Wallet</span>
+                      <code className="text-xs text-stone-600 bg-stone-100 px-2 py-1 rounded inline-block mt-1">{wallet.address || "Not connected"}</code>
+                    </div>
+                  </div>
+
+                  {/* Visual Flow Representation */}
+                  <div className="bg-[#141613] rounded-2xl p-6 text-white border border-stone-800">
+                    <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-stone-400 mb-4 text-center">FundTrace Protocol Flow</h3>
+                    
+                    <div className="flex flex-col items-center gap-1 font-mono text-[10px] sm:text-xs">
+                      <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">DONATIONS</div>
+                      <div className="text-stone-500">↓</div>
+                      <div className="bg-[#FF5023]/20 text-[#FF5023] font-bold px-3 py-1.5 rounded-lg border border-[#FF5023]/30">FUNDS LOCKED</div>
+                      <div className="text-stone-500">↓</div>
+                      <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">QUOTATION</div>
+                      <div className="text-stone-500">↓</div>
+                      <div className="bg-emerald-500/20 text-emerald-400 font-bold px-3 py-1.5 rounded-lg border border-emerald-500/30">AI ANALYSIS</div>
+                      <div className="text-stone-500">↓</div>
+                      <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">DONOR SANCTION</div>
+                      <div className="text-stone-500">↓</div>
+                      <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">ALLOCATION</div>
+                      <div className="text-stone-500">↓</div>
+                      <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">CREATOR CLAIM</div>
+                      <div className="text-stone-500">↓</div>
+                      <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">INVOICE / PROOF</div>
+                      <div className="text-stone-500">↓</div>
+                      <div className="bg-amber-500/20 text-amber-400 font-bold px-3 py-1.5 rounded-lg border border-amber-500/30">AUDIT</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Real-time Canonical Metadata Hash Preview in Charcoal Inspector */}
+                <div className="p-5 rounded-2xl bg-stone-100 border border-stone-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-stone-500">
+                      DETERMINISTIC METADATA HASH
+                    </span>
+                  </div>
+                  <code className="font-mono text-xs text-stone-800 break-all select-all tracking-tight leading-relaxed block bg-white p-3 rounded-xl border border-stone-300">
+                    {computedMetadataHash}
+                  </code>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !wallet.isConnected}
+                  className="w-full py-4 px-8 rounded-2xl bg-[#181816] hover:bg-black text-white font-black font-bebas text-2xl tracking-wider uppercase transition-all shadow-xl hover:shadow-2xl hover:scale-[1.005] active:scale-[0.99] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3"
                 >
-                  <option value="Education">Education</option>
-                  <option value="Sanitation">Sanitation</option>
-                  <option value="Healthcare">Healthcare</option>
-                  <option value="Environment">Environment</option>
-                </select>
+                  <span>{isSubmitting ? "Processing via NestJS API..." : "Register Campaign & Commit Hash"}</span>
+                  <span className="w-7 h-7 rounded-full bg-[#FF5023] text-white flex items-center justify-center text-sm font-bold">
+                    →
+                  </span>
+                </button>
               </div>
+            )}
 
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
-                  Location *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
-                />
-              </div>
+            {/* Navigation Buttons */}
+            <div className="flex items-center justify-between pt-6 border-t border-stone-200">
+              {step > 1 ? (
+                <button 
+                  type="button" 
+                  onClick={() => setStep(step - 1)}
+                  className="px-6 py-2.5 rounded-full font-bold text-xs uppercase bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
+                >
+                  ← Back
+                </button>
+              ) : <div/>}
+
+              {step < 3 ? (
+                <button 
+                  type="button" 
+                  onClick={() => setStep(step + 1)}
+                  className="px-6 py-2.5 rounded-full font-bold text-xs uppercase bg-[#FF5023] hover:bg-[#ff5d32] text-white transition-colors"
+                >
+                  Next Step →
+                </button>
+              ) : <div/>}
             </div>
-
-            {/* Target Goal & Duration */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
-                  Target Goal (ETH) *
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  required
-                  value={goalEth}
-                  onChange={(e) => setGoalEth(e.target.value)}
-                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
-                  Funding Duration (Days) *
-                </label>
-                <input
-                  type="number"
-                  required
-                  value={durationDays}
-                  onChange={(e) => setDurationDays(e.target.value)}
-                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
-                />
-              </div>
-            </div>
-
-            {/* Designated Verifier Address */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
-                  Designated Institutional Verifier Address *
-                </label>
-                <span className="text-[10px] font-mono text-[#FF5023] font-bold">Rule: Non-Creator</span>
-              </div>
-              <input
-                type="text"
-                required
-                value={verifierAddress}
-                onChange={(e) => setVerifierAddress(e.target.value)}
-                className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-mono text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
-              />
-              <span className="text-[10px] text-stone-500 font-mono block">
-                Rule: Designated auditor must sign off before campaign can accept donations.
-              </span>
-            </div>
-
-            {/* Story & Objectives */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">
-                Campaign Story &amp; Expenditure Objectives *
-              </label>
-              <textarea
-                rows={4}
-                required
-                placeholder="Describe project deliverables, milestone objectives, and procurement requirements..."
-                value={story}
-                onChange={(e) => setStory(e.target.value)}
-                className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
-              />
-            </div>
-
-            {/* Real-time Canonical Metadata Hash Preview in Charcoal Inspector */}
-            <div className="p-5 rounded-2xl bg-[#141613] text-white border border-stone-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-amber-400">
-                  DETERMINISTIC METADATA HASH (KECCAK-256)
-                </span>
-                <span className="text-[10px] font-mono text-stone-400">
-                  Calculated Client-side
-                </span>
-              </div>
-              <code className="font-mono text-xs text-emerald-400 break-all select-all tracking-tight leading-relaxed block bg-black/60 p-3 rounded-xl border border-stone-800">
-                {computedMetadataHash}
-              </code>
-            </div>
-
-            {/* Submit Button (FinFLO High-Energy Developer Button) */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-4 px-8 rounded-2xl bg-[#181816] hover:bg-black text-white font-black font-bebas text-2xl tracking-wider uppercase transition-all shadow-xl hover:shadow-2xl hover:scale-[1.005] active:scale-[0.99] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3"
-            >
-              <span>{isSubmitting ? "Anchoring on Blockchain..." : "Register Campaign & Commit Hash"}</span>
-              <span className="w-7 h-7 rounded-full bg-[#FF5023] text-white flex items-center justify-center text-sm font-bold">
-                →
-              </span>
-            </button>
 
           </div>
         </form>
