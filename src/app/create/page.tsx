@@ -4,9 +4,13 @@ import React, { useState } from "react";
 import Navbar from "@/components/Navbar";
 import { useWallet } from "@/context/WalletContext";
 import { computeCanonicalMetadataHash } from "@/lib/canonical";
+import { ethers } from "ethers";
+import { getFundTraceContract } from "@/lib/contract";
+import { saveCampaignMetadata } from "@/services/campaignService";
+import { toast } from "sonner";
 
 export default function CreateCampaignPage() {
-  const { wallet } = useWallet();
+  const { wallet, signer } = useWallet();
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Education");
@@ -30,11 +34,62 @@ export default function CreateCampaignPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!wallet.isConnected || !signer) {
+      toast.error("Please connect your wallet first.");
+      return;
+    }
+
     setIsSubmitting(true);
-    setTimeout(() => {
+    const toastId = toast.loading("Confirming transaction in wallet...");
+
+    try {
+      const contract = getFundTraceContract(signer);
+      const days = parseInt(durationDays, 10);
+      if (isNaN(days) || days <= 0) throw new Error("Invalid duration");
+      const deadline = Math.floor(Date.now() / 1000) + days * 86400;
+
+      const tx = await contract.createCampaign(
+        ethers.parseEther(goalEth),
+        deadline,
+        computedMetadataHash,
+        verifierAddress
+      );
+
+      toast.loading("Anchoring on blockchain...", { id: toastId });
+      const receipt = await tx.wait();
+
+      const event = receipt.logs
+        .map((log: any) => {
+          try {
+            return contract.interface.parseLog(log);
+          } catch {
+            return null;
+          }
+        })
+        .find((e: any) => e?.name === "CampaignCreated");
+
+      if (!event) throw new Error("Could not find CampaignCreated event");
+      const onChainId = Number(event.args.campaignId);
+
+      toast.loading("Saving metadata off-chain...", { id: toastId });
+      await saveCampaignMetadata({
+        onChainId,
+        title,
+        category: category as any,
+        story,
+        location,
+        creatorAddress: wallet.address!,
+        verifierAddress: verifierAddress,
+      });
+
+      toast.success(`Campaign #${onChainId} registered successfully!`, { id: toastId });
+      setSubmittedId(onChainId);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to create campaign", { id: toastId });
+    } finally {
       setIsSubmitting(false);
-      setSubmittedId(4);
-    }, 800);
+    }
   }
 
   return (

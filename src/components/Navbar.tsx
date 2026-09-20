@@ -1,15 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useWallet } from "@/context/WalletContext";
 import { DEMO_PRESET_ACCOUNTS, formatAddress } from "@/lib/wallet";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
   const { wallet, isLoading, isVerifier, connectMetaMask, selectDemoRole, disconnect } = useWallet();
-  const [showDemoMenu, setShowDemoMenu] = useState(false);
 
   const isHome = pathname === "/";
   const navBg = isHome ? "bg-[#FF5023] text-white border-orange-600/30" : "bg-[#181A14] text-white border-stone-800";
@@ -69,62 +78,48 @@ export default function Navbar() {
 
       {/* Right Actions: Demo Role Switcher & Connect Wallet Button */}
       <div className="flex items-center gap-3">
-        {/* Demo Account Switcher */}
-        <div className="relative">
-          <button
-            onClick={() => setShowDemoMenu(!showDemoMenu)}
-            className="py-2 px-3 text-xs font-bold text-white bg-black/25 hover:bg-black/35 rounded-full flex items-center gap-1.5 transition-all border border-white/10"
-          >
-            <span>Demo Role</span>
-            <svg className={`w-3 h-3 transition-transform ${showDemoMenu ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-
-          {showDemoMenu && (
-            <div className="absolute right-0 mt-2 w-72 p-2 bg-white border border-stone-200 rounded-2xl shadow-2xl z-50 text-stone-900 space-y-1">
-              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400 border-b border-stone-100">
-                Switch Role (No MetaMask Needed)
-              </div>
-              {DEMO_PRESET_ACCOUNTS.map((preset) => (
-                <button
-                  key={preset.address}
-                  onClick={() => {
-                    selectDemoRole(preset);
-                    setShowDemoMenu(false);
-                  }}
-                  className="w-full text-left p-2 rounded-xl hover:bg-stone-100 transition-colors text-xs flex flex-col gap-0.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-stone-900">{preset.role}</span>
-                    <span className="font-mono text-[10px] text-stone-500">
-                      {formatAddress(preset.address)}
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-stone-500">{preset.description}</span>
-                </button>
-              ))}
-
-              {wallet.isConnected && (
-                <button
-                  onClick={() => {
-                    disconnect();
-                    setShowDemoMenu(false);
-                  }}
-                  className="w-full text-center p-2 rounded-xl hover:bg-red-50 text-red-600 text-xs font-bold border-t border-stone-100 mt-1"
-                >
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="rounded-full bg-black/25 text-white border-white/10 hover:bg-black/35 hover:text-white">
+              Demo Role <ChevronDown className="w-4 h-4 ml-1 opacity-70" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-72">
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-stone-500">
+              Switch Role (No MetaMask Needed)
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {DEMO_PRESET_ACCOUNTS.map((preset) => (
+              <DropdownMenuItem
+                key={preset.address}
+                onClick={() => selectDemoRole(preset)}
+                className="cursor-pointer flex flex-col items-start gap-1 p-2"
+              >
+                <div className="flex w-full items-center justify-between">
+                  <span className="font-bold">{preset.role}</span>
+                  <span className="font-mono text-[10px] text-stone-500">{formatAddress(preset.address)}</span>
+                </div>
+                <span className="text-[11px] text-stone-500 leading-tight">{preset.description}</span>
+              </DropdownMenuItem>
+            ))}
+            
+            {wallet.isConnected && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={disconnect} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 font-bold justify-center">
                   Disconnect Wallet
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-        {/* Connect Wallet Button */}
-        <button
+        <Button
           onClick={connectMetaMask}
           disabled={isLoading}
-          className="py-2.5 px-5 rounded-full font-black text-xs uppercase tracking-wider bg-white text-[#141414] hover:bg-stone-100 shadow-md transition-all active:scale-95 disabled:opacity-50"
+          variant="secondary"
+          className="rounded-full font-black text-xs uppercase tracking-wider shadow-md hover:scale-105 active:scale-95 transition-all"
         >
           {isLoading ? (
             "CONNECTING..."
@@ -141,7 +136,7 @@ export default function Navbar() {
           ) : (
             "CONNECT WALLET"
           )}
-        </button>
+        </Button>
       </div>
     </header>
   );
