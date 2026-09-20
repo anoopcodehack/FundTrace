@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useWallet } from "@/context/WalletContext";
 import { DEMO_PRESET_ACCOUNTS, formatAddress } from "@/lib/wallet";
 import { Check } from "lucide-react";
@@ -38,9 +39,18 @@ function StarDiamondIcon({ className = "w-20 h-20 text-[#FF5023]" }: { className
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const { wallet, isLoading, isVerifier, connectMetaMask, selectDemoRole } = useWallet();
   const [showDemoMenu, setShowDemoMenu] = useState(false);
   const [activeTab, setActiveTab] = useState<"personal" | "team" | "business">("team");
+
+  useEffect(() => {
+    if (wallet.isConnected && wallet.appRole) {
+      if (wallet.appRole === "ADMIN") router.push("/admin");
+      else if (wallet.appRole === "DONOR") router.push("/donor");
+      else if (wallet.appRole === "CREATOR") router.push("/creator");
+    }
+  }, [wallet.isConnected, wallet.appRole, router]);
 
   // Accordion state
   const [openAccordion, setOpenAccordion] = useState<number>(1);
@@ -616,7 +626,7 @@ export default function HomePage() {
 
               <div className="flex flex-wrap items-center gap-3">
                 <Link
-                  href="/create"
+                  href="/creator/create"
                   className="py-3 px-6 rounded-xl bg-[#141414] hover:bg-black text-white text-xs font-bold font-mono tracking-wider transition-all shadow-md"
                 >
                   contracts/FundTrace.sol

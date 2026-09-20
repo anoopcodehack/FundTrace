@@ -195,16 +195,18 @@ export class CampaignsService {
     return data || [];
   }
 
-  async findOne(onChainId: number) {
+  async findOne(idOrOnChainId: number) {
     const { data: campaign, error } = await this.supabase
       .from('campaigns')
       .select('*')
-      .eq('on_chain_id', onChainId)
-      .single();
+      .or(`on_chain_id.eq.${idOrOnChainId},id.eq.${idOrOnChainId}`)
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (error || !campaign) {
-      this.logger.error(`Campaign ${onChainId} not found in Supabase: ${error?.message}`);
-      throw new NotFoundException(`Campaign ${onChainId} not found`);
+      this.logger.error(`Campaign ${idOrOnChainId} not found in Supabase: ${error?.message}`);
+      throw new NotFoundException(`Campaign ${idOrOnChainId} not found`);
     }
 
     // Check integrity against on-chain
@@ -224,19 +226,24 @@ export class CampaignsService {
       details: 'Off-chain data matches computed hash.'
     };
 
-    if (campaign.on_chain_id) {
-      onChainData = await this.blockchainService.getCampaignFromChain(Number(campaign.on_chain_id));
-      if (onChainData && onChainData.metadataHash) {
-        const matchResult = verifyHashMatch(onChainData.metadataHash, computedHash);
-        integrity = {
-          isTampered: !matchResult.isMatch,
-          calculatedHash: computedHash,
-          onChainHash: onChainData.metadataHash,
-          status: matchResult.status,
-          details: matchResult.isMatch ? 'Hash matches immutable on-chain record.' : 'CRITICAL TAMPER DETECTED',
-        };
+    if (campaign.on_chain_id && Number(campaign.on_chain_id) > 0) {
+      try {
+        onChainData = await this.blockchainService.getCampaignFromChain(Number(campaign.on_chain_id));
+        if (onChainData && onChainData.metadataHash) {
+          const matchResult = verifyHashMatch(onChainData.metadataHash, computedHash);
+          integrity = {
+            isTampered: !matchResult.isMatch,
+            calculatedHash: computedHash,
+            onChainHash: onChainData.metadataHash,
+            status: matchResult.status,
+            details: matchResult.isMatch ? 'Hash matches immutable on-chain record.' : 'CRITICAL TAMPER DETECTED',
+          };
+        }
+      } catch (chainErr) {
+        this.logger.warn(`Could not read on-chain data for campaign ${campaign.on_chain_id}: ${chainErr}`);
       }
     }
+
 
     return {
       metadata: campaign,

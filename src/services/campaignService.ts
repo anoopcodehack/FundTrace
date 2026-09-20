@@ -49,6 +49,10 @@ export async function saveCampaignMetadata(data: {
     canonicalHash: result.canonical_hash,
     createdAt: result.created_at,
     updatedAt: result.updated_at,
+    plannedBudget: Array.isArray(result.planned_budget) ? result.planned_budget : [],
+    creatorName: result.creator_address
+      ? `${String(result.creator_address).slice(0, 6)}...${String(result.creator_address).slice(-4)}`
+      : '',
   };
 }
 
@@ -72,6 +76,10 @@ export async function getCampaignMetadata(onChainId: number): Promise<CampaignMe
       canonicalHash: metadata.canonical_hash,
       createdAt: metadata.created_at,
       updatedAt: metadata.updated_at,
+      plannedBudget: Array.isArray(metadata.planned_budget) ? metadata.planned_budget : [],
+      creatorName: metadata.creator_address
+        ? `${String(metadata.creator_address).slice(0, 6)}...${String(metadata.creator_address).slice(-4)}`
+        : '',
     };
   } catch (error) {
     console.error("Error fetching campaign metadata:", error);
@@ -98,6 +106,10 @@ export async function getAllCampaignsMetadata(): Promise<CampaignMetadata[]> {
       canonicalHash: result.canonical_hash,
       createdAt: result.created_at,
       updatedAt: result.updated_at,
+      plannedBudget: Array.isArray(result.planned_budget) ? result.planned_budget : [],
+      creatorName: result.creator_address
+        ? `${String(result.creator_address).slice(0, 6)}...${String(result.creator_address).slice(-4)}`
+        : '',
     }));
   } catch (error) {
     console.error("Error fetching all campaigns:", error);

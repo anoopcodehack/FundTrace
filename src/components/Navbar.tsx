@@ -1,25 +1,31 @@
 "use client";
 
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useWallet } from "@/context/WalletContext";
 import { DEMO_PRESET_ACCOUNTS, formatAddress } from "@/lib/wallet";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown, User } from "lucide-react";
+import { ChevronDown, User, Check } from "lucide-react";
 
 type NavLink = { name: string; href: string };
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { wallet, isLoading, userRole, connectMetaMask, selectDemoRole, disconnect } = useWallet();
+  const [showRoleMenu, setShowRoleMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowRoleMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // The landing page uses a light theme
   const navBg = "bg-white/80 border-stone-200 text-stone-900";
@@ -36,21 +42,22 @@ export default function Navbar() {
     ];
   } else if (userRole === "CREATOR") {
     links = [
-      { name: "My Campaigns", href: "/portfolio/creator/campaigns" },
-      { name: "Create Campaign", href: "/create" },
-      { name: "Requests", href: "/portfolio/creator/requests" },
-      { name: "Claims", href: "/portfolio/creator/claims" },
-      { name: "Proof", href: "/portfolio/creator/proof" },
-      { name: "Score", href: "/portfolio/creator/score" },
-      { name: "Audit", href: "/portfolio/creator/audit" },
+      { name: "My Campaigns", href: "/creator/campaigns" },
+      { name: "Create Campaign", href: "/creator/create" },
+      { name: "Requests", href: "/creator/requests" },
+      { name: "Claims", href: "/creator/claims" },
+      { name: "Proof", href: "/creator/proof" },
+      { name: "Score", href: "/creator/score" },
+      { name: "Audit", href: "/creator/audit" },
     ];
   } else if (userRole === "DONOR") {
     links = [
-      { name: "My Contributions", href: "/portfolio/donor/contributions" },
-      { name: "Approvals", href: "/portfolio/donor/approvals" },
-      { name: "Fund Tracking", href: "/portfolio/donor/tracking" },
-      { name: "Settings", href: "/portfolio/donor/settings" },
-      { name: "Audit Ledger", href: "/portfolio/donor/ledger" },
+      { name: "My Contributions", href: "/donor/contributions" },
+      { name: "Explore", href: "/donor/campaigns" },
+      { name: "Approvals", href: "/donor/approvals" },
+      { name: "Fund Tracking", href: "/donor/tracking" },
+      { name: "Settings", href: "/donor/settings" },
+      { name: "Audit Ledger", href: "/donor/ledger" },
     ];
   } else {
     // Public unauthenticated
@@ -58,7 +65,7 @@ export default function Navbar() {
       { name: "Explore", href: "/campaigns" },
       { name: "How it works", href: "/#why-it-matters" },
       { name: "Verify Proof", href: "/verify-proof" },
-      { name: "Create Campaign", href: "/create" },
+      { name: "Create Campaign", href: "/creator/create" },
     ];
   }
 
@@ -66,6 +73,18 @@ export default function Navbar() {
   if (isVerifier) {
     links.push({ name: "Verifier Panel", href: "/verifier" });
   }
+
+  const handleRoleSwitch = (preset: any) => {
+    selectDemoRole(preset);
+    const roleStr = preset.role.toUpperCase();
+    if (roleStr === "VERIFIER" || roleStr === "ADMIN") {
+      router.push("/admin");
+    } else if (roleStr.includes("DONOR") || preset.appRole === "DONOR") {
+      router.push("/donor");
+    } else if (roleStr.includes("CREATOR") || preset.appRole === "CREATOR") {
+      router.push("/creator");
+    }
+  };
 
   return (
     <header className={`w-full ${navBg} px-6 sm:px-12 py-4 flex items-center justify-between border-b transition-colors relative z-50 backdrop-blur-xl`}>
@@ -98,39 +117,63 @@ export default function Navbar() {
       {/* Right Actions: Demo Role Switcher & Connect Wallet Button */}
       <div className="flex items-center gap-3">
         
-        <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex h-8 items-center justify-center gap-1 rounded-full border border-stone-200 bg-white px-3 text-xs font-medium text-stone-900 shadow-sm transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-950 cursor-pointer">
-            Demo Role <ChevronDown className="w-4 h-4 opacity-70" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72">
-            <div className="px-2 py-1.5 text-[10px] uppercase tracking-wider text-stone-500">
-              Switch Role (No MetaMask Needed)
-            </div>
-            <DropdownMenuSeparator />
-            {DEMO_PRESET_ACCOUNTS.map((preset) => (
-              <DropdownMenuItem
-                key={preset.address}
-                onClick={() => selectDemoRole(preset)}
-                className="cursor-pointer flex flex-col items-start gap-1 p-2"
-              >
-                <div className="flex w-full items-center justify-between">
-                  <span className="font-bold">{preset.role}</span>
-                  <span className="font-mono text-[10px] text-stone-500">{formatAddress(preset.address)}</span>
+        {/* Native Responsive Role Switcher Dropdown */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setShowRoleMenu(!showRoleMenu)}
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 text-xs font-bold text-stone-900 shadow-sm transition-all hover:bg-stone-100 hover:border-stone-300 focus:outline-none cursor-pointer"
+          >
+            Demo Role <ChevronDown className={`w-3.5 h-3.5 opacity-70 transition-transform ${showRoleMenu ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showRoleMenu && (
+            <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-white border border-stone-200 p-2 shadow-2xl z-50">
+              <div className="px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-wider text-stone-400 border-b border-stone-100">
+                Switch Role (Instant Local Persona)
+              </div>
+              <div className="py-1 space-y-1 max-h-80 overflow-y-auto">
+                {DEMO_PRESET_ACCOUNTS.map((preset) => {
+                  const isCurrent = preset.address.toLowerCase() === wallet.address?.toLowerCase();
+                  return (
+                    <button
+                      key={preset.address}
+                      onClick={() => {
+                        handleRoleSwitch(preset);
+                        setShowRoleMenu(false);
+                      }}
+                      className={`w-full text-left p-2.5 rounded-xl transition-colors flex flex-col gap-0.5 cursor-pointer ${
+                        isCurrent ? 'bg-stone-100 border border-stone-200' : 'hover:bg-stone-50'
+                      }`}
+                    >
+                      <div className="flex w-full items-center justify-between">
+                        <span className="font-bold text-xs text-stone-900 flex items-center gap-1.5">
+                          {preset.role}
+                          {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                        </span>
+                        <span className="font-mono text-[10px] text-stone-400">{formatAddress(preset.address)}</span>
+                      </div>
+                      <span className="text-[11px] text-stone-500 leading-tight">{preset.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {wallet.isConnected && (
+                <div className="pt-1 mt-1 border-t border-stone-100">
+                  <button
+                    onClick={() => {
+                      disconnect();
+                      setShowRoleMenu(false);
+                    }}
+                    className="w-full py-2 px-3 text-center text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Disconnect Wallet
+                  </button>
                 </div>
-                <span className="text-[11px] text-stone-500 leading-tight">{preset.description}</span>
-              </DropdownMenuItem>
-            ))}
-            
-            {wallet.isConnected && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={disconnect} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 font-bold justify-center">
-                  Disconnect Wallet
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              )}
+            </div>
+          )}
+        </div>
 
         <Button
           onClick={connectMetaMask}
@@ -159,8 +202,8 @@ export default function Navbar() {
           <Link
             href={
               userRole === "ADMIN" ? "/admin" :
-              userRole === "CREATOR" ? "/portfolio/creator/campaigns" :
-              "/portfolio/donor/contributions"
+              userRole === "CREATOR" ? "/creator/campaigns" :
+              "/donor/contributions"
             }
             className="hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors border border-stone-200 shadow-sm"
             title="My Profile"

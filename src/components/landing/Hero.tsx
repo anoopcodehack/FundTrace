@@ -62,7 +62,7 @@ export default function Hero() {
               Explore Campaigns
             </Button>
           </Link>
-          <Link href="/create">
+          <Link href="/creator/create">
             <Button size="lg" variant="outline" className="h-14 px-8 text-base rounded-full bg-white border-stone-200 text-stone-900 hover:bg-stone-50 hover:text-stone-900 backdrop-blur-sm">
               Deploy Campaign <ArrowRight className="ml-2 w-4 h-4" />
             </Button>

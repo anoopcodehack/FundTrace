@@ -54,14 +54,6 @@ export default function CampaignDetailPage() {
   const [myContribution, setMyContribution] = useState(0);
   const [myVotingWeight, setMyVotingWeight] = useState(0);
 
-  useEffect(() => {
-    if (appRole === 'DONOR') {
-      router.replace(`/donor/campaigns/${id}`);
-    } else if (appRole === 'CREATOR') {
-      router.replace(`/creator/campaigns/${id}`);
-    }
-  }, [appRole, id, router]);
-
   function parseAmount(val: any): number {
     if (!val) return 0;
     const str = val.toString();
@@ -208,43 +200,76 @@ export default function CampaignDetailPage() {
 
   // ── CTA Panel ──
   function renderCTAPanel() { 
-    if (effectiveRole === 'ADMIN') return (
-      <div className="space-y-3">
-        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
-          <p className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-            <ShieldCheck className="w-3 h-3" /> Admin View
-          </p>
-          <p className="text-sm font-bold text-purple-900">Full management access</p>
-        </div>
-        <Link href="/admin/campaigns"
-          className="w-full py-4 bg-purple-700 text-white font-black font-display text-base rounded-xl hover:bg-purple-800 transition-colors flex items-center justify-center gap-2 group">
-          <Settings className="w-5 h-5" /> Admin Dashboard <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-        </Link>
+    if (isFunding) return (
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center space-y-2">
+        <Clock className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+        <p className="font-black text-amber-900">Awaiting Donor Acceptance</p>
+        <p className="text-sm text-amber-700">You can start uploading quotations once a donor accepts this campaign.</p>
       </div>
     );
 
     return (
-      <div className="bg-white border-2 border-indigo-100 rounded-3xl p-6 shadow-sm text-center space-y-4">
-        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
-          <Heart className="w-6 h-6" />
-        </div>
-        <div>
-          <h3 className="font-black font-display text-stone-900 text-lg">Contribute as a Donor</h3>
-          <p className="text-xs text-stone-500 mt-1">
-            Back this campaign directly and take part in on-chain milestone governance in the donor portal.
+      <div className="space-y-3">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+          <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Campaign Funded
+          </p>
+          <p className="text-sm font-bold text-emerald-900">
+            You may now submit quotations.
           </p>
         </div>
-        <Link
-          href={`/donor/campaigns/${id}`}
-          className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black font-display text-sm rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md cursor-pointer"
-        >
-          <Wallet className="w-4 h-4" /> Open in Donor Campaign Page <ArrowRight className="w-4 h-4" />
+        <Link href={`/creator/campaigns/${onchain.id}/quotation`}
+          className="w-full py-4 bg-stone-900 text-white font-black font-display text-base rounded-xl hover:bg-stone-800 transition-colors flex items-center justify-center gap-2 group">
+          <FileText className="w-5 h-5" /> Submit Quotation <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </Link>
       </div>
     );
  }
 
   // ── Donor-specific extra sections ──
+  function renderCreatorSections() {
+    if (false) return null;
+    return (
+      <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[
+          { label: 'Total Raised', value: raised, icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
+          { label: 'Allocated', value: allocated, icon: Activity, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+          { label: 'Claimed & Spent', value: claimed, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+        ].map(({ label, value, icon: Icon, color, bg, border }) => (
+          <div key={label} className={`${bg} ${border} border rounded-3xl p-6 text-center`}>
+            <Icon className={`w-8 h-8 ${color} mx-auto mb-3`} />
+            <p className="text-3xl font-black font-mono text-stone-900">{formatFtu(value)}</p>
+            <p className={`text-sm font-bold ${color} mt-1`}>{label}</p>
+          </div>
+        ))}
+        <div className="md:col-span-3 bg-white rounded-3xl border border-stone-200 shadow-sm p-6">
+          <h3 className="font-black font-display text-stone-900 mb-3 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-stone-500" /> Quick Actions
+          </h3>
+          <div className="flex flex-wrap gap-3">
+            <Link href={`/creator/requests?campaign=${id}`}
+              className="px-5 py-2.5 bg-stone-900 text-white font-bold text-sm rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-2">
+              <Settings className="w-4 h-4" /> Manage Requests
+            </Link>
+            <Link href={`/creator/campaigns/${id}/quotation`}
+              className="px-5 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-2">
+              <FileText className="w-4 h-4" /> Submit Quotation
+            </Link>
+            <Link href="/creator/proof"
+              className="px-5 py-2.5 border border-stone-200 text-stone-600 font-bold text-sm rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4" /> Upload Proof
+            </Link>
+            <Link href="/creator/score"
+              className="px-5 py-2.5 border border-stone-200 text-stone-600 font-bold text-sm rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" /> View Score
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Admin extra sections ──
   function renderAdminSections() {
     if (effectiveRole !== 'ADMIN') return null;
     return (
@@ -564,8 +589,8 @@ export default function CampaignDetailPage() {
           )}
 
           
+          {renderCreatorSections()}
           
-          {renderAdminSections()}
         </div>
       </div>
     </>

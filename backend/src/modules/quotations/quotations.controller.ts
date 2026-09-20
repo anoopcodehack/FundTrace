@@ -7,7 +7,7 @@ import { QuotationsService } from './quotations.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
-@Controller('api/quotations')
+@Controller('quotations')
 @UseGuards(RolesGuard)
 export class QuotationsController {
   constructor(private readonly quotationsService: QuotationsService) {}
@@ -80,6 +80,14 @@ export class QuotationsController {
     @Body() body: { claimAmountFtu: number; txHash: string },
   ) {
     return this.quotationsService.recordClaim(id, body.claimAmountFtu, body.txHash);
+  }
+
+  @Patch(':id/onchain-id')
+  async updateOnChainId(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { onChainQuotationId: number },
+  ) {
+    return this.quotationsService.updateOnChainId(id, Number(body.onChainQuotationId));
   }
 
   @Post(':id/proof')

@@ -5,6 +5,7 @@ import { Request } from 'express';
 const KNOWN_WALLETS: Record<string, string> = {
   "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266": "ADMIN",
   "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": "CREATOR",
+  "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f": "CREATOR", // Clean Water Well creator
   "0x90F79bf6EB2c4f870365E785982E1f101E93b906": "DONOR", // Alice
   "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65": "DONOR", // Bob
   "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc": "DONOR", // Charlie

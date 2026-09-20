@@ -1,40 +1,178 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MOCK_CAMPAIGNS_ONCHAIN, MOCK_CAMPAIGNS_METADATA } from '@/lib/mock';
+import { getFundTraceContract } from '@/lib/contract';
 import { formatFtu, CampaignState } from '@/types';
 import Link from 'next/link';
+import { useWallet } from '@/context/WalletContext';
 import { 
   Search,
-  Filter,
   CheckCircle2,
   TrendingUp,
   MapPin,
-  Clock
+  Clock,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
-import Navbar from '@/components/Navbar'; // Assuming we have a standard layout, but let's just make sure it's self contained or uses the app layout.
-// Note: If Navbar is globally in layout.tsx we don't need to import it here. Let's assume layout.tsx handles Nav.
+import { ethers } from 'ethers';
+
+interface PublicCampaign {
+  id: number;
+  title: string;
+  tagline: string;
+  category: string;
+  location: string;
+  coverImageUrl?: string;
+  fundingDeadline?: string | null;
+  raisedFtu: number;
+  goalFtu: number;
+  state: CampaignState;
+}
+
+function parseContractFtu(val: any): number {
+  if (!val) return 0;
+  const str = val.toString();
+  if (str.length > 12) {
+    try {
+      return Math.round(Number(ethers.formatEther(val)));
+    } catch {
+      return Number(str);
+    }
+  }
+  return Number(str);
+}
 
 export default function PublicCampaignsPage() {
-  const [filter, setFilter] = useState('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'FUNDING' | 'EXECUTING'>('ALL');
   const [search, setSearch] = useState('');
+  const [campaigns, setCampaigns] = useState<PublicCampaign[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Only show public facing campaigns (Verified or higher)
-  const publicCampaigns = MOCK_CAMPAIGNS_ONCHAIN.filter(c => 
-    c.state === CampaignState.Verified || c.state === CampaignState.FundingClosed
-  );
+  useEffect(() => {
+    async function fetchAllCampaigns() {
+      setIsLoading(true);
+      try {
+        const loaded: PublicCampaign[] = [];
+        const seenIds = new Set<number>();
 
-  const filteredCampaigns = publicCampaigns.filter(c => {
-    const meta = MOCK_CAMPAIGNS_METADATA[c.id];
+        // 1. Fetch DB campaigns
+        let dbCampaigns: any[] = [];
+        try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/campaigns`);
+          if (res.ok) {
+            dbCampaigns = await res.json();
+          }
+        } catch (e) {
+          console.warn("Could not fetch DB campaigns:", e);
+        }
+
+        // 2. Fetch contract campaigns
+        let contract: any = null;
+        let count = 0;
+        try {
+          contract = getFundTraceContract();
+          count = Number(await contract.campaignCount());
+        } catch {}
+
+        for (let i = 1; i <= count; i++) {
+          seenIds.add(i);
+          try {
+            const c = await contract.getCampaign(i);
+            const dbMeta = dbCampaigns.find((db: any) => Number(db.on_chain_id) === i);
+            const mockMeta = MOCK_CAMPAIGNS_METADATA[i];
+
+            const raisedFtu = parseContractFtu(c.totalDonated);
+            const goalFtu = parseContractFtu(c.goal);
+            const state = Number(c.state) as CampaignState;
+
+            loaded.push({
+              id: i,
+              title: dbMeta?.title || mockMeta?.title || `Campaign #${i}`,
+              tagline: dbMeta?.tagline || mockMeta?.tagline || "Decentralized audited fund initiative",
+              category: dbMeta?.category || mockMeta?.category || "Community",
+              location: dbMeta?.location || mockMeta?.location || "Global",
+              coverImageUrl: dbMeta?.cover_image_url || mockMeta?.coverImageUrl || "",
+              fundingDeadline: dbMeta?.funding_deadline || (c.deadline ? new Date(Number(c.deadline) * 1000).toISOString() : null),
+              raisedFtu,
+              goalFtu,
+              state
+            });
+          } catch (err) {
+            console.warn(`Error reading campaign #${i}:`, err);
+          }
+        }
+
+        // 3. Add DB campaigns (including pending verification ones)
+        for (const db of dbCampaigns) {
+          const cId = Number(db.on_chain_id > 0 ? db.on_chain_id : db.id);
+          if (!seenIds.has(cId)) {
+            seenIds.add(cId);
+            loaded.push({
+              id: cId,
+              title: db.title || `Campaign #${cId}`,
+              tagline: db.tagline || db.story || "Decentralized audited fund initiative",
+              category: db.category || "Community",
+              location: db.location || "Global",
+              coverImageUrl: db.cover_image_url || "",
+              fundingDeadline: db.funding_deadline || null,
+              raisedFtu: 0,
+              goalFtu: db.goal_ftu || 10000,
+              state: db.on_chain_id > 0 ? CampaignState.Verified : CampaignState.PendingVerification
+            });
+          }
+        }
+
+        // 4. Merge mock campaigns so demo always has complete initial items
+        for (const mock of MOCK_CAMPAIGNS_ONCHAIN) {
+          if (!seenIds.has(mock.id)) {
+            const meta = MOCK_CAMPAIGNS_METADATA[mock.id];
+            seenIds.add(mock.id);
+            loaded.push({
+              id: mock.id,
+              title: meta?.title || `Campaign #${mock.id}`,
+              tagline: meta?.tagline || "",
+              category: meta?.category || "Community",
+              location: meta?.location || "India",
+              coverImageUrl: meta?.coverImageUrl || "",
+              fundingDeadline: meta?.fundingDeadline || null,
+              raisedFtu: Number(mock.totalDonatedWei),
+              goalFtu: Number(mock.goalWei),
+              state: mock.state
+            });
+          }
+        }
+
+        setCampaigns(loaded);
+      } catch (err) {
+        console.error("Failed to load campaigns:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchAllCampaigns();
+  }, []);
+
+  const { wallet } = useWallet();
+  const getCampaignLink = (id: number) => {
+    if (wallet.appRole === 'DONOR') return `/donor/campaigns/${id}`;
+    if (wallet.appRole === 'CREATOR') return `/creator/campaigns/${id}`;
+    return `/campaigns/${id}`;
+  };
+
+  const filteredCampaigns = campaigns.filter(c => {
     if (filter === 'FUNDING' && c.state !== CampaignState.Verified) return false;
     if (filter === 'EXECUTING' && c.state !== CampaignState.FundingClosed) return false;
     
-    if (search && meta) {
-      return meta.title.toLowerCase().includes(search.toLowerCase()) || 
-             meta.tagline.toLowerCase().includes(search.toLowerCase());
+    if (search) {
+      const q = search.toLowerCase();
+      return c.title.toLowerCase().includes(q) || c.tagline.toLowerCase().includes(q);
     }
     return true;
   });
+
+  const totalRaisedAll = campaigns.reduce((acc, c) => acc + c.raisedFtu, 0);
 
   return (
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414]">
@@ -52,8 +190,8 @@ export default function PublicCampaignsPage() {
           </div>
           <div className="md:w-1/2 w-full grid grid-cols-2 gap-4">
             <div className="bg-stone-800 p-6 rounded-2xl border border-stone-700">
-              <h3 className="text-4xl font-black font-bebas text-white">450K+</h3>
-              <p className="text-sm font-bold text-stone-400 uppercase tracking-wider mt-1">FTU Raised</p>
+              <h3 className="text-4xl font-black font-bebas text-white">{formatFtu(totalRaisedAll || 450000)}</h3>
+              <p className="text-sm font-bold text-stone-400 uppercase tracking-wider mt-1">Total FTU Raised</p>
             </div>
             <div className="bg-stone-800 p-6 rounded-2xl border border-stone-700">
               <h3 className="text-4xl font-black font-bebas text-white">100%</h3>
@@ -72,7 +210,7 @@ export default function PublicCampaignsPage() {
               <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
               <input 
                 type="text" 
-                placeholder="Search campaigns..." 
+                placeholder="Search all campaigns..." 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -82,110 +220,126 @@ export default function PublicCampaignsPage() {
             <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
               <button 
                 onClick={() => setFilter('ALL')}
-                className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors ${filter === 'ALL' ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+                className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors cursor-pointer ${filter === 'ALL' ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
               >
-                All Campaigns
+                All Campaigns ({campaigns.length})
               </button>
               <button 
                 onClick={() => setFilter('FUNDING')}
-                className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors ${filter === 'FUNDING' ? 'bg-indigo-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+                className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors cursor-pointer ${filter === 'FUNDING' ? 'bg-indigo-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
               >
                 Actively Funding
               </button>
               <button 
                 onClick={() => setFilter('EXECUTING')}
-                className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors ${filter === 'EXECUTING' ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+                className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors cursor-pointer ${filter === 'EXECUTING' ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
               >
                 Fully Funded
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredCampaigns.map(c => {
-              const meta = MOCK_CAMPAIGNS_METADATA[c.id];
-              const raised = Number(c.totalDonatedWei);
-              const goal = Number(c.goalWei);
-              const progress = Math.min(100, Math.round((raised / goal) * 100));
-              const isFunding = c.state === CampaignState.Verified;
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-24 bg-white rounded-3xl border border-stone-200 shadow-sm">
+              <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
+              <p className="text-stone-600 font-bold">Fetching all campaigns...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredCampaigns.map(c => {
+                const raised = c.raisedFtu;
+                const goal = c.goalFtu;
+                const progress = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0;
+                const isFunding = c.state === CampaignState.Verified;
+                const isPending = c.state === CampaignState.PendingVerification;
 
-              return (
-                <Link href={`/campaigns/${c.id}`} key={c.id} className="group bg-white rounded-3xl border border-stone-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full hover:-translate-y-1">
-                  
-                  {/* Image */}
-                  <div className="h-56 bg-stone-200 relative overflow-hidden">
-                    {meta?.coverImageUrl ? (
-                      <img src={meta.coverImageUrl} alt="Cover" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-stone-400">No Image</div>
-                    )}
+                return (
+                  <Link href={getCampaignLink(c.id)} key={c.id} className="group bg-white rounded-3xl border border-stone-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full hover:-translate-y-1">
                     
-                    <div className="absolute top-4 left-4 flex flex-col gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/90 backdrop-blur-sm text-stone-900 text-xs font-black rounded-lg shadow-sm">
-                        <MapPin className="w-3 h-3 text-indigo-500" /> {meta?.location}
-                      </span>
-                    </div>
-                    
-                    <div className="absolute top-4 right-4">
-                      {isFunding ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 text-white text-xs font-black rounded-lg shadow-sm">
-                          <TrendingUp className="w-3 h-3" /> Funding
-                        </span>
+                    {/* Image */}
+                    <div className="h-56 bg-stone-200 relative overflow-hidden">
+                      {c.coverImageUrl ? (
+                        <img src={c.coverImageUrl} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-black rounded-lg shadow-sm">
-                          <CheckCircle2 className="w-3 h-3" /> Funded
-                        </span>
+                        <div className="w-full h-full flex items-center justify-center text-stone-400 font-medium">No Image</div>
                       )}
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-6 flex-1 flex flex-col">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-stone-500 bg-stone-100 px-2 py-1 rounded">
-                          {meta?.category}
+                      
+                      <div className="absolute top-4 left-4 flex flex-col gap-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/90 backdrop-blur-sm text-stone-900 text-xs font-black rounded-lg shadow-sm">
+                          <MapPin className="w-3 h-3 text-indigo-500" /> {c.location}
                         </span>
-                        {Number(c.totalSanctionedWei) > 0 && (
-                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-1 rounded flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Executing
+                      </div>
+                      
+                      <div className="absolute top-4 right-4">
+                        {isPending ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-xs font-black rounded-lg shadow-sm">
+                            <Clock className="w-3 h-3" /> Pending Review
+                          </span>
+                        ) : isFunding ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 text-white text-xs font-black rounded-lg shadow-sm">
+                            <TrendingUp className="w-3 h-3" /> Funding
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-black rounded-lg shadow-sm">
+                            <CheckCircle2 className="w-3 h-3" /> Funded
                           </span>
                         )}
                       </div>
-                      
-                      <h2 className="text-2xl font-black font-display text-stone-900 leading-tight mb-2 group-hover:text-indigo-600 transition-colors">{meta?.title}</h2>
-                      <p className="text-sm text-stone-500 font-medium line-clamp-2">{meta?.tagline}</p>
                     </div>
 
-                    {/* Progress */}
-                    <div className="mt-6 pt-6 border-t border-stone-100">
-                      <div className="flex justify-between items-end mb-2">
+                    {/* Content */}
+                    <div className="p-8 flex-1 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold font-mono tracking-wider text-indigo-600 uppercase bg-indigo-50 px-2.5 py-1 rounded-md mb-3 inline-block">
+                          {c.category}
+                        </span>
+                        
+                        <h3 className="text-2xl font-black font-display text-stone-900 leading-tight mb-2 group-hover:text-indigo-600 transition-colors">
+                          {c.title}
+                        </h3>
+                        
+                        <p className="text-sm text-stone-500 font-medium line-clamp-2 mb-6">
+                          {c.tagline}
+                        </p>
+                      </div>
+
+                      {/* Progress Bar & Stats */}
+                      <div className="space-y-4 pt-4 border-t border-stone-100">
                         <div>
-                          <span className="text-2xl font-black font-bebas text-stone-900">{formatFtu(raised)}</span>
-                          <span className="text-xs font-bold text-stone-500 ml-1 uppercase">Raised</span>
+                          <div className="flex justify-between items-end mb-2">
+                            <span className="text-2xl font-black font-bebas text-stone-900">{formatFtu(raised)}</span>
+                            <span className="text-sm font-bold text-stone-400">of {formatFtu(goal)}</span>
+                          </div>
+                          
+                          <div className="w-full bg-stone-100 rounded-full h-2 overflow-hidden">
+                            <div className="bg-indigo-600 h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                          </div>
                         </div>
-                        <span className="text-lg font-black font-bebas text-indigo-600">{progress}%</span>
-                      </div>
-                      <div className="w-full bg-stone-100 rounded-full h-2 mb-2 overflow-hidden">
-                        <div className={`h-2 rounded-full transition-all duration-1000 ${isFunding ? 'bg-indigo-500' : 'bg-emerald-500'}`} style={{ width: `${progress}%` }}></div>
-                      </div>
-                      <div className="flex justify-between text-[11px] font-bold text-stone-400 uppercase tracking-wider">
-                        <span>Goal: {formatFtu(goal)}</span>
-                        {isFunding && meta?.fundingDeadline && (
-                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {Math.ceil((new Date(meta.fundingDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} Days Left</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
 
-          {filteredCampaigns.length === 0 && (
-            <div className="bg-white rounded-3xl border border-stone-200 p-16 text-center shadow-sm">
-              <h3 className="text-3xl font-black font-display text-stone-900 mb-2">No Campaigns Found</h3>
-              <p className="text-stone-500 max-w-md mx-auto text-lg">Try adjusting your filters or search query to find more initiatives.</p>
+                        <div className="flex justify-between items-center text-xs font-bold text-stone-400">
+                          <span>{progress}% funded</span>
+                          {c.fundingDeadline && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {Math.max(0, Math.ceil((new Date(c.fundingDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} Days Left
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+
+                  </Link>
+                );
+              })}
+
+              {filteredCampaigns.length === 0 && (
+                <div className="col-span-full py-16 bg-white rounded-3xl border border-stone-200 text-center">
+                  <AlertCircle className="w-10 h-10 text-stone-400 mx-auto mb-3" />
+                  <p className="text-lg font-bold text-stone-900 mb-1">No campaigns matched your search</p>
+                  <p className="text-sm text-stone-500">Try adjusting your filters or search keywords.</p>
+                </div>
+              )}
             </div>
           )}
 

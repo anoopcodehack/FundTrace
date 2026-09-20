@@ -42,6 +42,13 @@ export const DEMO_PRESET_ACCOUNTS = [
     description: "Rural STEM Lab campaign owner & spending requester",
   },
   {
+    role: "Clean Water Creator",
+    appRole: "CREATOR" as const,
+    address: "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f",
+    privateKey: "0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97",
+    description: "Clean Water Well Initiative creator (Campaign #2)",
+  },
+  {
     role: "Alice (Major Contributor)",
     appRole: "DONOR" as const,
     address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
