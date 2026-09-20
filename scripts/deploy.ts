@@ -7,8 +7,12 @@ async function main() {
   console.log("--------------------------------------------------");
   console.log("Deploying FundTrace with account:", deployer.address);
 
+  const signers = await ethers.getSigners();
+  const trustedRelay = signers[1].address; // Account #1 = NestJS backend relay signer
+  console.log("Trusted Relay (NestJS Backend):", trustedRelay);
+
   const FundTrace = await ethers.getContractFactory("FundTrace");
-  const fundTrace = await FundTrace.deploy();
+  const fundTrace = await FundTrace.deploy(trustedRelay);
   await fundTrace.waitForDeployment();
 
   const address = await fundTrace.getAddress();

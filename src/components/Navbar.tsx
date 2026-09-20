@@ -21,10 +21,11 @@ export default function Navbar() {
   const { wallet, isLoading, isVerifier, connectMetaMask, selectDemoRole, disconnect } = useWallet();
 
   const isHome = pathname === "/";
-  const navBg = isHome ? "bg-[#FF5023] text-white border-orange-600/30" : "bg-[#181A14] text-white border-stone-800";
+  // The landing page uses a dark #09090b background, so we use a translucent dark nav.
+  const navBg = isHome ? "bg-[#09090b]/80 border-white/10" : "bg-[#181A14] text-white border-stone-800";
 
   return (
-    <header className={`w-full ${navBg} px-6 sm:px-12 py-4 flex items-center justify-between border-b transition-colors relative z-40 sticky top-0 backdrop-blur-md`}>
+    <header className={`w-full ${navBg} text-white px-6 sm:px-12 py-4 flex items-center justify-between border-b transition-colors relative z-50 backdrop-blur-xl`}>
       {/* Brand Logo */}
       <div className="flex items-center gap-3">
         <Link href="/" className="flex items-center gap-2 group">

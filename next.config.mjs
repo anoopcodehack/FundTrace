@@ -5,12 +5,8 @@ const nextConfig = {
     // Tests & scripts are compiled and tested separately via Hardhat
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  experimental: {
-    serverComponentsExternalPackages: ["ethers"],
-  },
+  serverExternalPackages: ["ethers"],
+  turbopack: {},
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
