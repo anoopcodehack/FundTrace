@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import MoneyFlowVisualizer from "@/components/MoneyFlowVisualizer";
 import { useWallet } from "@/context/WalletContext";
 import { formatAddress } from "@/lib/wallet";
 
@@ -213,6 +214,11 @@ export default function CampaignDetailPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* INTERACTIVE MONEY FLOW VISUALIZER (UNIQUE HACKATHON FEATURE) */}
+        <div className="mt-12">
+          <MoneyFlowVisualizer campaignId={id} />
         </div>
 
         {/* SPENDING REQUESTS SECTION */}
