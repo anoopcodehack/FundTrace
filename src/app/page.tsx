@@ -271,12 +271,12 @@ export default function HomePage() {
                       <span className="text-[#FF5023] font-mono text-lg font-bold">
                         {openAccordion === 1 ? "−" : "+"}
                       </span>
-                      Democratic Contributor Governance
+                      Full Allocation & Smart Escrow
                     </span>
                   </div>
                   {openAccordion === 1 && (
                     <p className="text-xs text-stone-300 mt-2.5 pl-6 leading-relaxed">
-                      Donors vote with their exact contribution weight. Smart contracts strictly require &gt;50% contributor approval weight before any milestone funds leave escrow.
+                      100% of raised funds are securely allocated and locked in smart contract escrow. Donors review vendor quotations with AI price benchmarking and sanction milestone disbursements before any funds leave escrow.
                     </p>
                   )}
                 </button>
@@ -335,10 +335,10 @@ export default function HomePage() {
 
                   <div className="flex items-center justify-between">
                     <span className="px-3.5 py-1.5 rounded-lg bg-black/40 text-white font-bold text-xs">
-                      VOTING THRESHOLD
+                      ALLOCATED BALANCE
                     </span>
                     <span className="px-3 py-1 rounded-md bg-white text-[#FF5023] font-black text-xs">
-                      &gt; 50.0%
+                      100% ESCROW
                     </span>
                   </div>
 
@@ -480,7 +480,7 @@ export default function HomePage() {
             </div>
 
             <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-              In decentralized crowdfunding, cryptographic integrity guarantees that donor funds are spent precisely as promised. Through deterministic Keccak-256 byte hashing and on-chain milestones, spending proofs are permanently verifiable. Donors retain democratic voting power before escrow releases, completely eliminating phantom disbursements.
+              In decentralized crowdfunding, cryptographic integrity guarantees that donor funds are spent precisely as promised. Through deterministic Keccak-256 byte hashing and on-chain milestones, spending proofs are permanently verifiable. Donors retain sanctioning control over quotation disbursements, completely eliminating phantom withdrawals.
             </p>
           </div>
 
@@ -494,7 +494,7 @@ export default function HomePage() {
                 </div>
                 <div className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm">
                   <div className="text-[10px] font-mono uppercase text-stone-500">Consensus Rule</div>
-                  <div className="text-sm font-mono font-bold text-stone-900 mt-0.5">&gt;50% Donor Vote</div>
+                  <div className="text-sm font-mono font-bold text-stone-900 mt-0.5">&gt;50% Sanction Share</div>
                 </div>
                 <div className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm">
                   <div className="text-[10px] font-mono uppercase text-stone-500">Smart Contracts</div>
@@ -542,14 +542,14 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* Row 2: WEBINARS AND EVENTS (Snapshot Voting Sandbox) */}
+        {/* Row 2: AI Quotation Sanction Sandbox */}
         <div className="p-7 sm:p-9 rounded-2xl bg-[#141613] text-white shadow-sm border border-stone-800 flex flex-col lg:flex-row lg:items-center justify-between gap-6 reveal-init delay-100">
           <div className="space-y-2">
             <div className="text-xl sm:text-2xl font-bold font-sans text-white">
-              Democratized Governance &amp; Voting Sandbox
+              AI Quotation &amp; Contributor Sanction Sandbox
             </div>
             <p className="text-xs text-stone-300 max-w-lg leading-relaxed">
-              Experience decentralized milestone voting. Smart contracts enforce &gt;50% contribution approval before funds unlock. Currently at{" "}
+              Experience decentralized milestone disbursement. Smart contracts enforce &gt;50% contribution approval before funds unlock. Currently at{" "}
               <strong className={isThresholdMet ? "text-emerald-400" : "text-[#FF5023]"}>
                 {currentVoteWeight.toFixed(1)}% / 50%
               </strong>.
@@ -564,7 +564,7 @@ export default function HomePage() {
                     : "bg-stone-800/80 hover:bg-stone-800 border-stone-700 text-stone-200"
                 }`}
               >
-                {aliceVoted ? <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Alice Voted (46.9%)</span> : "+ Cast Alice (46.9%)"}
+                {aliceVoted ? <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Alice Sanctioned (46.9%)</span> : "+ Sanction Alice (46.9%)"}
               </button>
 
               <button
@@ -575,7 +575,7 @@ export default function HomePage() {
                     : "bg-stone-800/80 hover:bg-stone-800 border-stone-700 text-stone-200"
                 }`}
               >
-                {bobVoted ? <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Bob Voted (31.3%)</span> : "+ Cast Bob (31.3%)"}
+                {bobVoted ? <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Bob Sanctioned (31.3%)</span> : "+ Sanction Bob (31.3%)"}
               </button>
             </div>
           </div>

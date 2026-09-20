@@ -345,7 +345,7 @@ export default function DonorSettingsPage() {
                         </div>
                         <h3 className="font-bold text-stone-900 text-sm line-clamp-1">{camp.title}</h3>
                         <p className="text-xs text-stone-500 mt-1 font-medium">
-                          Contribution: <strong className="text-stone-700">{formatFtu(camp.myDonationFtu)}</strong> ({camp.myVotingWeight}% voting weight)
+                          Contribution: <strong className="text-stone-700">{formatFtu(camp.myDonationFtu)}</strong> ({camp.myVotingWeight}% contribution share)
                         </p>
                       </div>
                     );

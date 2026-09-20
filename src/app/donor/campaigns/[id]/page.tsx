@@ -530,7 +530,7 @@ export default function CampaignDetailPage() {
                 </span>
               </div>
               <span className="text-xs font-black font-mono text-emerald-700 bg-white px-2 py-0.5 rounded-full border border-emerald-100 shadow-xs">
-                {myVotingWeight}% Voting Weight
+                {myVotingWeight}% Contribution Share
               </span>
             </div>
           )}
@@ -633,11 +633,11 @@ export default function CampaignDetailPage() {
             )}
           </div>
 
-          {/* Real-time Voting Power Preview */}
+          {/* Real-time Contribution Share Preview */}
           <div className="bg-indigo-50/50 border border-indigo-100/60 rounded-2xl p-3 flex items-center justify-between text-xs">
             <div>
-              <span className="font-bold text-indigo-950 block">Estimated Voting Weight</span>
-              <span className="text-[11px] text-stone-500">Governance share upon contribution</span>
+              <span className="font-bold text-indigo-950 block">Estimated Contribution Share</span>
+              <span className="text-[11px] text-stone-500">Backing share upon contribution</span>
             </div>
             <span className="font-black font-mono text-indigo-700 text-base">
               {estimatedWeight}%
@@ -717,7 +717,7 @@ export default function CampaignDetailPage() {
                   {myContribution > 0 ? `CONTRIBUTED ${formatFtu(myContribution)}` : 'Campaign Accepted & Fully Funded'}
                 </p>
                 <p className="text-xs font-bold text-emerald-700">
-                  {myContribution > 0 ? `Your Voting Weight: ${myVotingWeight}%` : 'Funding Goal Reached'}
+                  {myContribution > 0 ? `Your Contribution Share: ${myVotingWeight}%` : 'Funding Goal Reached'}
                 </p>
               </div>
             </div>
@@ -734,7 +734,7 @@ export default function CampaignDetailPage() {
               This campaign has met 100% of its requested funding on-chain!
             </p>
             <p className="text-xs text-stone-500">
-              The creator can now submit quotations for milestone disbursements, and donors vote on approvals.
+              The creator can now submit quotations for milestone disbursements, and donors sanction fund releases.
             </p>
           </div>
 
@@ -805,12 +805,12 @@ export default function CampaignDetailPage() {
                 <span className="text-3xl font-black font-mono text-stone-900">{myVotingWeight}%</span>
               </div>
             </div>
-            <p className="font-bold text-stone-700">Voting Weight</p>
+            <p className="font-bold text-stone-700">Contribution Share</p>
             <p className="text-sm text-stone-400 mt-1">Your contribution of {formatFtu(myContribution)} gives you proportional governance over spending.</p>
           </div>
           <Link href="/donor/approvals"
             className="mt-4 w-full py-3 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
-            Vote on Spending Requests <ArrowRight className="w-4 h-4" />
+            Review & Sanction Quotations <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
@@ -834,7 +834,7 @@ export default function CampaignDetailPage() {
                 AI Auto-Sanction & Governance Controls
               </h3>
               <p className="text-xs text-stone-600 mt-0.5">
-                Scoped exclusively to this campaign. Controls appear because you are an active contributor with {myVotingWeight}% voting weight.
+                Scoped exclusively to this campaign. Controls appear because you are an active contributor with {myVotingWeight}% contribution share.
               </p>
             </div>
 
@@ -1365,10 +1365,10 @@ export default function CampaignDetailPage() {
               </div>
             </div>
 
-            {/* Estimated Voting Weight Preview */}
+            {/* Estimated Contribution Share Preview */}
             <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 mb-5">
               <div className="flex justify-between items-center text-xs mb-1">
-                <span className="font-bold text-indigo-900">Estimated Voting Weight:</span>
+                <span className="font-bold text-indigo-900">Estimated Contribution Share:</span>
                 <span className="font-black font-mono text-indigo-700 text-sm">
                   {Math.min(
                     100,
@@ -1381,7 +1381,7 @@ export default function CampaignDetailPage() {
                 </span>
               </div>
               <p className="text-[11px] text-stone-500">
-                Your proportional governance power over milestone sanctions once confirmed.
+                Your proportional share over milestone quotation sanctions once confirmed.
               </p>
             </div>
 

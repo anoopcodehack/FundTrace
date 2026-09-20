@@ -703,7 +703,7 @@ export default function DonorApprovalsPage() {
                               </Link>
                               {camp.myDonationFtu > 0 && (
                                 <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-                                  You contributed {formatFtu(camp.myDonationFtu)} ({camp.myVotingWeight}% weight)
+                                  You contributed {formatFtu(camp.myDonationFtu)} ({camp.myVotingWeight}% share)
                                 </span>
                               )}
                             </div>
@@ -932,7 +932,7 @@ export default function DonorApprovalsPage() {
                                 </div>
                                 <h4 className="font-black font-display text-stone-900 text-base line-clamp-1">{camp.title}</h4>
                                 <p className="text-xs text-stone-600 font-medium mt-1">
-                                  Your Backing: <strong className="text-stone-900">{formatFtu(camp.myDonationFtu)}</strong> ({camp.myVotingWeight}% voting weight)
+                                  Your Backing: <strong className="text-stone-900">{formatFtu(camp.myDonationFtu)}</strong> ({camp.myVotingWeight}% contribution share)
                                 </p>
                               </div>
 
@@ -1000,7 +1000,7 @@ export default function DonorApprovalsPage() {
                                   <Clock className="w-3 h-3" /> Awaiting Sanction
                                 </span>
                                 <span className="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-bold rounded-full flex items-center gap-1">
-                                  Your Weight: {q.donorVotingWeight}%
+                                  Your Share: {q.donorVotingWeight}%
                                 </span>
                                 {q.campaignAutomationEnabled && (
                                   <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full flex items-center gap-1">

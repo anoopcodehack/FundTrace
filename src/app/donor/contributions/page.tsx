@@ -209,7 +209,7 @@ export default function DonorContributionsPage() {
                 <span className="text-stone-900 text-sm font-bold">My Contributions</span>
               </div>
               <h1 className="text-5xl font-black font-bebas uppercase tracking-tight text-stone-900">Impact Portfolio</h1>
-              <p className="text-stone-600 font-medium mt-2">Track the campaigns you've funded, monitor voting weight, and back new initiatives.</p>
+              <p className="text-stone-600 font-medium mt-2">Track the campaigns you've funded, monitor contribution shares, and back new initiatives.</p>
             </div>
             <div className="flex gap-3">
               <button
@@ -309,7 +309,7 @@ export default function DonorContributionsPage() {
                             <p className="text-2xl font-black font-mono text-emerald-700">{formatFtu(contrib.amountFtu)}</p>
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">Your Voting Weight</p>
+                            <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">Your Contribution Share</p>
                             <p className="text-2xl font-black font-mono text-stone-900">{weight}%</p>
                           </div>
                           <div className="col-span-2 md:col-span-1">

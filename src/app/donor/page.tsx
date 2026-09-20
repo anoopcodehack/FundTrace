@@ -403,7 +403,7 @@ export default function DonorPortfolioPage() {
                       <div>
                         <p className="font-bold text-amber-900 text-sm">Campaign Overview</p>
                         <p className="text-xs text-amber-700 mt-0.5">
-                          You haven't contributed to this campaign yet. Back this initiative to gain voting weight and sanction allocations.
+                          You haven't contributed to this campaign yet. Back this initiative to gain contribution share and sanction allocations.
                         </p>
                       </div>
                       <Link

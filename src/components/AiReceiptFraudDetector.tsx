@@ -22,7 +22,7 @@ export default function AiReceiptFraudDetector() {
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FF5023] text-white text-[11px] font-mono font-bold uppercase tracking-wider shadow-xs">
-              <ReceiptText className="w-3 h-3" /> Pre-Vote Invoice Audit
+              <ReceiptText className="w-3 h-3" /> Pre-Sanction Invoice Audit
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-mono font-bold">
               <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 98.4% Legit · Low Risk
@@ -33,7 +33,7 @@ export default function AiReceiptFraudDetector() {
             Expenditure &amp; Price-Inflation Verification
           </h4>
           <p className="text-xs text-stone-500 mt-0.5">
-            Automated market benchmark and duplicate check before donors cast their votes.
+            Automated market benchmark and duplicate check before donors sanction fund releases.
           </p>
         </div>
 
@@ -217,7 +217,7 @@ export default function AiReceiptFraudDetector() {
       <div className="mt-4 pt-3 border-t border-[#FF5023]/20 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] font-mono text-stone-500 gap-2">
         <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-          Pre-Vote Audit Status: Verified safe for contributor release vote
+          Pre-Sanction Audit Status: Verified safe for contributor quotation sanction
         </span>
         <span className="text-stone-400">FundTrace Verified</span>
       </div>
