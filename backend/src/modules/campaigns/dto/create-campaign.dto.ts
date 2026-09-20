@@ -51,3 +51,60 @@ export class CreateCampaignDto {
   @IsNumber()
   onChainId?: number;
 }
+
+export class PrepareCampaignDto {
+  @ApiProperty({ example: 'Build Rural STEM Lab' })
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @ApiProperty({ example: 'Education' })
+  @IsString()
+  @IsNotEmpty()
+  category: string;
+
+  @ApiProperty({ example: 'Rural District' })
+  @IsString()
+  @IsNotEmpty()
+  location: string;
+
+  @ApiProperty({ example: 'A brief summary of your campaign' })
+  @IsString()
+  @IsNotEmpty()
+  shortDescription: string;
+
+  @ApiProperty({ example: 'Equipping 10 rural schools with robotics starter kits.' })
+  @IsString()
+  @IsNotEmpty()
+  story: string;
+
+  @ApiPropertyOptional({ example: 'https://images.unsplash.com/...' })
+  @IsOptional()
+  @IsString()
+  coverImage?: string;
+
+  @ApiPropertyOptional({ example: 'https://drive.google.com/...' })
+  @IsOptional()
+  @IsString()
+  supportingDocs?: string;
+
+  @ApiProperty({ example: 100000 })
+  @IsNumber()
+  goalFtu: number;
+
+  @ApiProperty({ example: 30 })
+  @IsNumber()
+  durationDays: number;
+
+  @ApiProperty({ example: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' })
+  @IsString()
+  @IsNotEmpty()
+  creatorAddress: string;
+}
+
+export class ConfirmCampaignDto {
+  @ApiProperty({ example: '0x123abc...' })
+  @IsString()
+  @IsNotEmpty()
+  txHash: string;
+}

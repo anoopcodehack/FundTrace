@@ -27,7 +27,6 @@ export default function CreateCampaignPage() {
   // Step 2 State: Funding Setup
   const [goalFtu, setGoalFtu] = useState("100000"); // 1 FTU = ₹1
   const [durationDays, setDurationDays] = useState("30");
-  const [approvalMode, setApprovalMode] = useState<"manual" | "ai">("manual");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedId, setSubmittedId] = useState<number | null>(null);
@@ -39,8 +38,7 @@ export default function CreateCampaignPage() {
         story,
         category,
         location,
-        shortDescription,
-        approvalMode
+        shortDescription
       })
     : "0x7c21b8d862db1881c3edd13b662e0815f119004521083617159f709d45b52003";
 
@@ -67,7 +65,6 @@ export default function CreateCampaignPage() {
         supportingDocs,
         goalFtu: Number(goalFtu),
         durationDays: Number(durationDays),
-        approvalMode,
         creatorAddress: wallet.address
       };
 
@@ -142,7 +139,7 @@ export default function CreateCampaignPage() {
                 DEPLOY AUDITED CAMPAIGN
               </h1>
               <p className="text-xs sm:text-sm text-stone-300 max-w-xl leading-relaxed">
-                Submit campaign details, funding goal in FTU, and approval model. The quotation, AI analysis, donor sanction, and allocation process happens after the campaign is created.
+                Submit campaign details and funding goal in FTU. The quotation, AI analysis, donor sanction, and allocation process happens after the campaign is created.
               </p>
             </div>
 
@@ -322,53 +319,6 @@ export default function CreateCampaignPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-4 border-t border-stone-200">
-                  <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Approval Mode *</label>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Manual Approval Card */}
-                    <div 
-                      onClick={() => setApprovalMode("manual")}
-                      className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                        approvalMode === "manual" ? "border-[#FF5023] bg-[#FF5023]/5" : "border-stone-200 hover:border-stone-300 bg-white"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${approvalMode === "manual" ? "border-[#FF5023]" : "border-stone-300"}`}>
-                          {approvalMode === "manual" && <div className="w-2 h-2 rounded-full bg-[#FF5023]" />}
-                        </div>
-                        <h4 className="font-black uppercase text-sm">Manual Approval</h4>
-                      </div>
-                      <ul className="text-xs text-stone-600 space-y-1.5 pl-6 list-disc">
-                        <li>Creator submits quotations later.</li>
-                        <li>AI evaluates each quotation.</li>
-                        <li>Donor manually approves/rejects.</li>
-                      </ul>
-                    </div>
-
-                    {/* AI-Assisted Approval Card */}
-                    <div 
-                      onClick={() => setApprovalMode("ai")}
-                      className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                        approvalMode === "ai" ? "border-emerald-500 bg-emerald-500/5" : "border-stone-200 hover:border-stone-300 bg-white"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${approvalMode === "ai" ? "border-emerald-500" : "border-stone-300"}`}>
-                          {approvalMode === "ai" && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
-                        </div>
-                        <h4 className="font-black uppercase text-sm text-emerald-700">AI-Assisted Approval</h4>
-                      </div>
-                      <ul className="text-xs text-stone-600 space-y-1.5 pl-6 list-disc">
-                        <li>Donor enables automated processing.</li>
-                        <li>Quotations automatically evaluated by AI.</li>
-                        <li>AI recommends APPROVE/REJECT based on policy.</li>
-                        <li>Donor can override the decision.</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
               </div>
             )}
 
@@ -393,10 +343,6 @@ export default function CreateCampaignPage() {
                     <div className="flex flex-col border-b border-stone-100 pb-2">
                       <span className="text-[10px] font-mono uppercase text-stone-500">Goal</span>
                       <strong className="text-[#FF5023] text-lg font-bebas tracking-wide">{goalFtu} FTU / ₹{goalFtu}</strong>
-                    </div>
-                    <div className="flex flex-col border-b border-stone-100 pb-2">
-                      <span className="text-[10px] font-mono uppercase text-stone-500">Approval Mode</span>
-                      <strong className="text-[#141414]">{approvalMode === "manual" ? "Manual Approval" : "AI-Assisted Approval"}</strong>
                     </div>
                     <div className="flex flex-col border-b border-stone-100 pb-2">
                       <span className="text-[10px] font-mono uppercase text-stone-500">Creator Wallet</span>

@@ -3,7 +3,8 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from '../database/supabase.provider';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { computeCanonicalMetadataHash, verifyHashMatch } from '../../utils/canonical';
-import { CreateCampaignDto } from './dto/create-campaign.dto';
+import { CreateCampaignDto, PrepareCampaignDto } from './dto/create-campaign.dto';
+import { ethers } from 'ethers';
 
 @Injectable()
 export class CampaignsService {
@@ -62,6 +63,107 @@ export class CampaignsService {
       return campaignData;
     }
   }
+
+  async prepareCampaign(dto: PrepareCampaignDto) {
+    if (dto.durationDays <= 0) throw new Error("Invalid duration");
+
+    const canonicalHash = computeCanonicalMetadataHash({
+      title: dto.title,
+      story: dto.story,
+      category: dto.category,
+      location: dto.location,
+      shortDescription: dto.shortDescription
+    });
+
+    const campaignData: any = {
+      title: dto.title,
+      tagline: dto.shortDescription,
+      category: dto.category,
+      story: dto.story,
+      location: dto.location,
+      cover_image_url: dto.coverImage || '',
+      canonical_hash: canonicalHash,
+      creator_address: dto.creatorAddress,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Store pending campaign to get an offChainId
+    const { data: inserted, error } = await this.supabase
+      .from('campaigns')
+      .insert(campaignData)
+      .select()
+      .single();
+
+    if (error) {
+      this.logger.error(`Failed to insert pending campaign: ${error.message}`);
+      throw error;
+    }
+
+    const contract = this.blockchainService.getContract();
+    if (!contract) throw new Error("Contract not connected");
+
+    const deadline = Math.floor(Date.now() / 1000) + dto.durationDays * 86400;
+    
+    // Default institutional verifier
+    const defaultVerifier = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'; 
+    const goalWei = ethers.parseEther(dto.goalFtu.toString());
+
+    const txData = await contract.createCampaign.populateTransaction(
+      goalWei,
+      deadline,
+      canonicalHash,
+      defaultVerifier
+    );
+
+    return {
+      transactionData: {
+        to: txData.to,
+        data: txData.data,
+      },
+      metadataHash: canonicalHash,
+      offChainId: inserted.id
+    };
+  }
+
+  async confirmCampaign(id: string, txHash: string) {
+    const provider = this.blockchainService.getProvider();
+    const contract = this.blockchainService.getContract();
+    if (!contract || !provider) throw new Error("Blockchain not connected");
+
+    const receipt = await provider.getTransactionReceipt(txHash);
+    if (!receipt) throw new Error("Transaction receipt not found");
+
+    let onChainId = null;
+    for (const log of receipt.logs) {
+      try {
+        const parsed = contract.interface.parseLog({
+          topics: [...log.topics],
+          data: log.data
+        });
+        if (parsed && parsed.name === 'CampaignCreated') {
+          onChainId = Number(parsed.args[0]);
+          break;
+        }
+      } catch (e) {
+        // Not all logs will parse with our contract interface, ignore errors
+      }
+    }
+
+    if (onChainId === null) {
+      // Just save the txHash for now if we can't parse it
+      await this.supabase.from('campaigns').update({ tx_hash: txHash }).eq('id', id);
+      return { status: 'pending_confirmation', txHash };
+    }
+
+    // Update with the confirmed on_chain_id
+    await this.supabase.from('campaigns').update({ 
+      on_chain_id: onChainId,
+      tx_hash: txHash 
+    }).eq('id', id);
+
+    return { status: 'confirmed', onChainId };
+  }
+
 
   async findAll() {
     const { data, error } = await this.supabase.from('campaigns').select('*').order('created_at', { ascending: false });
