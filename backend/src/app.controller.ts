@@ -1,11 +1,16 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BlockchainService } from './modules/blockchain/blockchain.service';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_CLIENT } from './modules/database/supabase.provider';
 
 @ApiTags('Health & System')
 @Controller()
 export class AppController {
-  constructor(private readonly blockchainService: BlockchainService) {}
+  constructor(
+    private readonly blockchainService: BlockchainService,
+    @Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Backend service status and connected smart contract overview' })
@@ -23,5 +28,20 @@ export class AppController {
       },
       docsUrl: '/api/docs',
     };
+  }
+
+  @Get('users')
+  @ApiOperation({ summary: 'Get all seeded users and roles from Supabase' })
+  async getUsers() {
+    try {
+      const { data, error } = await this.supabase
+        .from('users')
+        .select('wallet_address, name, role, avatar_url, bio, created_at')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    } catch (err: any) {
+      return [];
+    }
   }
 }

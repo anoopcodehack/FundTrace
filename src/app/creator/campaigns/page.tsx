@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import RoleGuard from '@/components/RoleGuard';
 import { useWallet } from '@/context/WalletContext';
 import { getFundTraceContract } from '@/lib/contract';
-import { MOCK_CAMPAIGNS_ONCHAIN, MOCK_CAMPAIGNS_METADATA } from '@/lib/mock';
 import { formatFtu, CampaignState } from '@/types';
 import Link from 'next/link';
 import { 
@@ -61,14 +60,16 @@ export default function CreatorCampaignsPage() {
         console.warn("Could not fetch DB campaigns:", e);
       }
 
-      // 2. Fetch contract instance
+      // 2. Fetch contract instance with timeout
       let contract: any = null;
       let count = 0;
       try {
         contract = getFundTraceContract();
-        count = Number(await contract.campaignCount());
+        const countPromise = contract.campaignCount();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
+        count = Number(await Promise.race([countPromise, timeoutPromise]));
       } catch (chainErr) {
-        console.warn("Could not read contract campaigns:", chainErr);
+        console.warn("Could not read contract campaigns (using Supabase records):", chainErr);
       }
 
       // Process DB campaigns matching creator
@@ -131,7 +132,6 @@ export default function CreatorCampaignsPage() {
             try {
               const c = await contract.getCampaign(i);
               if (c.creator.toLowerCase() === currentAddress) {
-                const mockMeta = MOCK_CAMPAIGNS_METADATA[i];
                 seenIds.add(i);
                 items.push({
                   id: i,
@@ -143,9 +143,9 @@ export default function CreatorCampaignsPage() {
                   totalSanctionedWei: c.totalSanctioned.toString(),
                   totalAllocatedWei: c.totalAllocated.toString(),
                   totalClaimedWei: c.totalClaimed.toString(),
-                  title: mockMeta?.title || `Campaign #${i}`,
-                  tagline: mockMeta?.tagline || "Decentralized audited fund initiative",
-                  coverImageUrl: mockMeta?.coverImageUrl || "",
+                  title: `Campaign #${i}`,
+                  tagline: "Decentralized audited fund initiative",
+                  coverImageUrl: "",
                   isPendingVerification: Number(c.state) === CampaignState.PendingVerification
                 });
               }
@@ -181,31 +181,6 @@ export default function CreatorCampaignsPage() {
         }
       } catch (localErr) {
         console.warn("Could not read local campaigns:", localErr);
-      }
-
-      // 5. If user is in demo mode or default creator, also append the demo mock campaigns so they are always accessible
-      if (currentAddress === DEMO_CREATOR.toLowerCase() || !wallet.address) {
-        const demoMocks = MOCK_CAMPAIGNS_ONCHAIN
-          .filter(c => c.creator.toLowerCase() === DEMO_CREATOR.toLowerCase() && !seenIds.has(c.id))
-          .map(c => {
-            const meta = MOCK_CAMPAIGNS_METADATA[c.id];
-            return {
-              id: c.id,
-              onChainId: c.id,
-              creator: c.creator,
-              state: c.state,
-              goalWei: c.goalWei,
-              totalDonatedWei: c.totalDonatedWei,
-              totalSanctionedWei: c.totalSanctionedWei,
-              totalAllocatedWei: c.totalAllocatedWei,
-              totalClaimedWei: c.totalClaimedWei,
-              title: meta?.title || `Campaign #${c.id}`,
-              tagline: meta?.tagline || "",
-              coverImageUrl: meta?.coverImageUrl || "",
-              isPendingVerification: c.state === CampaignState.PendingVerification
-            };
-          });
-        items.push(...demoMocks);
       }
 
       setCampaigns(items);

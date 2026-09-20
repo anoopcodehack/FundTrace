@@ -120,6 +120,7 @@ export default function Navbar() {
         {/* Native Responsive Role Switcher Dropdown */}
         <div className="relative" ref={menuRef}>
           <button
+            id="demo-role-trigger"
             onClick={() => setShowRoleMenu(!showRoleMenu)}
             className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 text-xs font-bold text-stone-900 shadow-sm transition-all hover:bg-stone-100 hover:border-stone-300 focus:outline-none cursor-pointer"
           >
@@ -134,8 +135,10 @@ export default function Navbar() {
               <div className="py-1 space-y-1 max-h-80 overflow-y-auto">
                 {DEMO_PRESET_ACCOUNTS.map((preset) => {
                   const isCurrent = preset.address.toLowerCase() === wallet.address?.toLowerCase();
+                  const roleSlug = preset.appRole ? preset.appRole.toLowerCase() : preset.role.toLowerCase().replace(/[^a-z0-9]/g, '-');
                   return (
                     <button
+                      id={`demo-role-${roleSlug}`}
                       key={preset.address}
                       onClick={() => {
                         handleRoleSwitch(preset);
@@ -176,6 +179,7 @@ export default function Navbar() {
         </div>
 
         <Button
+          id="connect-wallet-button"
           onClick={connectMetaMask}
           disabled={isLoading}
           variant="secondary"
