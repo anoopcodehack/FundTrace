@@ -85,19 +85,19 @@ export default function CampaignDetailPage() {
 
         {/* PENDING VERIFICATION ALERT (For Campaign #2) */}
         {isPendingCampaign && (
-          <div className="mb-8 p-6 rounded-3xl bg-amber-950/40 border border-amber-500/30 text-amber-100 shadow-xl flex items-start gap-4 animate-fade-in">
-            <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+          <div className="mb-8 p-6 rounded-3xl bg-amber-50 border border-amber-200 shadow-sm flex items-start gap-4 animate-fade-in">
+            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0 mt-0.5 shadow-inner">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </div>
-            <div className="space-y-1">
-              <h4 className="font-black font-bebas text-2xl uppercase tracking-wide text-amber-300">
+            <div className="space-y-1.5">
+              <h4 className="font-black font-bebas text-2xl uppercase tracking-wide text-amber-900">
                 CAMPAIGN LOCKED: AWAITING INSTITUTIONAL AUDITOR SIGNOFF
               </h4>
-              <p className="text-xs text-amber-200/80 leading-relaxed font-sans">
-                Smart Contract Rule Enforcement: Unverified campaigns cannot receive any donations. An institutional verifier must review credentials and call <code className="font-mono bg-black/40 text-amber-300 px-1.5 py-0.5 rounded">verifyCampaign()</code> before public funding opens.
+              <p className="text-xs text-amber-800/80 leading-relaxed font-sans max-w-3xl">
+                Smart Contract Rule Enforcement: Unverified campaigns cannot receive any donations. An institutional verifier must review credentials and call <code className="font-mono bg-white text-amber-700 px-1.5 py-0.5 rounded border border-amber-200 font-bold shadow-sm">verifyCampaign()</code> before public funding opens.
               </p>
             </div>
           </div>
