@@ -144,7 +144,7 @@ export default function Navbar() {
               <span>{wallet.displayAddress}</span>
               {wallet.balanceEth && (
                 <span className="text-[10px] bg-stone-200 px-1.5 py-0.5 rounded text-stone-800 hidden sm:inline">
-                  {wallet.balanceEth} ETH
+                  {wallet.balanceEth} FTC
                 </span>
               )}
             </span>

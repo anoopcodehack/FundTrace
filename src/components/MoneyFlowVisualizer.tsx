@@ -40,10 +40,10 @@ export default function MoneyFlowVisualizer({ campaignId = 1 }: { campaignId?: n
       step: "01",
       title: "Contributors",
       subtitle: "3 Verified Donors",
-      amount: "3.20 ETH",
+      amount: "3.20 FTC",
       statusBadge: "Deposited",
       statusType: "neutral",
-      details: "Multi-donor contribution pool locked in non-custodial smart escrow. Alice (1.50 ETH · 46.9% voting weight), Bob (1.00 ETH · 31.3%), Charlie (0.70 ETH · 21.8%).",
+      details: "Multi-donor contribution pool locked in non-custodial smart escrow. Alice (1.50 FTC · 46.9% voting weight), Bob (1.00 FTC · 31.3%), Charlie (0.70 FTC · 21.8%).",
       txHash: "0x4a19e83f72e9a2b5c018274d9e0129fbc81203",
       metrics: [
         { label: "Donor Count", value: "3 Contributors" },
@@ -56,13 +56,13 @@ export default function MoneyFlowVisualizer({ campaignId = 1 }: { campaignId?: n
       step: "02",
       title: "Fund Escrow",
       subtitle: "Smart Contract #31337",
-      amount: "2.00 ETH",
+      amount: "2.00 FTC",
       statusBadge: "In Escrow",
       statusType: "neutral",
       details: "Autonomous smart contract vault. Contributed funds remain locked in escrow until milestone requests pass contributor majority voting.",
       txHash: "0x8f3c71a04b12d59e44921074da918239049182",
       metrics: [
-        { label: "Escrow Balance", value: "2.00 ETH Remaining" },
+        { label: "Escrow Balance", value: "2.00 FTC Remaining" },
         { label: "Protection", value: "Dead-Man 30-Day Auto-Refund" },
         { label: "Release Gate", value: "Snapshot Contributor Approval" },
       ],
@@ -72,7 +72,7 @@ export default function MoneyFlowVisualizer({ campaignId = 1 }: { campaignId?: n
       step: "03",
       title: "Milestone 1",
       subtitle: "50 Robotics Kits",
-      amount: "1.20 ETH",
+      amount: "1.20 FTC",
       statusBadge: "Released",
       statusType: "success",
       details: "Spending Request #01 approved by 78.2% contributor consensus. Funds released on-chain to authorized vendor with on-time receipt delivery.",
@@ -89,7 +89,7 @@ export default function MoneyFlowVisualizer({ campaignId = 1 }: { campaignId?: n
       step: "04",
       title: "Beneficiary",
       subtitle: "Principal Sharma (STEM)",
-      amount: "1.20 ETH",
+      amount: "1.20 FTC",
       statusBadge: "Disbursed",
       statusType: "success",
       details: "Authorized recipient wallet received funds and signed delivery attestation for 50 student robotics lab kits. No intermediary deductions.",
@@ -124,7 +124,7 @@ export default function MoneyFlowVisualizer({ campaignId = 1 }: { campaignId?: n
     setIsSimulating(true);
     setSimulationNotice("Tracing active fund flow across smart escrow contract...");
     setTimeout(() => {
-      setSimulationNotice("Flow verified: 3.20 ETH deposited → 1.20 ETH disbursed for Milestone 1 → SHA-256 invoice anchored.");
+      setSimulationNotice("Flow verified: 3.20 FTC deposited → 1.20 FTC disbursed for Milestone 1 → SHA-256 invoice anchored.");
       setIsSimulating(false);
       setTimeout(() => setSimulationNotice(null), 4500);
     }, 1200);

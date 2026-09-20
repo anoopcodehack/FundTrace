@@ -91,7 +91,7 @@ export default function Hero() {
           <div className="col-span-2 space-y-4">
              <div className="flex justify-between items-center bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-lg">
                 <span className="text-emerald-400 font-mono text-xs">Milestone Approved</span>
-                <span className="text-emerald-400 font-mono text-xs font-bold">1.2 ETH Released</span>
+                <span className="text-emerald-400 font-mono text-xs font-bold">1.2 FTC Released</span>
              </div>
              <div className="h-12 w-full bg-stone-50 rounded-lg border border-stone-200" />
           </div>

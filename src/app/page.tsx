@@ -487,7 +487,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-baseline gap-1 my-1">
                   <span className="text-5xl font-black font-bebas">4.2</span>
-                  <span className="text-xs font-bold text-stone-800">ETH Protected</span>
+                  <span className="text-xs font-bold text-stone-800">FTC Protected</span>
                 </div>
               </div>
 
@@ -652,7 +652,7 @@ export default function HomePage() {
           <div className="flex items-center gap-4">
             {requestReleased ? (
               <span className="px-4 py-2 rounded-lg bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 font-semibold text-xs">
-                ✓ 1.20 ETH Released
+                ✓ 1.20 FTC Released
               </span>
             ) : (
               <button
@@ -704,7 +704,7 @@ export default function HomePage() {
                   href="/campaigns"
                   className="py-3 px-6 rounded-xl bg-[#141414] hover:bg-black text-white text-xs font-bold font-mono tracking-wider transition-all shadow-md"
                 >
-                  protocol.fundtrace.eth
+                  protocol.fundtrace.ftc
                 </Link>
               </div>
             </div>

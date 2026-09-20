@@ -174,7 +174,7 @@ export default function CampaignDetailPage() {
               </div>
               <div className="text-3xl sm:text-4xl font-black font-bebas text-white leading-none">
                 {id === 1 ? "3.00" : id === 2 ? "5.00" : "1.00"}{" "}
-                <span className="text-lg font-bold text-stone-400">ETH</span>
+                <span className="text-lg font-bold text-stone-400">FTC</span>
               </div>
             </div>
 
@@ -185,7 +185,7 @@ export default function CampaignDetailPage() {
               <div className="flex items-baseline gap-2">
                 <div className="text-3xl sm:text-4xl font-black font-bebas text-amber-400 leading-none">
                   {id === 1 ? "3.20" : id === 2 ? "0.00" : "1.00"}{" "}
-                  <span className="text-lg font-bold text-stone-400">ETH</span>
+                  <span className="text-lg font-bold text-stone-400">FTC</span>
                 </div>
                 {id === 1 && (
                   <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-700">
@@ -201,7 +201,7 @@ export default function CampaignDetailPage() {
               </div>
               <div className="text-3xl sm:text-4xl font-black font-bebas text-white leading-none">
                 {id === 1 ? "1.20" : id === 2 ? "0.00" : "0.80"}{" "}
-                <span className="text-lg font-bold text-stone-400">ETH</span>
+                <span className="text-lg font-bold text-stone-400">FTC</span>
               </div>
             </div>
 
@@ -211,7 +211,7 @@ export default function CampaignDetailPage() {
               </div>
               <div className="text-3xl sm:text-4xl font-black font-bebas text-emerald-400 leading-none">
                 {id === 1 ? "2.00" : id === 2 ? "0.00" : "0.20"}{" "}
-                <span className="text-lg font-bold text-stone-400">ETH</span>
+                <span className="text-lg font-bold text-stone-400">FTC</span>
               </div>
             </div>
           </div>
@@ -262,7 +262,7 @@ export default function CampaignDetailPage() {
 
               <div className="text-left sm:text-right">
                 <div className="text-2xl sm:text-3xl font-black font-bebas text-stone-900 leading-none">
-                  1.20 <span className="text-base font-bold text-stone-500">ETH</span>
+                  1.20 <span className="text-base font-bold text-stone-500">FTC</span>
                 </div>
                 <div className="text-[11px] font-mono text-stone-500 mt-1">Recipient: 0x976E...0aa9</div>
               </div>
@@ -311,7 +311,7 @@ export default function CampaignDetailPage() {
 
               <div className="text-left sm:text-right">
                 <div className="text-2xl sm:text-3xl font-black font-bebas text-stone-900 leading-none">
-                  0.50 <span className="text-base font-bold text-stone-500">ETH</span>
+                  0.50 <span className="text-base font-bold text-stone-500">FTC</span>
                 </div>
                 <div className="text-xs font-mono text-stone-500 mt-1">Vendor: 0x14dC...9955</div>
               </div>
@@ -349,7 +349,7 @@ export default function CampaignDetailPage() {
               <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between">
                 <div>
                   <div className="font-semibold text-sm text-stone-900">Alice (Donor)</div>
-                  <div className="text-xs text-stone-500 mt-0.5">Donated 1.50 ETH · 46.9% Weight</div>
+                  <div className="text-xs text-stone-500 mt-0.5">Donated 1.50 FTC · 46.9% Weight</div>
                 </div>
                 <button
                   onClick={() => setAliceVoted(!aliceVoted)}
@@ -367,7 +367,7 @@ export default function CampaignDetailPage() {
               <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between">
                 <div>
                   <div className="font-semibold text-sm text-stone-900">Bob (Donor)</div>
-                  <div className="text-xs text-stone-500 mt-0.5">Donated 1.00 ETH · 31.3% Weight</div>
+                  <div className="text-xs text-stone-500 mt-0.5">Donated 1.00 FTC · 31.3% Weight</div>
                 </div>
                 <button
                   onClick={() => setBobVoted(!bobVoted)}
@@ -388,7 +388,7 @@ export default function CampaignDetailPage() {
               {requestReleased ? (
                 <div className="space-y-4">
                   <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium text-center">
-                    ✓ 0.50 ETH Transferred Directly to Vendor (0x14dC...9955).
+                    ✓ 0.50 FTC Transferred Directly to Vendor (0x14dC...9955).
                   </div>
 
                   {/* Anti-Phantom Delivery Beneficiary Attestation Box */}
@@ -444,7 +444,7 @@ export default function CampaignDetailPage() {
                       : "bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed"
                   }`}
                 >
-                  {isApproved ? "Execute Controlled Release (0.50 ETH)" : "Locked: Requires >50% Contributor Approval"}
+                  {isApproved ? "Execute Controlled Release (0.50 FTC)" : "Locked: Requires >50% Contributor Approval"}
                 </button>
               )}
             </div>
@@ -467,7 +467,7 @@ export default function CampaignDetailPage() {
                   Abandoned Student Project Protection (Auto-Refund Shield)
                 </h3>
                 <p className="text-xs text-stone-600 max-w-3xl leading-relaxed font-sans">
-                  <strong>The Real-World Student Problem:</strong> Student teams often raise 3.20 ETH, spend 1.20 ETH on Phase 1, graduate, and disappear. The remaining 2.00 ETH sits locked in smart contracts forever. FundTrace enforces a 30-day inactivity timeout allowing contributors to withdraw their exact proportional share of unspent escrow.
+                  <strong>The Real-World Student Problem:</strong> Student teams often raise 3.20 FTC, spend 1.20 FTC on Phase 1, graduate, and disappear. The remaining 2.00 FTC sits locked in smart contracts forever. FundTrace enforces a 30-day inactivity timeout allowing contributors to withdraw their exact proportional share of unspent escrow.
                 </p>
               </div>
 
@@ -487,20 +487,20 @@ export default function CampaignDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-1">
                 <div className="text-[10px] font-mono uppercase font-bold text-stone-500">Unspent Escrow In Contract</div>
-                <div className="text-2xl font-black font-bebas text-stone-900">2.00 ETH</div>
-                <div className="text-[11px] text-stone-500">Out of 3.20 ETH initial total</div>
+                <div className="text-2xl font-black font-bebas text-stone-900">2.00 FTC</div>
+                <div className="text-[11px] text-stone-500">Out of 3.20 FTC initial total</div>
               </div>
 
               <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-1">
                 <div className="text-[10px] font-mono uppercase font-bold text-stone-500">Your Donation Weight</div>
-                <div className="text-2xl font-black font-bebas text-stone-900">1.50 ETH</div>
+                <div className="text-2xl font-black font-bebas text-stone-900">1.50 FTC</div>
                 <div className="text-[11px] text-stone-500">Alice (46.875% of total pool)</div>
               </div>
 
               <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-1">
                 <div className="text-[10px] font-mono uppercase font-bold text-stone-500">Calculated Refund Share</div>
-                <div className="text-2xl font-black font-bebas text-emerald-700">0.9375 ETH</div>
-                <div className="text-[11px] font-mono text-stone-500">(1.50 × 2.00) ÷ 3.20 ETH</div>
+                <div className="text-2xl font-black font-bebas text-emerald-700">0.9375 FTC</div>
+                <div className="text-[11px] font-mono text-stone-500">(1.50 × 2.00) ÷ 3.20 FTC</div>
               </div>
             </div>
 
@@ -513,21 +513,21 @@ export default function CampaignDetailPage() {
                     <span>Campaign Inactive (31 Days Without On-Chain Activity)</span>
                   </div>
                   <div className="text-xs text-stone-600 mt-0.5 font-sans">
-                    Dead-Man's Auto-Refund unlocked. Claiming returns your 0.9375 ETH proportional share directly to your wallet.
+                    Dead-Man's Auto-Refund unlocked. Claiming returns your 0.9375 FTC proportional share directly to your wallet.
                   </div>
                 </div>
 
                 {dormancyRefundClaimed ? (
                   <div className="px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold flex items-center gap-2 shadow-sm">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span>Refund Claimed (0.9375 ETH)</span>
+                    <span>Refund Claimed (0.9375 FTC)</span>
                   </div>
                 ) : (
                   <button
                     onClick={() => setDormancyRefundClaimed(true)}
                     className="py-2.5 px-5 rounded-xl bg-[#FF5023] hover:bg-[#e0441b] text-white text-xs font-semibold uppercase tracking-wider shadow-sm transition-all cursor-pointer whitespace-nowrap"
                   >
-                    Claim Proportional Refund (0.9375 ETH)
+                    Claim Proportional Refund (0.9375 FTC)
                   </button>
                 )}
               </div>

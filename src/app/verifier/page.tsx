@@ -89,7 +89,7 @@ export default function VerifierPortalPage() {
                   Target Goal
                 </div>
                 <div className="text-2xl sm:text-3xl font-black font-bebas text-stone-900 leading-none mt-0.5">
-                  5.00 <span className="text-base font-bold text-stone-500">ETH</span>
+                  5.00 <span className="text-base font-bold text-stone-500">FTC</span>
                 </div>
                 <div className="text-xs font-mono text-stone-500 mt-1">Duration: 30 Days</div>
               </div>

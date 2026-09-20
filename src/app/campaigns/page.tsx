@@ -193,7 +193,7 @@ export default function CampaignsPage() {
                         TOTAL RAISED
                       </div>
                       <div className="text-3xl sm:text-4xl font-black font-bebas text-stone-900 leading-none tracking-wide mt-0.5">
-                        {campaign.raisedEth.toFixed(2)} <span className="text-lg font-bold text-stone-500">ETH</span>
+                        {campaign.raisedEth.toFixed(2)} <span className="text-lg font-bold text-stone-500">FTC</span>
                       </div>
                     </div>
                     <div className="text-right">
@@ -201,7 +201,7 @@ export default function CampaignsPage() {
                         TARGET GOAL
                       </div>
                       <div className="text-xl font-black font-bebas text-stone-700 leading-none tracking-wide mt-0.5">
-                        {campaign.goalEth.toFixed(2)} ETH
+                        {campaign.goalEth.toFixed(2)} FTC
                       </div>
                     </div>
                   </div>
@@ -220,11 +220,11 @@ export default function CampaignsPage() {
                   <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
                     <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/70">
                       <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-stone-400 block">In Escrow</span>
-                      <span className="text-base font-black font-bebas text-stone-800 tracking-wide">{campaign.balanceEth.toFixed(2)} ETH</span>
+                      <span className="text-base font-black font-bebas text-stone-800 tracking-wide">{campaign.balanceEth.toFixed(2)} FTC</span>
                     </div>
                     <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/70">
                       <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-stone-400 block">Released</span>
-                      <span className="text-base font-black font-bebas text-stone-800 tracking-wide">{campaign.releasedEth.toFixed(2)} ETH</span>
+                      <span className="text-base font-black font-bebas text-stone-800 tracking-wide">{campaign.releasedEth.toFixed(2)} FTC</span>
                     </div>
                   </div>
                 </div>

@@ -125,7 +125,7 @@ export default function VerifyProofPage() {
                 onChange={(e) => setSelectedRequest(e.target.value)}
                 className="w-full p-3 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
               >
-                <option value="req-1">Campaign #1 · Request #01: 50 Arduino Boards (1.20 ETH)</option>
+                <option value="req-1">Campaign #1 · Request #01: 50 Arduino Boards (1.20 FTC)</option>
               </select>
             </div>
 

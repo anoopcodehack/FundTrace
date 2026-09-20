@@ -56,8 +56,8 @@ const SAMPLE_EVENTS: LedgerEvent[] = [
     txHash: "0x71a2b84729104810293847192847192847192847192847128f23c91e4827d018",
     timestamp: "45 mins ago",
     actor: "0x976E...0aa9 (Vendor)",
-    details: "Transferred 1.20 ETH to Recipient for Request #01",
-    badge: "1.20 ETH RELEASED",
+    details: "Transferred 1.20 FTC to Recipient for Request #01",
+    badge: "1.20 FTC RELEASED",
   },
   {
     id: "3",
@@ -76,7 +76,7 @@ const SAMPLE_EVENTS: LedgerEvent[] = [
     txHash: "0x5847192847192847128f23c91e4827d01871a2b8472910481029384719284710",
     timestamp: "52 mins ago",
     actor: "0x90F7...b906 (Alice)",
-    details: "Cast 1.50 ETH Contribution Weight (46.9%)",
+    details: "Cast 1.50 FTC Contribution Weight (46.9%)",
     badge: "VOTE RECORDED",
   },
   {
@@ -86,7 +86,7 @@ const SAMPLE_EVENTS: LedgerEvent[] = [
     txHash: "0x4810293847192847192847128f23c91e4827d01871a2b8472910481029384719",
     timestamp: "1 hour ago",
     actor: "0x9965...A4dc (Charlie)",
-    details: "Goal Reached: 3.20 ETH Total Raised (107% Funded)",
+    details: "Goal Reached: 3.20 FTC Total Raised (107% Funded)",
     badge: "CLOSED FOR SPENDING",
   },
   {
@@ -96,7 +96,7 @@ const SAMPLE_EVENTS: LedgerEvent[] = [
     txHash: "0x392847192847128f23c91e4827d01871a2b84729104810293847192847192847",
     timestamp: "1 hour ago",
     actor: "0x90F7...b906 (Alice)",
-    details: "Donated 1.50 ETH to Escrow Pool",
+    details: "Donated 1.50 FTC to Escrow Pool",
     badge: "DONATION RECEIVED",
   },
   {
@@ -155,7 +155,7 @@ export default function CampaignLedgerPage() {
     const jsonContent = JSON.stringify(
       {
         campaignId: id,
-        network: "Ethereum Local Node (Chain ID 31337)",
+        network: "FundTrace Local Node (Chain ID 31337)",
         exportedAt: new Date().toISOString(),
         totalEvents: SAMPLE_EVENTS.length,
         events: SAMPLE_EVENTS,
@@ -208,7 +208,7 @@ export default function CampaignLedgerPage() {
                 CAMPAIGN #{id} EVENT LEDGER
               </h1>
               <p className="text-xs sm:text-sm text-stone-300 max-w-xl leading-relaxed">
-                Immutable chronological event log emitted by the FundTrace smart contract on Ethereum node.
+                Immutable chronological event log emitted by the FundTrace smart contract on FundTrace node.
               </p>
             </div>
 
