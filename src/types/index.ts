@@ -2,7 +2,7 @@
  * ============================================================================
  * FUNDTRACE DATA ARCHITECTURE TYPE DEFINITIONS
  * ============================================================================
- * 
+ *
  * CORE ARCHITECTURAL PRINCIPLE:
  * -----------------------------
  * 1. BLOCKCHAIN (The Financial Truth):
@@ -10,16 +10,24 @@
  *    - Voting governance: donor snapshot weights, request approvals, timestamps.
  *    - Release execution: immutable transfers directly to vendor recipients.
  *    - Cryptographic commitments: Keccak-256 hashes of metadata, quotes, and receipts.
- * 
+ *    - Quotation sanction, allocation, claim — all enforced on-chain.
+ *
  * 2. SUPABASE (The Presentation & Storage Layer):
  *    - PostgreSQL: campaign titles, detailed stories, categories, itemized breakdown.
- *    - Storage: untouched original quote PDFs, invoice PDFs, cover images in 'receipts' bucket.
+ *    - Storage: quotation PDFs, invoice PDFs, cover images in 'receipts'/'quotations' buckets.
  *    - Tamper-evident link: Every Supabase document/record is bound to on-chain financial
  *      truth via deterministic Keccak-256 canonical hashing.
+ *
+ * 3. FTU (FundTrace Unit):
+ *    - 1 FTU = ₹1 campaign value
+ *    - Prototype uses 1 FTU = 1 wei on-chain for simplicity
+ *    - UI renders all amounts in FTU (₹ symbol)
  * ============================================================================
  */
 
-// --- 1. BLOCKCHAIN (FINANCIAL TRUTH) ---
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. BLOCKCHAIN ENUMS (mirror Solidity)
+// ─────────────────────────────────────────────────────────────────────────────
 
 export enum CampaignState {
   PendingVerification = 0,
@@ -42,6 +50,23 @@ export enum ProofTiming {
   Late = 2,
 }
 
+export enum QuotationState {
+  Pending = 0,
+  AIEvaluated = 1,
+  DonorApproved = 2,
+  DonorRejected = 3,
+  Sanctioned = 4,
+  Claimable = 5,
+  Claimed = 6,
+  ProofPending = 7,
+  ProofSubmitted = 8,
+  Completed = 9,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. BLOCKCHAIN STRUCTS (mirror Solidity)
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface CampaignOnChain {
   id: number;
   creator: string;
@@ -57,6 +82,11 @@ export interface CampaignOnChain {
   beneficiary?: string;
   lastActivityTimestamp?: number;
   dormancySnapshotEscrow?: string;
+  // New financial tracking
+  totalSanctionedWei: string;
+  totalAllocatedWei: string;
+  totalClaimedWei: string;
+  quotationCount: number;
 }
 
 export interface SpendingRequestOnChain {
@@ -78,6 +108,53 @@ export interface SpendingRequestOnChain {
   deliveryConfirmedAt?: number;
 }
 
+export interface QuotationOnChain {
+  id: number;
+  campaignId: number;
+  creator: string;
+  requestedAmount: string; // FTU (wei)
+  quotationHash: string;
+  submittedAt: number;
+  state: QuotationState;
+  allocatedAmount: string;
+  claimedAmount: string;
+  aiRecommendationHash: string;
+  sanctionedAt: number;
+  claimedAt: number;
+  sanctionedBy: string;
+  proofHash: string;
+  proofSubmitted: boolean;
+  proofSubmittedAt: number;
+  proofTiming: ProofTiming;
+}
+
+export interface CreatorProfileOnChain {
+  score: number;
+  totalQuotations: number;
+  approvedQuotations: number;
+  claimedAmount: string;
+  proofSubmitted: number;
+  onTimeProofs: number;
+  lateProofs: number;
+  missingProofs: number;
+  unresolvedRequests: number;
+  completedCampaigns: number;
+  lastUpdated: number;
+}
+
+export interface CampaignFinancials {
+  totalRaised: string;        // FTU
+  totalSanctioned: string;    // FTU
+  totalAllocated: string;     // FTU
+  totalClaimed: string;       // FTU
+  proofBackedAmount: string;  // FTU
+  remainingBalance: string;   // FTU
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. AUDIT TRAIL EVENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface LedgerEvent {
   eventName:
     | "CampaignCreated"
@@ -94,14 +171,24 @@ export interface LedgerEvent {
     | "Refunded"
     | "BeneficiarySet"
     | "DeliveryConfirmed"
-    | "DormancyRefundClaimed";
+    | "DormancyRefundClaimed"
+    | "QuotationRegistered"
+    | "QuotationAIEvaluated"
+    | "QuotationSanctioned"
+    | "QuotationRejected"
+    | "AllocationClaimed"
+    | "QuotationProofSubmitted"
+    | "CreatorScoreUpdated"
+    | "AutomationToggled";
   transactionHash: string;
   blockNumber: number;
   timestamp?: number;
   args: Record<string, any>;
 }
 
-// --- 2. SUPABASE (PRESENTATION & SUPPORTING DATA) ---
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. SUPABASE LAYER (Presentation & Supporting Data)
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface CampaignMetadata {
   onChainId: number;
@@ -111,7 +198,7 @@ export interface CampaignMetadata {
   story: string;
   location: string;
   coverImageUrl: string;
-  canonicalHash: string; // Keccak-256 hash committed to blockchain
+  canonicalHash: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -126,11 +213,11 @@ export interface SpendingRequestMetadata {
   itemBreakdown: Array<{
     item: string;
     quantity: number;
-    unitPriceEth: string;
-    totalEth: string;
+    unitPriceFtu: string;
+    totalFtu: string;
   }>;
   quoteFileName: string;
-  quoteFileHash: string; // Matches on-chain requestHash
+  quoteFileHash: string;
   createdAt: string;
 }
 
@@ -141,20 +228,130 @@ export interface ProofDocumentRecord {
   fileName: string;
   mimeType: string;
   fileSizeBytes: number;
-  fileHash: string; // Keccak-256 of the raw file buffer
-  fileContentBase64?: string; // Stored file content or Storage path
-  storagePath?: string; // Supabase Storage key
+  fileHash: string;
+  fileContentBase64?: string;
+  storagePath?: string;
   uploadedAt: string;
   isTamperedDemo?: boolean;
 }
 
-// --- 3. INTEGRITY VERIFICATION RESULT ---
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. NEW: QUOTATION SYSTEM
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AIRecommendation {
+  recommendation: "APPROVE" | "REJECT" | "REVIEW";
+  confidence: number; // 0–1
+  riskLevel: "LOW" | "MEDIUM" | "HIGH";
+  reason: string;
+  flags: string[];
+  evaluatedAt: string;
+}
+
+export interface QuotationMetadata {
+  id?: number;
+  campaignId: number;
+  creatorAddress: string;
+  purpose: string;
+  vendorName: string;
+  vendorContact?: string;
+  requestedAmountFtu: number;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPriceFtu: number;
+    totalFtu: number;
+  }>;
+  quotationDocumentUrl?: string;
+  quotationHash: string;
+  onChainQuotationId?: number;
+  state: QuotationState;
+  aiRecommendation?: AIRecommendation;
+  allocatedAmountFtu?: number;
+  claimedAmountFtu?: number;
+  sanctionedBy?: string;
+  isAutomatedSanction?: boolean;
+  submittedAt: string;
+  sanctionedAt?: string;
+  claimedAt?: string;
+  proofDocumentUrl?: string;
+  proofHash?: string;
+  proofTiming?: ProofTiming;
+  completedAt?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. NEW: CREATOR RELIABILITY SCORE
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CreatorScore {
+  creatorAddress: string;
+  currentScore: number;         // 0–100
+  proofCompletionPct: number;   // % of quotations with proof submitted
+  onTimeProofPct: number;       // % of proofs submitted on time
+  budgetConsistencyPct: number; // % where claimed ≈ approved
+  unresolvedRequests: number;
+  completedCampaigns: number;
+  totalQuotations: number;
+  approvedQuotations: number;
+  totalClaimedFtu: number;
+  lateProofs: number;
+  missingProofs: number;
+  lastUpdated: string;
+}
+
+export interface ScoreHistoryEntry {
+  id: number;
+  creatorAddress: string;
+  oldScore: number;
+  newScore: number;
+  reason: string;
+  changedAt: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. FTU UTILITY TYPES
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Convert wei bigint to FTU display string */
+export function weiToFtu(wei: bigint | string): string {
+  const n = typeof wei === "string" ? BigInt(wei) : wei;
+  return n.toString(); // 1 wei = 1 FTU in prototype
+}
+
+/** Convert FTU number to wei bigint */
+export function ftuToWei(ftu: number): bigint {
+  return BigInt(Math.floor(ftu));
+}
+
+/** Format FTU with ₹ symbol */
+export function formatFtu(ftu: number | string): string {
+  const n = typeof ftu === "string" ? Number(ftu) : ftu;
+  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+  if (n >= 1000) return `₹${(n / 1000).toFixed(1)}K`;
+  return `₹${n}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. INTEGRITY VERIFICATION
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface IntegrityVerificationResult {
-  target: "campaign_metadata" | "spending_quote" | "receipt_proof";
+  target: "campaign_metadata" | "spending_quote" | "receipt_proof" | "quotation_document";
   onChainHash: string;
   computedHash: string;
   isMatch: boolean;
   status: "TAMPER_FREE" | "TAMPER_DETECTED" | "UNSUBMITTED";
   details: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. DONOR AUTOMATION SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AutomationSettings {
+  campaignId: number;
+  isEnabled: boolean;
+  enabledBy?: string;
+  enabledAt?: string;
 }

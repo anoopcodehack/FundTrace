@@ -132,6 +132,10 @@ A request is **open** while it is `PENDING`, `APPROVED`, or `RELEASED` without p
 - **Beneficiary Physical Delivery Attestation (`confirmDelivery`) [Versathon 2.0 Innovation]**: Solves "The Phantom Delivery" problem. Even after a vendor is paid and an invoice PDF is uploaded, subsequent spending requests are strictly blocked on-chain until the designated local school principal or hospital headmaster physically signs off on-chain that the physical goods arrived.
 - **Project Dormancy & Dead-Man's Auto-Refund (`claimDormancyRefund`) [Versathon 2.0 Innovation]**: Solves "The Abandoned Student Project" problem. If student organizers graduate or abandon a project for 30+ days, contributors can pull back their exact proportional share of unspent escrow (`(donorDonation * remainingEscrow) / totalDonated`) directly from the smart contract without organizer approval.
 - **Public event ledger**: every financial event with timestamp, transaction hash, donor and recipient addresses, no login.
+- **Phase 2 Quotation System**: A dynamic workflow allowing creators to submit structured spending quotes against remaining campaign balances, which can be partially or fully sanctioned.
+- **AI-Assisted Evaluation**: AI evaluates submitted quotations for risk and plausibility, serving as an advisory layer for donors before they sanction funds.
+- **Creator Reliability Score**: An on-chain tracked reputation score for creators (0-100) that dynamically adjusts based on their history of claiming allocations and submitting timely proofs.
+- **Portfolio Dashboards**: Dedicated transparent dashboards for both donors and creators to manage their active campaigns, track fund allocations, and sanction quotations.
 - **Demo tooling**: local Hardhat network, pre-funded demo wallets and a one-command reset.
 
 <!-- Add screenshots here once the UI is built:

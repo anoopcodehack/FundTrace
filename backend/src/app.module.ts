@@ -6,6 +6,9 @@ import { BlockchainModule } from './modules/blockchain/blockchain.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { ProofsModule } from './modules/proofs/proofs.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
+import { QuotationsModule } from './modules/quotations/quotations.module';
+import { AiModule } from './modules/ai/ai.module';
+import { ScoresModule } from './modules/scores/scores.module';
 
 @Module({
   imports: [
@@ -18,6 +21,9 @@ import { LedgerModule } from './modules/ledger/ledger.module';
     CampaignsModule,
     ProofsModule,
     LedgerModule,
+    QuotationsModule,
+    AiModule,
+    ScoresModule,
   ],
   controllers: [AppController],
 })

@@ -39,6 +39,10 @@ export declare namespace FundTrace {
     beneficiary: AddressLike;
     lastActivityTimestamp: BigNumberish;
     dormancySnapshotEscrow: BigNumberish;
+    totalSanctioned: BigNumberish;
+    totalAllocated: BigNumberish;
+    totalClaimed: BigNumberish;
+    quotationCount: BigNumberish;
   };
 
   export type CampaignStructOutput = [
@@ -55,7 +59,11 @@ export declare namespace FundTrace {
     activeRequestId: bigint,
     beneficiary: string,
     lastActivityTimestamp: bigint,
-    dormancySnapshotEscrow: bigint
+    dormancySnapshotEscrow: bigint,
+    totalSanctioned: bigint,
+    totalAllocated: bigint,
+    totalClaimed: bigint,
+    quotationCount: bigint
   ] & {
     id: bigint;
     creator: string;
@@ -71,6 +79,108 @@ export declare namespace FundTrace {
     beneficiary: string;
     lastActivityTimestamp: bigint;
     dormancySnapshotEscrow: bigint;
+    totalSanctioned: bigint;
+    totalAllocated: bigint;
+    totalClaimed: bigint;
+    quotationCount: bigint;
+  };
+
+  export type CreatorProfileStruct = {
+    score: BigNumberish;
+    totalQuotations: BigNumberish;
+    approvedQuotations: BigNumberish;
+    claimedAmount: BigNumberish;
+    proofSubmitted: BigNumberish;
+    onTimeProofs: BigNumberish;
+    lateProofs: BigNumberish;
+    missingProofs: BigNumberish;
+    unresolvedRequests: BigNumberish;
+    completedCampaigns: BigNumberish;
+    lastUpdated: BigNumberish;
+  };
+
+  export type CreatorProfileStructOutput = [
+    score: bigint,
+    totalQuotations: bigint,
+    approvedQuotations: bigint,
+    claimedAmount: bigint,
+    proofSubmitted: bigint,
+    onTimeProofs: bigint,
+    lateProofs: bigint,
+    missingProofs: bigint,
+    unresolvedRequests: bigint,
+    completedCampaigns: bigint,
+    lastUpdated: bigint
+  ] & {
+    score: bigint;
+    totalQuotations: bigint;
+    approvedQuotations: bigint;
+    claimedAmount: bigint;
+    proofSubmitted: bigint;
+    onTimeProofs: bigint;
+    lateProofs: bigint;
+    missingProofs: bigint;
+    unresolvedRequests: bigint;
+    completedCampaigns: bigint;
+    lastUpdated: bigint;
+  };
+
+  export type QuotationStruct = {
+    id: BigNumberish;
+    campaignId: BigNumberish;
+    creator: AddressLike;
+    requestedAmount: BigNumberish;
+    quotationHash: BytesLike;
+    submittedAt: BigNumberish;
+    state: BigNumberish;
+    allocatedAmount: BigNumberish;
+    claimedAmount: BigNumberish;
+    aiRecommendationHash: BytesLike;
+    sanctionedAt: BigNumberish;
+    claimedAt: BigNumberish;
+    sanctionedBy: AddressLike;
+    proofHash: BytesLike;
+    proofSubmitted: boolean;
+    proofSubmittedAt: BigNumberish;
+    proofTiming: BigNumberish;
+  };
+
+  export type QuotationStructOutput = [
+    id: bigint,
+    campaignId: bigint,
+    creator: string,
+    requestedAmount: bigint,
+    quotationHash: string,
+    submittedAt: bigint,
+    state: bigint,
+    allocatedAmount: bigint,
+    claimedAmount: bigint,
+    aiRecommendationHash: string,
+    sanctionedAt: bigint,
+    claimedAt: bigint,
+    sanctionedBy: string,
+    proofHash: string,
+    proofSubmitted: boolean,
+    proofSubmittedAt: bigint,
+    proofTiming: bigint
+  ] & {
+    id: bigint;
+    campaignId: bigint;
+    creator: string;
+    requestedAmount: bigint;
+    quotationHash: string;
+    submittedAt: bigint;
+    state: bigint;
+    allocatedAmount: bigint;
+    claimedAmount: bigint;
+    aiRecommendationHash: string;
+    sanctionedAt: bigint;
+    claimedAt: bigint;
+    sanctionedBy: string;
+    proofHash: string;
+    proofSubmitted: boolean;
+    proofSubmittedAt: bigint;
+    proofTiming: bigint;
   };
 
   export type RequestStruct = {
@@ -130,47 +240,73 @@ export interface FundTraceInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "DORMANCY_TIMEOUT"
+      | "MAX_SCORE"
       | "approveRequest"
+      | "automationEnabled"
       | "campaignCount"
       | "campaigns"
       | "checkAndUpdateCampaignFailure"
       | "checkProofHash"
+      | "claimAllocation"
       | "claimDormancyRefund"
       | "closeExpiredRequest"
+      | "completeQuotation"
       | "confirmDelivery"
       | "createCampaign"
       | "createRequest"
+      | "creatorProfiles"
+      | "disableAutomation"
       | "donate"
       | "donations"
+      | "enableAutomation"
       | "getCampaign"
+      | "getCampaignFinancials"
+      | "getCreatorProfile"
+      | "getQuotation"
       | "getRequest"
       | "hasOverdueProof"
       | "hasUnconfirmedDelivery"
       | "hasVoted"
       | "isCampaignDormant"
+      | "quotations"
+      | "recordAIRecommendation"
       | "refund"
+      | "registerQuotation"
       | "rejectCampaign"
+      | "rejectQuotation"
       | "release"
       | "requests"
+      | "sanctionQuotation"
       | "setBeneficiary"
       | "submitProof"
+      | "submitQuotationProof"
+      | "trustedRelayAddress"
+      | "updateCreatorScore"
       | "verifyCampaign"
       | "vote"
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
+      | "AllocationClaimed"
       | "Approved"
+      | "AutomationToggled"
       | "BeneficiarySet"
       | "CampaignCreated"
       | "CampaignFailed"
       | "CampaignRejected"
       | "CampaignVerified"
+      | "CreatorScoreUpdated"
       | "DeliveryConfirmed"
       | "Donated"
       | "DormancyRefundClaimed"
       | "FundingClosed"
       | "ProofSubmitted"
+      | "QuotationAIEvaluated"
+      | "QuotationProofSubmitted"
+      | "QuotationRegistered"
+      | "QuotationRejected"
+      | "QuotationSanctioned"
       | "Refunded"
       | "Released"
       | "RequestApproved"
@@ -182,9 +318,14 @@ export interface FundTraceInterface extends Interface {
     functionFragment: "DORMANCY_TIMEOUT",
     values?: undefined
   ): string;
+  encodeFunctionData(functionFragment: "MAX_SCORE", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "approveRequest",
     values: [BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "automationEnabled",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "campaignCount",
@@ -203,11 +344,19 @@ export interface FundTraceInterface extends Interface {
     values: [BigNumberish, BigNumberish, BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "claimAllocation",
+    values: [BigNumberish, BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "claimDormancyRefund",
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "closeExpiredRequest",
+    values: [BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "completeQuotation",
     values: [BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
@@ -230,6 +379,14 @@ export interface FundTraceInterface extends Interface {
     ]
   ): string;
   encodeFunctionData(
+    functionFragment: "creatorProfiles",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "disableAutomation",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "donate",
     values: [BigNumberish]
   ): string;
@@ -238,8 +395,24 @@ export interface FundTraceInterface extends Interface {
     values: [BigNumberish, AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "enableAutomation",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "getCampaign",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getCampaignFinancials",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getCreatorProfile",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getQuotation",
+    values: [BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "getRequest",
@@ -262,12 +435,28 @@ export interface FundTraceInterface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "quotations",
+    values: [BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "recordAIRecommendation",
+    values: [BigNumberish, BigNumberish, BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "refund",
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "registerQuotation",
+    values: [BigNumberish, BigNumberish, BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "rejectCampaign",
     values: [BigNumberish, string]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "rejectQuotation",
+    values: [BigNumberish, BigNumberish, string]
   ): string;
   encodeFunctionData(
     functionFragment: "release",
@@ -278,12 +467,28 @@ export interface FundTraceInterface extends Interface {
     values: [BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "sanctionQuotation",
+    values: [BigNumberish, BigNumberish, BigNumberish, boolean]
+  ): string;
+  encodeFunctionData(
     functionFragment: "setBeneficiary",
     values: [BigNumberish, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "submitProof",
     values: [BigNumberish, BigNumberish, BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "submitQuotationProof",
+    values: [BigNumberish, BigNumberish, BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "trustedRelayAddress",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "updateCreatorScore",
+    values: [AddressLike, BigNumberish, string]
   ): string;
   encodeFunctionData(
     functionFragment: "verifyCampaign",
@@ -298,8 +503,13 @@ export interface FundTraceInterface extends Interface {
     functionFragment: "DORMANCY_TIMEOUT",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "MAX_SCORE", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "approveRequest",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "automationEnabled",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -316,11 +526,19 @@ export interface FundTraceInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "claimAllocation",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "claimDormancyRefund",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
     functionFragment: "closeExpiredRequest",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "completeQuotation",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -335,10 +553,34 @@ export interface FundTraceInterface extends Interface {
     functionFragment: "createRequest",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "creatorProfiles",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "disableAutomation",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "donate", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "donations", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "enableAutomation",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "getCampaign",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getCampaignFinancials",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getCreatorProfile",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getQuotation",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "getRequest", data: BytesLike): Result;
@@ -355,13 +597,30 @@ export interface FundTraceInterface extends Interface {
     functionFragment: "isCampaignDormant",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "quotations", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "recordAIRecommendation",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "refund", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "registerQuotation",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "rejectCampaign",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "rejectQuotation",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "release", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "requests", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "sanctionQuotation",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "setBeneficiary",
     data: BytesLike
@@ -371,10 +630,50 @@ export interface FundTraceInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "submitQuotationProof",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "trustedRelayAddress",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "updateCreatorScore",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "verifyCampaign",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "vote", data: BytesLike): Result;
+}
+
+export namespace AllocationClaimedEvent {
+  export type InputTuple = [
+    campaignId: BigNumberish,
+    quotationId: BigNumberish,
+    creator: AddressLike,
+    claimedAmount: BigNumberish,
+    remainingAllocation: BigNumberish
+  ];
+  export type OutputTuple = [
+    campaignId: bigint,
+    quotationId: bigint,
+    creator: string,
+    claimedAmount: bigint,
+    remainingAllocation: bigint
+  ];
+  export interface OutputObject {
+    campaignId: bigint;
+    quotationId: bigint;
+    creator: string;
+    claimedAmount: bigint;
+    remainingAllocation: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export namespace ApprovedEvent {
@@ -398,6 +697,28 @@ export namespace ApprovedEvent {
     donor: string;
     weight: bigint;
     currentApprovalWeight: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace AutomationToggledEvent {
+  export type InputTuple = [
+    campaignId: BigNumberish,
+    donor: AddressLike,
+    enabled: boolean
+  ];
+  export type OutputTuple = [
+    campaignId: bigint,
+    donor: string,
+    enabled: boolean
+  ];
+  export interface OutputObject {
+    campaignId: bigint;
+    donor: string;
+    enabled: boolean;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -499,6 +820,31 @@ export namespace CampaignVerifiedEvent {
   export interface OutputObject {
     campaignId: bigint;
     verifier: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace CreatorScoreUpdatedEvent {
+  export type InputTuple = [
+    creator: AddressLike,
+    oldScore: BigNumberish,
+    newScore: BigNumberish,
+    reason: string
+  ];
+  export type OutputTuple = [
+    creator: string,
+    oldScore: bigint,
+    newScore: bigint,
+    reason: string
+  ];
+  export interface OutputObject {
+    creator: string;
+    oldScore: bigint;
+    newScore: bigint;
+    reason: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -618,6 +964,140 @@ export namespace ProofSubmittedEvent {
     receiptHash: string;
     isLate: boolean;
     submittedAt: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace QuotationAIEvaluatedEvent {
+  export type InputTuple = [
+    campaignId: BigNumberish,
+    quotationId: BigNumberish,
+    aiRecommendationHash: BytesLike
+  ];
+  export type OutputTuple = [
+    campaignId: bigint,
+    quotationId: bigint,
+    aiRecommendationHash: string
+  ];
+  export interface OutputObject {
+    campaignId: bigint;
+    quotationId: bigint;
+    aiRecommendationHash: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace QuotationProofSubmittedEvent {
+  export type InputTuple = [
+    campaignId: BigNumberish,
+    quotationId: BigNumberish,
+    proofHash: BytesLike,
+    isLate: boolean,
+    submittedAt: BigNumberish
+  ];
+  export type OutputTuple = [
+    campaignId: bigint,
+    quotationId: bigint,
+    proofHash: string,
+    isLate: boolean,
+    submittedAt: bigint
+  ];
+  export interface OutputObject {
+    campaignId: bigint;
+    quotationId: bigint;
+    proofHash: string;
+    isLate: boolean;
+    submittedAt: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace QuotationRegisteredEvent {
+  export type InputTuple = [
+    campaignId: BigNumberish,
+    quotationId: BigNumberish,
+    creator: AddressLike,
+    requestedAmount: BigNumberish,
+    quotationHash: BytesLike,
+    submittedAt: BigNumberish
+  ];
+  export type OutputTuple = [
+    campaignId: bigint,
+    quotationId: bigint,
+    creator: string,
+    requestedAmount: bigint,
+    quotationHash: string,
+    submittedAt: bigint
+  ];
+  export interface OutputObject {
+    campaignId: bigint;
+    quotationId: bigint;
+    creator: string;
+    requestedAmount: bigint;
+    quotationHash: string;
+    submittedAt: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace QuotationRejectedEvent {
+  export type InputTuple = [
+    campaignId: BigNumberish,
+    quotationId: BigNumberish,
+    rejectedBy: AddressLike,
+    reason: string
+  ];
+  export type OutputTuple = [
+    campaignId: bigint,
+    quotationId: bigint,
+    rejectedBy: string,
+    reason: string
+  ];
+  export interface OutputObject {
+    campaignId: bigint;
+    quotationId: bigint;
+    rejectedBy: string;
+    reason: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace QuotationSanctionedEvent {
+  export type InputTuple = [
+    campaignId: BigNumberish,
+    quotationId: BigNumberish,
+    sanctionedBy: AddressLike,
+    allocatedAmount: BigNumberish,
+    isAutomated: boolean
+  ];
+  export type OutputTuple = [
+    campaignId: bigint,
+    quotationId: bigint,
+    sanctionedBy: string,
+    allocatedAmount: bigint,
+    isAutomated: boolean
+  ];
+  export interface OutputObject {
+    campaignId: bigint;
+    quotationId: bigint;
+    sanctionedBy: string;
+    allocatedAmount: bigint;
+    isAutomated: boolean;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -791,10 +1271,18 @@ export interface FundTrace extends BaseContract {
 
   DORMANCY_TIMEOUT: TypedContractMethod<[], [bigint], "view">;
 
+  MAX_SCORE: TypedContractMethod<[], [bigint], "view">;
+
   approveRequest: TypedContractMethod<
     [_campaignId: BigNumberish, _requestId: BigNumberish],
     [void],
     "nonpayable"
+  >;
+
+  automationEnabled: TypedContractMethod<
+    [arg0: BigNumberish],
+    [boolean],
+    "view"
   >;
 
   campaignCount: TypedContractMethod<[], [bigint], "view">;
@@ -816,6 +1304,10 @@ export interface FundTrace extends BaseContract {
         bigint,
         string,
         bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
         bigint
       ] & {
         id: bigint;
@@ -832,6 +1324,10 @@ export interface FundTrace extends BaseContract {
         beneficiary: string;
         lastActivityTimestamp: bigint;
         dormancySnapshotEscrow: bigint;
+        totalSanctioned: bigint;
+        totalAllocated: bigint;
+        totalClaimed: bigint;
+        quotationCount: bigint;
       }
     ],
     "view"
@@ -859,6 +1355,16 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
 
+  claimAllocation: TypedContractMethod<
+    [
+      _campaignId: BigNumberish,
+      _quotationId: BigNumberish,
+      _claimAmount: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+
   claimDormancyRefund: TypedContractMethod<
     [_campaignId: BigNumberish],
     [void],
@@ -867,6 +1373,12 @@ export interface FundTrace extends BaseContract {
 
   closeExpiredRequest: TypedContractMethod<
     [_campaignId: BigNumberish, _requestId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  completeQuotation: TypedContractMethod<
+    [_campaignId: BigNumberish, _quotationId: BigNumberish],
     [void],
     "nonpayable"
   >;
@@ -901,6 +1413,44 @@ export interface FundTrace extends BaseContract {
     "nonpayable"
   >;
 
+  creatorProfiles: TypedContractMethod<
+    [arg0: AddressLike],
+    [
+      [
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint
+      ] & {
+        score: bigint;
+        totalQuotations: bigint;
+        approvedQuotations: bigint;
+        claimedAmount: bigint;
+        proofSubmitted: bigint;
+        onTimeProofs: bigint;
+        lateProofs: bigint;
+        missingProofs: bigint;
+        unresolvedRequests: bigint;
+        completedCampaigns: bigint;
+        lastUpdated: bigint;
+      }
+    ],
+    "view"
+  >;
+
+  disableAutomation: TypedContractMethod<
+    [_campaignId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   donate: TypedContractMethod<[_campaignId: BigNumberish], [void], "payable">;
 
   donations: TypedContractMethod<
@@ -909,9 +1459,42 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
 
+  enableAutomation: TypedContractMethod<
+    [_campaignId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   getCampaign: TypedContractMethod<
     [_campaignId: BigNumberish],
     [FundTrace.CampaignStructOutput],
+    "view"
+  >;
+
+  getCampaignFinancials: TypedContractMethod<
+    [_campaignId: BigNumberish],
+    [
+      [bigint, bigint, bigint, bigint, bigint, bigint] & {
+        totalRaised: bigint;
+        totalSanctioned: bigint;
+        totalAllocated: bigint;
+        totalClaimed: bigint;
+        proofBackedAmount: bigint;
+        remainingBalance: bigint;
+      }
+    ],
+    "view"
+  >;
+
+  getCreatorProfile: TypedContractMethod<
+    [_creator: AddressLike],
+    [FundTrace.CreatorProfileStructOutput],
+    "view"
+  >;
+
+  getQuotation: TypedContractMethod<
+    [_campaignId: BigNumberish, _quotationId: BigNumberish],
+    [FundTrace.QuotationStructOutput],
     "view"
   >;
 
@@ -945,14 +1528,84 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
 
+  quotations: TypedContractMethod<
+    [arg0: BigNumberish, arg1: BigNumberish],
+    [
+      [
+        bigint,
+        bigint,
+        string,
+        bigint,
+        string,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        string,
+        bigint,
+        bigint,
+        string,
+        string,
+        boolean,
+        bigint,
+        bigint
+      ] & {
+        id: bigint;
+        campaignId: bigint;
+        creator: string;
+        requestedAmount: bigint;
+        quotationHash: string;
+        submittedAt: bigint;
+        state: bigint;
+        allocatedAmount: bigint;
+        claimedAmount: bigint;
+        aiRecommendationHash: string;
+        sanctionedAt: bigint;
+        claimedAt: bigint;
+        sanctionedBy: string;
+        proofHash: string;
+        proofSubmitted: boolean;
+        proofSubmittedAt: bigint;
+        proofTiming: bigint;
+      }
+    ],
+    "view"
+  >;
+
+  recordAIRecommendation: TypedContractMethod<
+    [
+      _campaignId: BigNumberish,
+      _quotationId: BigNumberish,
+      _aiRecommendationHash: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
+
   refund: TypedContractMethod<
     [_campaignId: BigNumberish],
     [void],
     "nonpayable"
   >;
 
+  registerQuotation: TypedContractMethod<
+    [
+      _campaignId: BigNumberish,
+      _requestedAmount: BigNumberish,
+      _quotationHash: BytesLike
+    ],
+    [bigint],
+    "nonpayable"
+  >;
+
   rejectCampaign: TypedContractMethod<
     [_campaignId: BigNumberish, _reason: string],
+    [void],
+    "nonpayable"
+  >;
+
+  rejectQuotation: TypedContractMethod<
+    [_campaignId: BigNumberish, _quotationId: BigNumberish, _reason: string],
     [void],
     "nonpayable"
   >;
@@ -1003,6 +1656,17 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
 
+  sanctionQuotation: TypedContractMethod<
+    [
+      _campaignId: BigNumberish,
+      _quotationId: BigNumberish,
+      _allocatedAmount: BigNumberish,
+      _isAutomated: boolean
+    ],
+    [void],
+    "nonpayable"
+  >;
+
   setBeneficiary: TypedContractMethod<
     [_campaignId: BigNumberish, _beneficiary: AddressLike],
     [void],
@@ -1015,6 +1679,24 @@ export interface FundTrace extends BaseContract {
       _requestId: BigNumberish,
       _receiptHash: BytesLike
     ],
+    [void],
+    "nonpayable"
+  >;
+
+  submitQuotationProof: TypedContractMethod<
+    [
+      _campaignId: BigNumberish,
+      _quotationId: BigNumberish,
+      _proofHash: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
+
+  trustedRelayAddress: TypedContractMethod<[], [string], "view">;
+
+  updateCreatorScore: TypedContractMethod<
+    [_creator: AddressLike, _newScore: BigNumberish, _reason: string],
     [void],
     "nonpayable"
   >;
@@ -1039,12 +1721,18 @@ export interface FundTrace extends BaseContract {
     nameOrSignature: "DORMANCY_TIMEOUT"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
+    nameOrSignature: "MAX_SCORE"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
     nameOrSignature: "approveRequest"
   ): TypedContractMethod<
     [_campaignId: BigNumberish, _requestId: BigNumberish],
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "automationEnabled"
+  ): TypedContractMethod<[arg0: BigNumberish], [boolean], "view">;
   getFunction(
     nameOrSignature: "campaignCount"
   ): TypedContractMethod<[], [bigint], "view">;
@@ -1067,6 +1755,10 @@ export interface FundTrace extends BaseContract {
         bigint,
         string,
         bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
         bigint
       ] & {
         id: bigint;
@@ -1083,6 +1775,10 @@ export interface FundTrace extends BaseContract {
         beneficiary: string;
         lastActivityTimestamp: bigint;
         dormancySnapshotEscrow: bigint;
+        totalSanctioned: bigint;
+        totalAllocated: bigint;
+        totalClaimed: bigint;
+        quotationCount: bigint;
       }
     ],
     "view"
@@ -1108,12 +1804,30 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "claimAllocation"
+  ): TypedContractMethod<
+    [
+      _campaignId: BigNumberish,
+      _quotationId: BigNumberish,
+      _claimAmount: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "claimDormancyRefund"
   ): TypedContractMethod<[_campaignId: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "closeExpiredRequest"
   ): TypedContractMethod<
     [_campaignId: BigNumberish, _requestId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "completeQuotation"
+  ): TypedContractMethod<
+    [_campaignId: BigNumberish, _quotationId: BigNumberish],
     [void],
     "nonpayable"
   >;
@@ -1151,6 +1865,42 @@ export interface FundTrace extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "creatorProfiles"
+  ): TypedContractMethod<
+    [arg0: AddressLike],
+    [
+      [
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint
+      ] & {
+        score: bigint;
+        totalQuotations: bigint;
+        approvedQuotations: bigint;
+        claimedAmount: bigint;
+        proofSubmitted: bigint;
+        onTimeProofs: bigint;
+        lateProofs: bigint;
+        missingProofs: bigint;
+        unresolvedRequests: bigint;
+        completedCampaigns: bigint;
+        lastUpdated: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "disableAutomation"
+  ): TypedContractMethod<[_campaignId: BigNumberish], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "donate"
   ): TypedContractMethod<[_campaignId: BigNumberish], [void], "payable">;
   getFunction(
@@ -1161,10 +1911,43 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "enableAutomation"
+  ): TypedContractMethod<[_campaignId: BigNumberish], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "getCampaign"
   ): TypedContractMethod<
     [_campaignId: BigNumberish],
     [FundTrace.CampaignStructOutput],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "getCampaignFinancials"
+  ): TypedContractMethod<
+    [_campaignId: BigNumberish],
+    [
+      [bigint, bigint, bigint, bigint, bigint, bigint] & {
+        totalRaised: bigint;
+        totalSanctioned: bigint;
+        totalAllocated: bigint;
+        totalClaimed: bigint;
+        proofBackedAmount: bigint;
+        remainingBalance: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "getCreatorProfile"
+  ): TypedContractMethod<
+    [_creator: AddressLike],
+    [FundTrace.CreatorProfileStructOutput],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "getQuotation"
+  ): TypedContractMethod<
+    [_campaignId: BigNumberish, _quotationId: BigNumberish],
+    [FundTrace.QuotationStructOutput],
     "view"
   >;
   getFunction(
@@ -1191,12 +1974,86 @@ export interface FundTrace extends BaseContract {
     nameOrSignature: "isCampaignDormant"
   ): TypedContractMethod<[_campaignId: BigNumberish], [boolean], "view">;
   getFunction(
+    nameOrSignature: "quotations"
+  ): TypedContractMethod<
+    [arg0: BigNumberish, arg1: BigNumberish],
+    [
+      [
+        bigint,
+        bigint,
+        string,
+        bigint,
+        string,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        string,
+        bigint,
+        bigint,
+        string,
+        string,
+        boolean,
+        bigint,
+        bigint
+      ] & {
+        id: bigint;
+        campaignId: bigint;
+        creator: string;
+        requestedAmount: bigint;
+        quotationHash: string;
+        submittedAt: bigint;
+        state: bigint;
+        allocatedAmount: bigint;
+        claimedAmount: bigint;
+        aiRecommendationHash: string;
+        sanctionedAt: bigint;
+        claimedAt: bigint;
+        sanctionedBy: string;
+        proofHash: string;
+        proofSubmitted: boolean;
+        proofSubmittedAt: bigint;
+        proofTiming: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "recordAIRecommendation"
+  ): TypedContractMethod<
+    [
+      _campaignId: BigNumberish,
+      _quotationId: BigNumberish,
+      _aiRecommendationHash: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "refund"
   ): TypedContractMethod<[_campaignId: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "registerQuotation"
+  ): TypedContractMethod<
+    [
+      _campaignId: BigNumberish,
+      _requestedAmount: BigNumberish,
+      _quotationHash: BytesLike
+    ],
+    [bigint],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "rejectCampaign"
   ): TypedContractMethod<
     [_campaignId: BigNumberish, _reason: string],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "rejectQuotation"
+  ): TypedContractMethod<
+    [_campaignId: BigNumberish, _quotationId: BigNumberish, _reason: string],
     [void],
     "nonpayable"
   >;
@@ -1249,6 +2106,18 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "sanctionQuotation"
+  ): TypedContractMethod<
+    [
+      _campaignId: BigNumberish,
+      _quotationId: BigNumberish,
+      _allocatedAmount: BigNumberish,
+      _isAutomated: boolean
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "setBeneficiary"
   ): TypedContractMethod<
     [_campaignId: BigNumberish, _beneficiary: AddressLike],
@@ -1267,6 +2136,27 @@ export interface FundTrace extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "submitQuotationProof"
+  ): TypedContractMethod<
+    [
+      _campaignId: BigNumberish,
+      _quotationId: BigNumberish,
+      _proofHash: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "trustedRelayAddress"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "updateCreatorScore"
+  ): TypedContractMethod<
+    [_creator: AddressLike, _newScore: BigNumberish, _reason: string],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "verifyCampaign"
   ): TypedContractMethod<[_campaignId: BigNumberish], [void], "nonpayable">;
   getFunction(
@@ -1278,11 +2168,25 @@ export interface FundTrace extends BaseContract {
   >;
 
   getEvent(
+    key: "AllocationClaimed"
+  ): TypedContractEvent<
+    AllocationClaimedEvent.InputTuple,
+    AllocationClaimedEvent.OutputTuple,
+    AllocationClaimedEvent.OutputObject
+  >;
+  getEvent(
     key: "Approved"
   ): TypedContractEvent<
     ApprovedEvent.InputTuple,
     ApprovedEvent.OutputTuple,
     ApprovedEvent.OutputObject
+  >;
+  getEvent(
+    key: "AutomationToggled"
+  ): TypedContractEvent<
+    AutomationToggledEvent.InputTuple,
+    AutomationToggledEvent.OutputTuple,
+    AutomationToggledEvent.OutputObject
   >;
   getEvent(
     key: "BeneficiarySet"
@@ -1320,6 +2224,13 @@ export interface FundTrace extends BaseContract {
     CampaignVerifiedEvent.OutputObject
   >;
   getEvent(
+    key: "CreatorScoreUpdated"
+  ): TypedContractEvent<
+    CreatorScoreUpdatedEvent.InputTuple,
+    CreatorScoreUpdatedEvent.OutputTuple,
+    CreatorScoreUpdatedEvent.OutputObject
+  >;
+  getEvent(
     key: "DeliveryConfirmed"
   ): TypedContractEvent<
     DeliveryConfirmedEvent.InputTuple,
@@ -1353,6 +2264,41 @@ export interface FundTrace extends BaseContract {
     ProofSubmittedEvent.InputTuple,
     ProofSubmittedEvent.OutputTuple,
     ProofSubmittedEvent.OutputObject
+  >;
+  getEvent(
+    key: "QuotationAIEvaluated"
+  ): TypedContractEvent<
+    QuotationAIEvaluatedEvent.InputTuple,
+    QuotationAIEvaluatedEvent.OutputTuple,
+    QuotationAIEvaluatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "QuotationProofSubmitted"
+  ): TypedContractEvent<
+    QuotationProofSubmittedEvent.InputTuple,
+    QuotationProofSubmittedEvent.OutputTuple,
+    QuotationProofSubmittedEvent.OutputObject
+  >;
+  getEvent(
+    key: "QuotationRegistered"
+  ): TypedContractEvent<
+    QuotationRegisteredEvent.InputTuple,
+    QuotationRegisteredEvent.OutputTuple,
+    QuotationRegisteredEvent.OutputObject
+  >;
+  getEvent(
+    key: "QuotationRejected"
+  ): TypedContractEvent<
+    QuotationRejectedEvent.InputTuple,
+    QuotationRejectedEvent.OutputTuple,
+    QuotationRejectedEvent.OutputObject
+  >;
+  getEvent(
+    key: "QuotationSanctioned"
+  ): TypedContractEvent<
+    QuotationSanctionedEvent.InputTuple,
+    QuotationSanctionedEvent.OutputTuple,
+    QuotationSanctionedEvent.OutputObject
   >;
   getEvent(
     key: "Refunded"
@@ -1391,6 +2337,17 @@ export interface FundTrace extends BaseContract {
   >;
 
   filters: {
+    "AllocationClaimed(uint256,uint256,address,uint256,uint256)": TypedContractEvent<
+      AllocationClaimedEvent.InputTuple,
+      AllocationClaimedEvent.OutputTuple,
+      AllocationClaimedEvent.OutputObject
+    >;
+    AllocationClaimed: TypedContractEvent<
+      AllocationClaimedEvent.InputTuple,
+      AllocationClaimedEvent.OutputTuple,
+      AllocationClaimedEvent.OutputObject
+    >;
+
     "Approved(uint256,uint256,address,uint256,uint256)": TypedContractEvent<
       ApprovedEvent.InputTuple,
       ApprovedEvent.OutputTuple,
@@ -1400,6 +2357,17 @@ export interface FundTrace extends BaseContract {
       ApprovedEvent.InputTuple,
       ApprovedEvent.OutputTuple,
       ApprovedEvent.OutputObject
+    >;
+
+    "AutomationToggled(uint256,address,bool)": TypedContractEvent<
+      AutomationToggledEvent.InputTuple,
+      AutomationToggledEvent.OutputTuple,
+      AutomationToggledEvent.OutputObject
+    >;
+    AutomationToggled: TypedContractEvent<
+      AutomationToggledEvent.InputTuple,
+      AutomationToggledEvent.OutputTuple,
+      AutomationToggledEvent.OutputObject
     >;
 
     "BeneficiarySet(uint256,address)": TypedContractEvent<
@@ -1457,6 +2425,17 @@ export interface FundTrace extends BaseContract {
       CampaignVerifiedEvent.OutputObject
     >;
 
+    "CreatorScoreUpdated(address,uint256,uint256,string)": TypedContractEvent<
+      CreatorScoreUpdatedEvent.InputTuple,
+      CreatorScoreUpdatedEvent.OutputTuple,
+      CreatorScoreUpdatedEvent.OutputObject
+    >;
+    CreatorScoreUpdated: TypedContractEvent<
+      CreatorScoreUpdatedEvent.InputTuple,
+      CreatorScoreUpdatedEvent.OutputTuple,
+      CreatorScoreUpdatedEvent.OutputObject
+    >;
+
     "DeliveryConfirmed(uint256,uint256,address,uint256)": TypedContractEvent<
       DeliveryConfirmedEvent.InputTuple,
       DeliveryConfirmedEvent.OutputTuple,
@@ -1510,6 +2489,61 @@ export interface FundTrace extends BaseContract {
       ProofSubmittedEvent.InputTuple,
       ProofSubmittedEvent.OutputTuple,
       ProofSubmittedEvent.OutputObject
+    >;
+
+    "QuotationAIEvaluated(uint256,uint256,bytes32)": TypedContractEvent<
+      QuotationAIEvaluatedEvent.InputTuple,
+      QuotationAIEvaluatedEvent.OutputTuple,
+      QuotationAIEvaluatedEvent.OutputObject
+    >;
+    QuotationAIEvaluated: TypedContractEvent<
+      QuotationAIEvaluatedEvent.InputTuple,
+      QuotationAIEvaluatedEvent.OutputTuple,
+      QuotationAIEvaluatedEvent.OutputObject
+    >;
+
+    "QuotationProofSubmitted(uint256,uint256,bytes32,bool,uint256)": TypedContractEvent<
+      QuotationProofSubmittedEvent.InputTuple,
+      QuotationProofSubmittedEvent.OutputTuple,
+      QuotationProofSubmittedEvent.OutputObject
+    >;
+    QuotationProofSubmitted: TypedContractEvent<
+      QuotationProofSubmittedEvent.InputTuple,
+      QuotationProofSubmittedEvent.OutputTuple,
+      QuotationProofSubmittedEvent.OutputObject
+    >;
+
+    "QuotationRegistered(uint256,uint256,address,uint256,bytes32,uint256)": TypedContractEvent<
+      QuotationRegisteredEvent.InputTuple,
+      QuotationRegisteredEvent.OutputTuple,
+      QuotationRegisteredEvent.OutputObject
+    >;
+    QuotationRegistered: TypedContractEvent<
+      QuotationRegisteredEvent.InputTuple,
+      QuotationRegisteredEvent.OutputTuple,
+      QuotationRegisteredEvent.OutputObject
+    >;
+
+    "QuotationRejected(uint256,uint256,address,string)": TypedContractEvent<
+      QuotationRejectedEvent.InputTuple,
+      QuotationRejectedEvent.OutputTuple,
+      QuotationRejectedEvent.OutputObject
+    >;
+    QuotationRejected: TypedContractEvent<
+      QuotationRejectedEvent.InputTuple,
+      QuotationRejectedEvent.OutputTuple,
+      QuotationRejectedEvent.OutputObject
+    >;
+
+    "QuotationSanctioned(uint256,uint256,address,uint256,bool)": TypedContractEvent<
+      QuotationSanctionedEvent.InputTuple,
+      QuotationSanctionedEvent.OutputTuple,
+      QuotationSanctionedEvent.OutputObject
+    >;
+    QuotationSanctioned: TypedContractEvent<
+      QuotationSanctionedEvent.InputTuple,
+      QuotationSanctionedEvent.OutputTuple,
+      QuotationSanctionedEvent.OutputObject
     >;
 
     "Refunded(uint256,address,uint256)": TypedContractEvent<
