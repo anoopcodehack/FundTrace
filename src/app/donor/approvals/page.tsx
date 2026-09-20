@@ -414,14 +414,24 @@ export default function DonorApprovalsPage() {
     try {
       const contract = getFundTraceContract(signer);
       
-      // Determine exact on-chain unit for quotation
-      let allocatedAmountOnChain = BigInt(q.requestedAmountFtu);
+      // Determine exact on-chain requested amount from creator
+      let allocatedAmountOnChain: bigint;
       try {
         const onchainQ = await contract.getQuotation(q.campaignId, q.onChainQuotationId || q.id!);
         if (onchainQ.requestedAmount > 0n) {
           allocatedAmountOnChain = onchainQ.requestedAmount;
+        } else {
+          const reqStr = q.requestedAmountFtu?.toString() || '0';
+          allocatedAmountOnChain = reqStr.includes('.')
+            ? ethers.parseEther(reqStr)
+            : BigInt(Math.floor(Number(reqStr) || 0));
         }
-      } catch {}
+      } catch {
+        const reqStr = q.requestedAmountFtu?.toString() || '0';
+        allocatedAmountOnChain = reqStr.includes('.')
+          ? ethers.parseEther(reqStr)
+          : BigInt(Math.floor(Number(reqStr) || 0));
+      }
 
       const tx = await contract.sanctionQuotation(
         q.campaignId,

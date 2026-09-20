@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useWallet } from "@/context/WalletContext";
 import RoleGuard from "@/components/RoleGuard";
-import { getFundTraceContract } from "@/lib/contract";
+import { getFundTraceContract, parseContractError } from "@/lib/contract";
 import { getQuotationsByCampaign, sanctionQuotation, rejectQuotation, reviewQuotation } from "@/services/quotationService";
 import { getDonorAutomationSetting, upsertDonorAutomationSetting } from "@/services/automationService";
 import { formatFtu } from "@/types";
@@ -209,7 +209,7 @@ export default function DonorPortfolioPage() {
     }
   }
 
-  async function handleSanction(quotationId: number, quotationAmount: number) {
+  async function handleSanction(quotationId: number, quotationAmount: number, onChainQuotationId?: number) {
     if (!signer || !wallet.address) { toast.error("Connect wallet first"); return; }
     setSanctioningId(quotationId);
     const toastId = toast.loading("Sanctioning allocation on blockchain...");
@@ -218,15 +218,35 @@ export default function DonorPortfolioPage() {
       const campaign = campaigns.find(c => c.id === selectedCampaign);
       if (!campaign) throw new Error("Campaign not found");
 
+      const effectiveQId = onChainQuotationId || quotationId;
+      let allocatedAmountOnChain: bigint;
+      try {
+        const onchainQ = await contract.getQuotation(selectedCampaign!, effectiveQId);
+        if (onchainQ.requestedAmount > 0n) {
+          allocatedAmountOnChain = onchainQ.requestedAmount;
+        } else {
+          const reqStr = quotationAmount?.toString() || '0';
+          allocatedAmountOnChain = reqStr.includes('.')
+            ? ethers.parseEther(reqStr)
+            : BigInt(Math.floor(Number(reqStr) || 0));
+        }
+      } catch {
+        const reqStr = quotationAmount?.toString() || '0';
+        allocatedAmountOnChain = reqStr.includes('.')
+          ? ethers.parseEther(reqStr)
+          : BigInt(Math.floor(Number(reqStr) || 0));
+      }
+
       // Manual sanction: donor calls directly. Pass ZeroAddress for _onBehalfOfDonor (not automated).
-      const tx = await contract.sanctionQuotation(selectedCampaign!, quotationId, BigInt(quotationAmount), false, ethers.ZeroAddress);
+      const tx = await contract.sanctionQuotation(selectedCampaign!, effectiveQId, allocatedAmountOnChain, false, ethers.ZeroAddress);
       await tx.wait();
 
       await sanctionQuotation(quotationId, wallet.address, quotationAmount, false);
       await loadQuotations(selectedCampaign!);
-      toast.success(`Sanctioned ₹${quotationAmount.toLocaleString()} FTU`, { id: toastId });
+      toast.success(`Sanctioned ${formatFtu(quotationAmount)}`, { id: toastId });
     } catch (err: any) {
-      toast.error(err.message || "Sanction failed", { id: toastId });
+      const errorMsg = parseContractError(err);
+      toast.error(errorMsg || "Sanction failed", { id: toastId });
     } finally {
       setSanctioningId(null);
     }
@@ -611,7 +631,7 @@ export default function DonorPortfolioPage() {
 
                               <div className="flex flex-col sm:flex-row gap-3">
                                 <button
-                                  onClick={() => handleSanction(q.id, q.requested_amount_ftu || q.requestedAmountFtu)}
+                                  onClick={() => handleSanction(q.id, q.requested_amount_ftu || q.requestedAmountFtu, q.on_chain_id || q.onChainQuotationId)}
                                   disabled={sanctioningId === q.id}
                                   className="flex-1 py-3 px-4 rounded-xl bg-[#161813] hover:bg-black text-white font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-60 shadow-sm cursor-pointer"
                                 >
