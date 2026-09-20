@@ -87,7 +87,6 @@ export default function CreateCampaignPage() {
       };
 
       // 1. Send to NestJS API to validate and prepare the transaction
-      // Mocking the backend API call here. In reality this calls the NestJS backend.
       const apiResponse = await fetch("http://localhost:3001/api/campaigns/prepare", {
         method: "POST",
         headers: { 
