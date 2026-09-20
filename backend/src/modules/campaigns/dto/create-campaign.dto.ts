@@ -92,9 +92,10 @@ export class PrepareCampaignDto {
   @IsNumber()
   goalFtu: number;
 
-  @ApiProperty({ example: 30 })
-  @IsNumber()
-  durationDays: number;
+  @ApiProperty({ example: '2026-12-31' })
+  @IsString()
+  @IsNotEmpty()
+  deadline: string;
 
   @ApiProperty({ example: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' })
   @IsString()

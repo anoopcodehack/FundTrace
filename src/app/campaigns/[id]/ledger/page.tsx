@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import Navbar from "@/components/Navbar";
+import { Check } from "lucide-react";
 
 interface LedgerEvent {
   id: string;
@@ -178,8 +178,6 @@ export default function CampaignLedgerPage() {
 
   return (
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
-      <Navbar />
-
       <main className="max-w-7xl mx-auto px-6 sm:px-12 pt-10">
         
         {/* Navigation Breadcrumb */}
@@ -263,8 +261,8 @@ export default function CampaignLedgerPage() {
             </button>
 
             {exportToast && (
-              <span className="text-xs font-mono font-bold text-emerald-600 animate-fade-in">
-                ✓ {exportToast}
+              <span className="text-xs font-mono font-bold text-emerald-600 animate-fade-in flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" /> {exportToast}
               </span>
             )}
           </div>

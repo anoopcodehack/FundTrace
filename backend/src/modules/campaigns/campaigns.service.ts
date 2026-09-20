@@ -66,7 +66,11 @@ export class CampaignsService {
 
   async prepareCampaign(dto: PrepareCampaignDto) {
     try {
-      if (dto.durationDays <= 0) throw new Error("Invalid duration");
+      const deadlineTimestamp = Math.floor(new Date(dto.deadline).getTime() / 1000);
+      const currentTimestamp = Math.floor(Date.now() / 1000);
+      if (deadlineTimestamp <= currentTimestamp) {
+        throw new Error("Deadline must be in the future");
+      }
 
       const canonicalHash = computeCanonicalMetadataHash({
         title: dto.title,
@@ -115,7 +119,7 @@ export class CampaignsService {
       const contract = this.blockchainService.getContract();
       if (!contract) throw new Error("Contract not connected");
 
-      const deadline = Math.floor(Date.now() / 1000) + dto.durationDays * 86400;
+      const deadline = deadlineTimestamp;
       
       // Default institutional verifier
       const defaultVerifier = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'; 

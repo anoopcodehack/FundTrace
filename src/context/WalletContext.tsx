@@ -39,6 +39,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setContractAddress(getContractAddress());
 
+    // 1. Auto-connect Demo Role if previously selected
+    const savedDemoAddress = typeof window !== 'undefined' ? localStorage.getItem('fundtrace_demo_role') : null;
+    if (savedDemoAddress) {
+      const preset = DEMO_PRESET_ACCOUNTS.find(p => p.address === savedDemoAddress);
+      if (preset) {
+        selectDemoRole(preset);
+      }
+    }
+
+    // 2. Auto-detect MetaMask existing authorization
     if (typeof window !== "undefined" && (window as any).ethereum) {
       const ethereum = (window as any).ethereum;
 
@@ -57,15 +67,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       ethereum.on("accountsChanged", handleAccountsChanged);
       ethereum.on("chainChanged", handleChainChanged);
 
-      // Auto-detect existing authorization
-      ethereum
-        .request({ method: "eth_accounts" })
-        .then((accounts: string[]) => {
-          if (accounts && accounts.length > 0) {
-            connectMetaMask();
-          }
-        })
-        .catch(console.warn);
+      // Only auto-connect MetaMask if we aren't already using a demo role
+      if (!savedDemoAddress) {
+        ethereum
+          .request({ method: "eth_accounts" })
+          .then((accounts: string[]) => {
+            if (accounts && accounts.length > 0) {
+              connectMetaMask();
+            }
+          })
+          .catch(console.warn);
+      }
 
       return () => {
         if (ethereum.removeListener) {
@@ -103,6 +115,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setProvider(p);
       setSigner(s);
       setWallet(walletState);
+      
+      // Persist the demo role selection
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('fundtrace_demo_role', preset.address);
+      }
     } catch (err: any) {
       console.error(err);
       setWallet((prev) => ({
@@ -118,6 +135,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setWallet(INITIAL_WALLET_STATE);
     setProvider(null);
     setSigner(null);
+    
+    // Clear demo role selection
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('fundtrace_demo_role');
+    }
   }
 
   const userRole = wallet.appRole || null;

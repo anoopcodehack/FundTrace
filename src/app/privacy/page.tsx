@@ -2,13 +2,10 @@
 
 import React from "react";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] selection:bg-[#FF5023] selection:text-white flex flex-col justify-between">
-      <Navbar />
-
       <main className="max-w-4xl mx-auto px-6 sm:px-12 py-16 sm:py-24 w-full">
         {/* Header Badge & Title */}
         <div className="space-y-4 mb-12">
@@ -96,7 +93,7 @@ export default function PrivacyPolicyPage() {
             href="/"
             className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-stone-600 hover:text-[#FF5023] transition-colors"
           >
-            ← Back to Home
+            â† Back to Home
           </Link>
           <Link
             href="/campaigns"
@@ -110,7 +107,7 @@ export default function PrivacyPolicyPage() {
       {/* Footer */}
       <footer className="w-full bg-[#161813] text-stone-400 py-10 px-6 sm:px-12 border-t border-stone-800 text-xs">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>Copyright © 2026 FundTrace. All Rights Reserved. Built for Versathon 2.0.</p>
+          <p>Copyright &copy; 2026 FundTrace. All Rights Reserved. Built for Versathon 2.0.</p>
           <div className="flex items-center gap-6">
             <Link href="/" className="hover:text-white transition-colors">Home</Link>
             <Link href="/campaigns" className="hover:text-white transition-colors">Campaigns</Link>

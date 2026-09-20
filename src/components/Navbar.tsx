@@ -56,7 +56,15 @@ export default function Navbar() {
     // Public unauthenticated
     links = [
       { name: "Explore", href: "/campaigns" },
+      { name: "How it works", href: "/#why-it-matters" },
+      { name: "Verify Proof", href: "/verify-proof" },
+      { name: "Create Campaign", href: "/create" },
     ];
+  }
+
+  const { isVerifier } = useWallet();
+  if (isVerifier) {
+    links.push({ name: "Verifier Panel", href: "/verifier" });
   }
 
   return (

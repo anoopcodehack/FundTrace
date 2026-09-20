@@ -1,6 +1,6 @@
 import {
   Controller, Post, Get, Patch, Param, Body, UploadedFile,
-  UseInterceptors, ParseIntPipe,
+  UseInterceptors, ParseIntPipe, UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { QuotationsService } from './quotations.service';

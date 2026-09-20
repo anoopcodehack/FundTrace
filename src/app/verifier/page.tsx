@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Navbar from "@/components/Navbar";
 import { useWallet } from "@/context/WalletContext";
 import { DEMO_PRESET_ACCOUNTS } from "@/lib/wallet";
 import RoleGuard from "@/components/RoleGuard";
@@ -16,8 +15,6 @@ export default function VerifierPortalPage() {
   return (
     <RoleGuard allowedRoles={["ADMIN"]}>
       <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
-        <Navbar />
-
       <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-8 pb-16">
         
         {/* Clean Editorial Hero Banner (FinFLO Theme) */}
@@ -50,7 +47,7 @@ export default function VerifierPortalPage() {
                 GATED AUTHORITY
               </span>
               <span className="text-xs font-mono text-emerald-400 font-semibold">
-                ● 0x3C44...93BC
+                â— 0x3C44...93BC
               </span>
             </div>
           </div>
@@ -75,7 +72,7 @@ export default function VerifierPortalPage() {
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-mono font-medium text-[10px] uppercase">
-                    Sanitation · Campaign #2
+                    Sanitation &middot; Campaign #2
                   </span>
                   <span className="text-xs font-mono text-stone-500">Creator: 0x15d3...6A65</span>
                 </div>
@@ -119,10 +116,10 @@ export default function VerifierPortalPage() {
                   <span className="text-amber-700 font-semibold">Pending Auditor Signoff</span>
                 )}
                 {campaign2Status === "VERIFIED" && (
-                  <span className="text-emerald-700 font-semibold">✓ Verified &amp; Funding Open</span>
+                  <span className="text-emerald-700 font-semibold">âœ“ Verified &amp; Funding Open</span>
                 )}
                 {campaign2Status === "REJECTED" && (
-                  <span className="text-rose-700 font-semibold">✗ Rejected ({rejectReason || "Unverified credentials"})</span>
+                  <span className="text-rose-700 font-semibold">âœ— Rejected ({rejectReason || "Unverified credentials"})</span>
                 )}
               </div>
 
@@ -141,7 +138,7 @@ export default function VerifierPortalPage() {
                   disabled={campaign2Status !== "PENDING"}
                   className="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold uppercase tracking-wider shadow-sm transition-colors disabled:opacity-40 cursor-pointer"
                 >
-                  {campaign2Status === "VERIFIED" ? "✓ Verified" : "Verify & Unlock Funding"}
+                  {campaign2Status === "VERIFIED" ? "âœ“ Verified" : "Verify & Unlock Funding"}
                 </button>
               </div>
             </div>

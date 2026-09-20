@@ -13,6 +13,7 @@ import {
   UserCheck,
   ArrowRight,
   Sparkles,
+  Check,
 } from "lucide-react";
 
 interface FlowNode {
@@ -248,8 +249,8 @@ export default function MoneyFlowVisualizer({ campaignId = 1 }: { campaignId?: n
               <span className="px-2 py-0.5 rounded bg-stone-200 text-stone-700 text-[10px] font-mono font-bold uppercase tracking-wider">
                 Step {activeNode.step} Details
               </span>
-              <span className="text-xs font-mono text-emerald-700 font-bold">
-                ✓ Verified On-Chain
+              <span className="text-xs font-mono text-emerald-700 font-bold flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5" /> Verified On-Chain
               </span>
             </div>
             <h3 className="text-xl font-bold text-stone-900 mt-1">

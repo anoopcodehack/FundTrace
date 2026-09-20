@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useWallet } from "@/context/WalletContext";
 import { DEMO_PRESET_ACCOUNTS, formatAddress } from "@/lib/wallet";
+import { Check } from "lucide-react";
 import IntroLoader from "@/components/IntroLoader";
 
 // Clean Verification & Cryptographic Shield Icon
@@ -79,87 +80,7 @@ export default function HomePage() {
       {/* Intro Brand Logo Drop Physics Loader */}
       <IntroLoader />
 
-      {/* ============================================================ */}
-      {/* 1. TOP HEADER & DIRECT ROUTE ACCESS                          */}
-      {/* ============================================================ */}
-      <header className="w-full bg-white/90 text-stone-900 px-6 sm:px-12 py-3.5 flex items-center justify-between border-b border-stone-200 sticky top-0 z-50 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="text-2xl sm:text-3xl font-black tracking-tight font-display text-stone-900 hover:opacity-80 transition-opacity">
-            FundTrace
-          </Link>
-        </div>
 
-        <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-stone-600">
-          <Link href="/campaigns" className="hover:text-[#FF5023] transition-colors">Explore</Link>
-          <a href="#why-it-matters" className="hover:text-[#FF5023] transition-colors">How it works</a>
-          <Link href="/verify-proof" className="hover:text-[#FF5023] transition-colors">Verify Proof</Link>
-          <Link href="/create" className="hover:text-[#FF5023] transition-colors">Create Campaign</Link>
-          {isVerifier && (
-            <Link href="/verifier" className="text-amber-700 hover:text-amber-800 font-bold px-2.5 py-1 rounded-full bg-amber-100 border border-amber-300">
-              Verifier Panel
-            </Link>
-          )}
-        </nav>
-
-        <div className="flex items-center gap-3">
-          {/* Demo Account Switcher */}
-          <div className="relative">
-            <button
-              onClick={() => setShowDemoMenu(!showDemoMenu)}
-              className="py-2 px-3 text-xs font-bold text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-full flex items-center gap-1.5 transition-all border border-stone-200"
-            >
-              <span>Demo Role</span>
-              <svg className={`w-3 h-3 transition-transform ${showDemoMenu ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-
-            {showDemoMenu && (
-              <div className="absolute right-0 mt-2 w-72 p-2 bg-white border border-stone-200 rounded-2xl shadow-2xl z-50 text-stone-900 space-y-1">
-                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400 border-b border-stone-100">
-                  Switch Role (No MetaMask Needed)
-                </div>
-                {DEMO_PRESET_ACCOUNTS.map((preset) => (
-                  <button
-                    key={preset.address}
-                    onClick={() => {
-                      selectDemoRole(preset);
-                      setShowDemoMenu(false);
-                    }}
-                    className="w-full text-left p-2 rounded-xl hover:bg-stone-100 transition-colors text-xs flex flex-col gap-0.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-stone-900">{preset.role}</span>
-                      <span className="font-mono text-[10px] text-stone-500">
-                        {formatAddress(preset.address)}
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-stone-500">{preset.description}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Connect Wallet Button */}
-          <button
-            onClick={connectMetaMask}
-            disabled={isLoading}
-            className="py-2 px-5 rounded-full font-black text-xs uppercase tracking-wider bg-[#141414] text-white hover:bg-black shadow-md transition-all active:scale-95 disabled:opacity-50"
-          >
-            {isLoading ? (
-              "CONNECTING..."
-            ) : wallet.isConnected ? (
-              <span className="flex items-center gap-1.5 font-mono">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{wallet.displayAddress}</span>
-              </span>
-            ) : (
-              "CONNECT WALLET"
-            )}
-          </button>
-        </div>
-      </header>
 
       {/* ============================================================ */}
       {/* 2. HERO SECTION: FULL UNCUT ARTWORK WITH 2026 NOTE           */}
@@ -633,7 +554,7 @@ export default function HomePage() {
                     : "bg-stone-800/80 hover:bg-stone-800 border-stone-700 text-stone-200"
                 }`}
               >
-                {aliceVoted ? "✓ Alice Voted (46.9%)" : "+ Cast Alice (46.9%)"}
+                {aliceVoted ? <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Alice Voted (46.9%)</span> : "+ Cast Alice (46.9%)"}
               </button>
 
               <button
@@ -644,15 +565,15 @@ export default function HomePage() {
                     : "bg-stone-800/80 hover:bg-stone-800 border-stone-700 text-stone-200"
                 }`}
               >
-                {bobVoted ? "✓ Bob Voted (31.3%)" : "+ Cast Bob (31.3%)"}
+                {bobVoted ? <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Bob Voted (31.3%)</span> : "+ Cast Bob (31.3%)"}
               </button>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             {requestReleased ? (
-              <span className="px-4 py-2 rounded-lg bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 font-semibold text-xs">
-                ✓ 1.20 FTC Released
+              <span className="px-4 py-2 rounded-lg bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 font-semibold text-xs flex items-center gap-1.5">
+                <Check className="w-4 h-4" /> 1.20 FTC Released
               </span>
             ) : (
               <button

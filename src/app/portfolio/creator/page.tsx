@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import { useWallet } from "@/context/WalletContext";
 import RoleGuard from "@/components/RoleGuard";
 import { getCreatorScore, getScoreHistory } from "@/services/scoreService";
@@ -124,9 +123,7 @@ export default function CreatorPortfolioPage() {
 
   return (
     <RoleGuard allowedRoles={["CREATOR"]}>
-      <div className="min-h-screen bg-stone-50 text-stone-900 pb-24">
-        <Navbar />
-      <main className="max-w-6xl mx-auto px-6 sm:px-12 pt-8 pb-16">
+      <div className="min-h-screen bg-stone-50 text-stone-900 pb-24">      <main className="max-w-6xl mx-auto px-6 sm:px-12 pt-8 pb-16">
 
         {/* Header */}
         <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-10 shadow-2xl border border-stone-800 mb-8 overflow-hidden relative">
@@ -174,12 +171,12 @@ export default function CreatorPortfolioPage() {
 
         {!addressToShow ? (
           <div className="text-center py-20">
-            <div className="text-4xl mb-4">👤</div>
+            <div className="text-4xl mb-4">ðŸ‘¤</div>
             <p className="text-stone-500 font-medium">Connect your wallet or enter an address to view the creator profile</p>
           </div>
         ) : isLoading ? (
           <div className="text-center py-20">
-            <div className="animate-spin text-3xl mb-4">⚙️</div>
+            <div className="animate-spin text-3xl mb-4">âš™ï¸</div>
             <p className="text-stone-500">Loading creator profile...</p>
           </div>
         ) : (
@@ -234,10 +231,10 @@ export default function CreatorPortfolioPage() {
             {/* Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
               {[
-                { label: "Total Quotations", value: scoreData?.total_quotations ?? MOCK_QUOTATIONS.length, icon: "📋" },
-                { label: "Approved", value: scoreData?.approved_quotations ?? 2, icon: "✅" },
-                { label: "Unresolved", value: scoreData?.unresolved_requests ?? 1, icon: "⏳", warn: true },
-                { label: "Completed", value: scoreData?.completed_campaigns ?? 1, icon: "🏆" },
+                { label: "Total Quotations", value: scoreData?.total_quotations ?? MOCK_QUOTATIONS.length, icon: "ðŸ“‹" },
+                { label: "Approved", value: scoreData?.approved_quotations ?? 2, icon: "âœ…" },
+                { label: "Unresolved", value: scoreData?.unresolved_requests ?? 1, icon: "â³", warn: true },
+                { label: "Completed", value: scoreData?.completed_campaigns ?? 1, icon: "ðŸ†" },
               ].map((stat) => (
                 <div key={stat.label} className={`bg-white rounded-2xl border shadow-sm p-4 ${stat.warn && (scoreData?.unresolved_requests ?? 1) > 0 ? "border-amber-200 bg-amber-50" : "border-stone-200"}`}>
                   <div className="text-2xl mb-2">{stat.icon}</div>
@@ -294,7 +291,7 @@ export default function CreatorPortfolioPage() {
                         <div>
                           <div className="text-xs font-mono font-bold uppercase tracking-wider text-stone-400">Sanctioned</div>
                           <div className="text-lg font-black font-bebas tracking-wide text-stone-900">
-                            {q.allocated_amount_ftu ? `₹${q.allocated_amount_ftu.toLocaleString()}` : "—"}
+                            {q.allocated_amount_ftu ? `₹${q.allocated_amount_ftu.toLocaleString()}` : "â€”"}
                           </div>
                         </div>
                         <div>
@@ -337,7 +334,7 @@ export default function CreatorPortfolioPage() {
                           </td>
                           <td className="px-6 py-3">
                             <span className={`font-black font-bebas text-lg ${h.new_score > h.old_score ? "text-emerald-600" : "text-red-600"}`}>
-                              {h.old_score} → {h.new_score}
+                              {h.old_score} â†’ {h.new_score}
                             </span>
                           </td>
                           <td className="px-6 py-3 text-stone-500 text-xs">{h.reason}</td>
@@ -377,9 +374,9 @@ export default function CreatorPortfolioPage() {
                     <div className="flex justify-between"><span>Base score</span><span className="font-mono font-bold">70</span></div>
                     <div className="flex justify-between text-emerald-600"><span>+ Proof completion (max 15)</span><span className="font-mono font-bold">+15</span></div>
                     <div className="flex justify-between text-emerald-600"><span>+ On-time proofs (max 10)</span><span className="font-mono font-bold">+10</span></div>
-                    <div className="border-t border-stone-100 pt-2 flex justify-between text-red-500"><span>- Missing proofs (×8 each)</span><span className="font-mono font-bold">-8/each</span></div>
-                    <div className="flex justify-between text-red-500"><span>- Late proofs (×2 each)</span><span className="font-mono font-bold">-2/each</span></div>
-                    <div className="flex justify-between text-red-500"><span>- Unresolved requests (×10)</span><span className="font-mono font-bold">-10/each</span></div>
+                    <div className="border-t border-stone-100 pt-2 flex justify-between text-red-500"><span>- Missing proofs (Ã—8 each)</span><span className="font-mono font-bold">-8/each</span></div>
+                    <div className="flex justify-between text-red-500"><span>- Late proofs (Ã—2 each)</span><span className="font-mono font-bold">-2/each</span></div>
+                    <div className="flex justify-between text-red-500"><span>- Unresolved requests (Ã—10)</span><span className="font-mono font-bold">-10/each</span></div>
                     <div className="flex justify-between text-red-500"><span>- Budget variance penalty</span><span className="font-mono font-bold">max -10</span></div>
                   </div>
                 </div>

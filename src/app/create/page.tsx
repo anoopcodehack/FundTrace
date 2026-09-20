@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Navbar from "@/components/Navbar";
 import RoleGuard from "@/components/RoleGuard";
 import { useWallet } from "@/context/WalletContext";
 import { computeCanonicalMetadataHash } from "@/lib/canonical";
@@ -146,8 +145,6 @@ export default function CreateCampaignPage() {
   return (
     <RoleGuard allowedRoles={["CREATOR"]}>
       <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
-        <Navbar />
-
         <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-8 pb-16">
         
         {/* Colorful Editorial Hero Banner (FinFLO Theme) */}
@@ -194,7 +191,7 @@ export default function CreateCampaignPage() {
                 step > s ? "bg-[#141414] border-[#141414] text-white" :
                 "bg-white border-stone-300 text-stone-400"
               }`}>
-                {step > s ? "✓" : s}
+                {step > s ? "âœ“" : s}
               </div>
               <span className={`text-[10px] font-mono font-bold uppercase tracking-wider ${
                 step === s ? "text-[#FF5023]" : step > s ? "text-[#141414]" : "text-stone-400"
@@ -414,7 +411,7 @@ export default function CreateCampaignPage() {
                     </div>
                     <div className="flex flex-col border-b border-stone-100 pb-2">
                       <span className="text-[10px] font-mono uppercase text-stone-500">Category & Location</span>
-                      <strong className="text-[#141414]">{category} · {location}</strong>
+                      <strong className="text-[#141414]">{category} &middot; {location}</strong>
                     </div>
                     <div className="flex flex-col border-b border-stone-100 pb-2">
                       <span className="text-[10px] font-mono uppercase text-stone-500">Goal</span>
@@ -432,21 +429,21 @@ export default function CreateCampaignPage() {
                     
                     <div className="flex flex-col items-center gap-1 font-mono text-[10px] sm:text-xs">
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">DONATIONS</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-[#FF5023]/20 text-[#FF5023] font-bold px-3 py-1.5 rounded-lg border border-[#FF5023]/30">FUNDS LOCKED</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">QUOTATION</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-emerald-500/20 text-emerald-400 font-bold px-3 py-1.5 rounded-lg border border-emerald-500/30">AI ANALYSIS</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">DONOR SANCTION</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">ALLOCATION</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">CREATOR CLAIM</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">INVOICE / PROOF</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-amber-500/20 text-amber-400 font-bold px-3 py-1.5 rounded-lg border border-amber-500/30">AUDIT</div>
                     </div>
                   </div>
@@ -472,7 +469,7 @@ export default function CreateCampaignPage() {
                 >
                   <span>{isSubmitting ? "Processing via NestJS API..." : "Register Campaign & Commit Hash"}</span>
                   <span className="w-7 h-7 rounded-full bg-[#FF5023] text-white flex items-center justify-center text-sm font-bold">
-                    →
+                    â†’
                   </span>
                 </button>
               </div>
@@ -486,7 +483,7 @@ export default function CreateCampaignPage() {
                   onClick={() => setStep(step - 1)}
                   className="px-6 py-2.5 rounded-full font-bold text-xs uppercase bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
                 >
-                  ← Back
+                  â† Back
                 </button>
               ) : <div/>}
 
@@ -496,7 +493,7 @@ export default function CreateCampaignPage() {
                   onClick={() => setStep(step + 1)}
                   className="px-6 py-2.5 rounded-full font-bold text-xs uppercase bg-[#FF5023] hover:bg-[#ff5d32] text-white transition-colors"
                 >
-                  Next Step →
+                  Next Step â†’
                 </button>
               ) : <div/>}
             </div>

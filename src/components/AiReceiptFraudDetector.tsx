@@ -165,7 +165,7 @@ export default function AiReceiptFraudDetector() {
 
               <div className="pt-2 border-t border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between text-stone-500 text-[11px] gap-1">
                 <span>Total Milestone Request: <strong className="text-stone-900">0.50 FTC</strong></span>
-                <span className="text-emerald-700 font-bold">✓ Within acceptable ±10% fair market corridor</span>
+                <span className="text-emerald-700 font-bold flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Within acceptable ±10% fair market corridor</span>
               </div>
             </div>
           )}

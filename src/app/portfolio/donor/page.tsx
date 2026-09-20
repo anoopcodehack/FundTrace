@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import { useWallet } from "@/context/WalletContext";
 import RoleGuard from "@/components/RoleGuard";
 import { getFundTraceContract } from "@/lib/contract";
@@ -114,7 +113,7 @@ export default function DonorPortfolioPage() {
       setCampaigns(prev => prev.map(c =>
         c.id === campaignId ? { ...c, automationEnabled: !currentlyEnabled } : c
       ));
-      toast.success(currentlyEnabled ? "Automation disabled" : "Automation enabled — AI will auto-sanction future quotations", { id: toastId });
+      toast.success(currentlyEnabled ? "Automation disabled" : "Automation enabled â€” AI will auto-sanction future quotations", { id: toastId });
     } catch (err: any) {
       toast.error(err.message || "Failed to toggle automation", { id: toastId });
     } finally {
@@ -179,9 +178,7 @@ export default function DonorPortfolioPage() {
 
   return (
     <RoleGuard allowedRoles={["DONOR"]}>
-      <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
-      <Navbar />
-      <main className="max-w-6xl mx-auto px-6 sm:px-12 pt-8 pb-16">
+      <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">      <main className="max-w-6xl mx-auto px-6 sm:px-12 pt-8 pb-16">
 
         {/* Header */}
         <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-10 shadow-2xl border border-stone-800 mb-8 overflow-hidden relative">
@@ -205,21 +202,21 @@ export default function DonorPortfolioPage() {
 
         {!wallet.isConnected ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-stone-200">
-            <div className="text-4xl mb-4">🔗</div>
+            <div className="text-4xl mb-4">ðŸ”—</div>
             <p className="text-stone-600 font-bold mb-2">Connect Your Wallet</p>
             <p className="text-stone-400 text-sm">Connect MetaMask to view campaigns you've funded</p>
           </div>
         ) : isLoading ? (
           <div className="text-center py-20">
-            <div className="animate-spin text-3xl mb-4">⚙️</div>
+            <div className="animate-spin text-3xl mb-4">âš™ï¸</div>
             <p className="text-stone-500">Loading your funded campaigns...</p>
           </div>
         ) : campaigns.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-stone-200">
-            <div className="text-4xl mb-4">💸</div>
+            <div className="text-4xl mb-4">ðŸ’¸</div>
             <p className="text-stone-600 font-bold mb-2">No funded campaigns yet</p>
             <Link href="/campaigns" className="text-sm text-[#FF5023] font-bold hover:underline">
-              Browse campaigns to donate →
+              Browse campaigns to donate â†’
             </Link>
           </div>
         ) : (
@@ -245,7 +242,7 @@ export default function DonorPortfolioPage() {
                   </div>
                   {c.automationEnabled && (
                     <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-400/20 text-emerald-400">
-                      ⚡ Auto
+                      âš¡ Auto
                     </div>
                   )}
                 </button>
@@ -264,7 +261,7 @@ export default function DonorPortfolioPage() {
                       href={`/campaigns/${selectedCampaignData.id}`}
                       className="text-xs text-[#FF5023] font-bold hover:underline"
                     >
-                      View Full Campaign →
+                      View Full Campaign â†’
                     </Link>
                   </div>
                   <div className="grid grid-cols-3 gap-4 text-center">
@@ -288,7 +285,7 @@ export default function DonorPortfolioPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">⚡</span>
+                        <span className="text-lg">âš¡</span>
                         <h3 className="font-bold text-stone-900">Automated Approval Mode</h3>
                         {selectedCampaignData.automationEnabled && (
                           <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">ENABLED</span>
@@ -309,7 +306,7 @@ export default function DonorPortfolioPage() {
                           : "bg-[#FF5023] text-white hover:bg-[#e8431a]"
                       } disabled:opacity-60`}
                     >
-                      {togglingAutomation ? "..." : selectedCampaignData.automationEnabled ? "Disable" : "Enable ⚡"}
+                      {togglingAutomation ? "..." : selectedCampaignData.automationEnabled ? "Disable" : "Enable âš¡"}
                     </button>
                   </div>
                 </div>
@@ -318,7 +315,7 @@ export default function DonorPortfolioPage() {
                 {pendingQuotations.length > 0 && (
                   <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
                     <div className="px-6 py-4 border-b border-stone-100 bg-amber-50 flex items-center gap-2">
-                      <span className="text-amber-500">⏳</span>
+                      <span className="text-amber-500">â³</span>
                       <h3 className="text-sm font-bold text-stone-900">Pending Your Review ({pendingQuotations.length})</h3>
                     </div>
                     <div className="divide-y divide-stone-100">
@@ -348,7 +345,7 @@ export default function DonorPortfolioPage() {
                                   recColor === 'red' ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'
                                 }`}>
                                   <div className="flex items-center gap-3">
-                                    <span className="text-xl">🤖</span>
+                                    <span className="text-xl">ðŸ¤–</span>
                                     <div>
                                       <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500">AI Recommendation</div>
                                       <div className={`text-base font-black tracking-wide ${
@@ -381,7 +378,7 @@ export default function DonorPortfolioPage() {
                                           <div className="text-[10px] text-stone-500">Requested</div>
                                           <div className="text-sm font-black text-stone-800 font-bebas tracking-wide">₹{rec.requestedAmount} FTU</div>
                                         </div>
-                                        <div className="text-stone-300">→</div>
+                                        <div className="text-stone-300">â†’</div>
                                         <div className={`px-3 py-1.5 rounded-lg border ${rec.suggestedSanctionAmount < rec.requestedAmount ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
                                           <div className="text-[10px] text-stone-500">Suggested Sanction</div>
                                           <div className="text-sm font-black text-stone-800 font-bebas tracking-wide">₹{rec.suggestedSanctionAmount} FTU</div>
@@ -419,7 +416,7 @@ export default function DonorPortfolioPage() {
                                         <div className="mt-2 space-y-1">
                                           {rec.riskFlags.map((f: string, i: number) => (
                                             <div key={i} className="flex items-start gap-1.5 text-[11px] text-red-700 bg-red-50 px-2 py-1.5 rounded border border-red-100">
-                                              <span>⚠</span>
+                                              <span>âš </span>
                                               <span>{f}</span>
                                             </div>
                                           ))}
@@ -495,7 +492,7 @@ export default function DonorPortfolioPage() {
 
                 {quotations.length === 0 && (
                   <div className="text-center py-10 bg-white rounded-2xl border border-stone-200 text-stone-400">
-                    <div className="text-3xl mb-2">📋</div>
+                    <div className="text-3xl mb-2">ðŸ“‹</div>
                     <p className="text-sm">No quotations submitted for this campaign yet.</p>
                   </div>
                 )}
