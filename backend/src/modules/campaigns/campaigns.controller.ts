@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, HttpException } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CampaignsService } from './campaigns.service';
 import { CreateCampaignDto, PrepareCampaignDto, ConfirmCampaignDto } from './dto/create-campaign.dto';
@@ -19,7 +19,11 @@ export class CampaignsController {
   @ApiOperation({ summary: 'Prepare campaign transaction and store off-chain metadata' })
   @ApiResponse({ status: 201, description: 'Transaction data generated' })
   async prepare(@Body() prepareDto: PrepareCampaignDto) {
-    return this.campaignsService.prepareCampaign(prepareDto);
+    try {
+      return await this.campaignsService.prepareCampaign(prepareDto);
+    } catch (err: any) {
+      throw new HttpException(err.message || 'Error', 400);
+    }
   }
 
   @Post(':id/confirm')

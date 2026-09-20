@@ -37,8 +37,7 @@ export default function CreateCampaignPage() {
         title,
         story,
         category,
-        location,
-        shortDescription
+        location
       })
     : "0x7c21b8d862db1881c3edd13b662e0815f119004521083617159f709d45b52003";
 

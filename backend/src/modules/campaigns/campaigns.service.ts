@@ -65,64 +65,81 @@ export class CampaignsService {
   }
 
   async prepareCampaign(dto: PrepareCampaignDto) {
-    if (dto.durationDays <= 0) throw new Error("Invalid duration");
+    try {
+      if (dto.durationDays <= 0) throw new Error("Invalid duration");
 
-    const canonicalHash = computeCanonicalMetadataHash({
-      title: dto.title,
-      story: dto.story,
-      category: dto.category,
-      location: dto.location,
-      shortDescription: dto.shortDescription
-    });
+      const canonicalHash = computeCanonicalMetadataHash({
+        title: dto.title,
+        story: dto.story,
+        category: dto.category,
+        location: dto.location
+      });
 
-    const campaignData: any = {
-      title: dto.title,
-      tagline: dto.shortDescription,
-      category: dto.category,
-      story: dto.story,
-      location: dto.location,
-      cover_image_url: dto.coverImage || '',
-      canonical_hash: canonicalHash,
-      creator_address: dto.creatorAddress,
-      updated_at: new Date().toISOString(),
-    };
+      // Generate a temporary negative on_chain_id to satisfy the DB NOT NULL constraint
+      // It will be updated to the real positive on_chain_id during the confirm step
+      const tempOnChainId = -Math.floor(Math.random() * 1000000) - 1;
 
-    // Store pending campaign to get an offChainId
-    const { data: inserted, error } = await this.supabase
-      .from('campaigns')
-      .insert(campaignData)
-      .select()
-      .single();
+      const campaignData: any = {
+        on_chain_id: tempOnChainId,
+        title: dto.title,
+        tagline: dto.shortDescription,
+        category: dto.category,
+        story: dto.story,
+        location: dto.location,
+        cover_image_url: dto.coverImage || '',
+        canonical_hash: canonicalHash,
+        creator_address: dto.creatorAddress,
+        updated_at: new Date().toISOString(),
+      };
 
-    if (error) {
-      this.logger.error(`Failed to insert pending campaign: ${error.message}`);
-      throw error;
+      // Ensure creator exists in the users table to satisfy foreign key constraint
+      if (dto.creatorAddress) {
+        await this.supabase.from('users').upsert({
+          wallet_address: dto.creatorAddress,
+          role: 'CREATOR'
+        }, { onConflict: 'wallet_address' });
+      }
+
+      // Store pending campaign to get an offChainId
+      const { data: inserted, error } = await this.supabase
+        .from('campaigns')
+        .insert(campaignData)
+        .select()
+        .single();
+
+      if (error) {
+        this.logger.error(`Failed to insert pending campaign: ${error.message}`);
+        throw new Error(`DB Error: ${error.message}`);
+      }
+
+      const contract = this.blockchainService.getContract();
+      if (!contract) throw new Error("Contract not connected");
+
+      const deadline = Math.floor(Date.now() / 1000) + dto.durationDays * 86400;
+      
+      // Default institutional verifier
+      const defaultVerifier = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'; 
+      const goalWei = ethers.parseEther(dto.goalFtu.toString());
+
+      const txData = await contract.createCampaign.populateTransaction(
+        goalWei,
+        deadline,
+        canonicalHash,
+        defaultVerifier
+      );
+
+      return {
+        transactionData: {
+          to: txData.to,
+          data: txData.data,
+        },
+        metadataHash: canonicalHash,
+        offChainId: inserted.id
+      };
+    } catch (err: any) {
+      console.error("PREPARE CAMPAIGN ERROR:", err);
+      throw err;
     }
-
-    const contract = this.blockchainService.getContract();
-    if (!contract) throw new Error("Contract not connected");
-
-    const deadline = Math.floor(Date.now() / 1000) + dto.durationDays * 86400;
-    
-    // Default institutional verifier
-    const defaultVerifier = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'; 
-    const goalWei = ethers.parseEther(dto.goalFtu.toString());
-
-    const txData = await contract.createCampaign.populateTransaction(
-      goalWei,
-      deadline,
-      canonicalHash,
-      defaultVerifier
-    );
-
-    return {
-      transactionData: {
-        to: txData.to,
-        data: txData.data,
-      },
-      metadataHash: canonicalHash,
-      offChainId: inserted.id
-    };
   }
 
   async confirmCampaign(id: string, txHash: string) {
