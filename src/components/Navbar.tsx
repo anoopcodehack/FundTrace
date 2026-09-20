@@ -85,9 +85,9 @@ export default function Navbar() {
             Demo Role <ChevronDown className="w-4 h-4 opacity-70" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-72">
-            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-stone-500">
+            <div className="px-2 py-1.5 text-[10px] uppercase tracking-wider text-stone-500">
               Switch Role (No MetaMask Needed)
-            </DropdownMenuLabel>
+            </div>
             <DropdownMenuSeparator />
             {DEMO_PRESET_ACCOUNTS.map((preset) => (
               <DropdownMenuItem

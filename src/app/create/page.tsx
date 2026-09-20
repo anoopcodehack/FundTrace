@@ -75,11 +75,13 @@ export default function CreateCampaignPage() {
         body: JSON.stringify(payload)
       });
 
+      const responseText = await apiResponse.text();
       if (!apiResponse.ok) {
-        throw new Error("Failed to prepare campaign via API");
+        console.error("API Error Response:", responseText);
+        throw new Error(\`Failed to prepare campaign via API: \${responseText}\`);
       }
-
-      const { transactionData, metadataHash, offChainId } = await apiResponse.json();
+      
+      const { transactionData, metadataHash, offChainId } = JSON.parse(responseText);
 
       toast.loading("Please sign the transaction in MetaMask...", { id: toastId });
 
