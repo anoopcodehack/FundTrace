@@ -248,6 +248,22 @@ export class QuotationsService {
     return data;
   }
 
+  async markForReview(id: number, reviewedBy: string, reason: string) {
+    const { data, error } = await this.supabase
+      .from('quotations')
+      .update({
+        state: 'DonorReview',
+        rejected_by: reviewedBy.toLowerCase(), // Store reviewer in rejected_by or add a new field, but state is enough
+        rejection_reason: reason, // Store review note here
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
   async recordClaim(id: number, claimAmountFtu: number, txHash: string) {
     const quotation = await this.findOne(id);
     const newClaimed = Number(quotation.claimed_amount_ftu || 0) + claimAmountFtu;

@@ -23,11 +23,17 @@ export interface AIEvaluationInput {
 
 export interface AIRecommendation {
   recommendation: 'APPROVE' | 'REJECT' | 'REVIEW';
-  confidence: number;
+  confidence: number; // 0 to 100
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
-  reason: string;
-  flags: string[];
-  suggestedAllocation?: number;
+  requestedAmount: number;
+  suggestedSanctionAmount: number;
+  campaignRelevance: string;
+  budgetImpact: string;
+  priceAssessment: string;
+  creatorReliabilityScore: string;
+  proofHistory: string;
+  reasons: string[];
+  riskFlags: string[];
   evaluatedAt: string;
 }
 
@@ -92,11 +98,17 @@ export class AiService {
 
     return {
       recommendation: parsed.recommendation || 'REVIEW',
-      confidence: Math.min(1, Math.max(0, parsed.confidence || 0.5)),
+      confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 50,
       riskLevel: parsed.riskLevel || 'MEDIUM',
-      reason: parsed.reason || 'AI evaluation complete.',
-      flags: Array.isArray(parsed.flags) ? parsed.flags : [],
-      suggestedAllocation: parsed.suggestedAllocation,
+      requestedAmount: input.requestedAllocation,
+      suggestedSanctionAmount: parsed.suggestedSanctionAmount ?? input.requestedAllocation,
+      campaignRelevance: parsed.campaignRelevance || 'Not specified',
+      budgetImpact: parsed.budgetImpact || 'Not specified',
+      priceAssessment: parsed.priceAssessment || 'Not specified',
+      creatorReliabilityScore: parsed.creatorReliabilityScore || `${input.creatorReliabilityScore}/100`,
+      proofHistory: parsed.proofHistory || 'Not specified',
+      reasons: Array.isArray(parsed.reasons) ? parsed.reasons : [],
+      riskFlags: Array.isArray(parsed.riskFlags) ? parsed.riskFlags : [],
       evaluatedAt,
     };
   }
@@ -107,13 +119,13 @@ Evaluate the following quotation and provide a structured JSON recommendation.
 
 CAMPAIGN CONTEXT:
 - Objective: ${input.campaignObjective}
-- Remaining Balance: ₹${input.campaignBalance} FTU
+- Remaining Balance: ${input.campaignBalance} FTU
 - Creator Reliability Score: ${input.creatorReliabilityScore}/100
 
 QUOTATION DETAILS:
 - Purpose: ${input.quotationPurpose}
 - Vendor: ${input.vendorName}
-- Requested Amount: ₹${input.requestedAllocation} FTU
+- Requested Amount: ${input.requestedAllocation} FTU
 - Items: ${JSON.stringify(input.items)}
 
 CREATOR HISTORY:
@@ -122,16 +134,22 @@ CREATOR HISTORY:
 - Late Proofs: ${input.previousProofBehavior.lateProofs}
 - Missing Proofs: ${input.previousProofBehavior.missingProofs}
 - Unresolved Requests: ${input.previousProofBehavior.unresolvedRequests}
-- Historical Approved vs Claimed: ₹${input.historicalApprovedVsClaimed.approved} approved, ₹${input.historicalApprovedVsClaimed.claimed} claimed
+- Historical Approved vs Claimed: ${input.historicalApprovedVsClaimed.approved} approved, ${input.historicalApprovedVsClaimed.claimed} claimed
 
 Respond with ONLY valid JSON matching this exact schema:
 {
-  "recommendation": "APPROVE" | "REJECT" | "REVIEW",
-  "confidence": 0.0 to 1.0,
+  "recommendation": "APPROVE" | "REVIEW" | "REJECT",
+  "confidence": number from 0 to 100,
   "riskLevel": "LOW" | "MEDIUM" | "HIGH",
-  "reason": "concise explanation in 1-2 sentences",
-  "flags": ["list of specific concerns if any"],
-  "suggestedAllocation": number or null
+  "requestedAmount": number,
+  "suggestedSanctionAmount": number,
+  "campaignRelevance": "string describing if it matches objective",
+  "budgetImpact": "string describing impact on remaining balance",
+  "priceAssessment": "string assessing prices",
+  "creatorReliabilityScore": "string summarizing score",
+  "proofHistory": "string summarizing proof behavior",
+  "reasons": ["list of key reasons"],
+  "riskFlags": ["list of risk flags or concerns if any"]
 }`;
   }
 
@@ -196,28 +214,34 @@ Respond with ONLY valid JSON matching this exact schema:
     if (score >= 75) {
       recommendation = 'APPROVE';
       riskLevel = 'LOW';
-      confidence = score / 100;
+      confidence = score;
     } else if (score >= 50) {
       recommendation = 'REVIEW';
       riskLevel = 'MEDIUM';
-      confidence = (score - 50) / 50;
+      confidence = score;
     } else {
       recommendation = 'REJECT';
       riskLevel = 'HIGH';
-      confidence = 0.8;
+      confidence = score;
     }
 
-    const reason = flags.length === 0
-      ? `Quotation appears legitimate. Creator score ${input.creatorReliabilityScore}/100. Amount (₹${input.requestedAllocation}) is within acceptable range.`
-      : `Evaluation found ${flags.length} concern(s). Review required before sanctioning.`;
+    const reasons = flags.length === 0
+      ? [`Quotation appears legitimate.`, `Amount (${input.requestedAllocation} FTU) is within acceptable range.`]
+      : [`Evaluation found ${flags.length} concern(s).`, `Review required before sanctioning.`];
 
     return {
       recommendation,
       confidence,
       riskLevel,
-      reason,
-      flags,
-      suggestedAllocation: recommendation === 'APPROVE' ? input.requestedAllocation : undefined,
+      requestedAmount: input.requestedAllocation,
+      suggestedSanctionAmount: recommendation === 'APPROVE' ? input.requestedAllocation : 0,
+      campaignRelevance: 'Automated deterministic evaluation does not analyze context.',
+      budgetImpact: `Requested ${input.requestedAllocation} FTU out of ${input.campaignBalance} FTU remaining.`,
+      priceAssessment: 'Automated deterministic evaluation does not analyze line item pricing.',
+      creatorReliabilityScore: `Score: ${input.creatorReliabilityScore}/100.`,
+      proofHistory: `On-time: ${input.previousProofBehavior.onTimeProofs}, Late: ${input.previousProofBehavior.lateProofs}, Missing: ${input.previousProofBehavior.missingProofs}.`,
+      reasons,
+      riskFlags: flags,
       evaluatedAt,
     };
   }
@@ -282,8 +306,8 @@ Respond with ONLY valid JSON matching this exact schema:
       recommendation: recommendation.recommendation,
       confidence: recommendation.confidence,
       riskLevel: recommendation.riskLevel,
-      reason: recommendation.reason,
-      flags: recommendation.flags.sort(),
+      reasons: recommendation.reasons.sort(),
+      riskFlags: recommendation.riskFlags.sort(),
       evaluatedAt: recommendation.evaluatedAt,
     });
     return '0x' + createHash('sha256').update(canonical).digest('hex');

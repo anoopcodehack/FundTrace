@@ -201,6 +201,9 @@ export interface CampaignMetadata {
   canonicalHash: string;
   createdAt: string;
   updatedAt: string;
+  fundingDeadline?: string;
+  plannedBudget: Array<{category: string; amountFtu: number;}>;
+  creatorName: string;
 }
 
 export interface SpendingRequestMetadata {
@@ -241,10 +244,17 @@ export interface ProofDocumentRecord {
 
 export interface AIRecommendation {
   recommendation: "APPROVE" | "REJECT" | "REVIEW";
-  confidence: number; // 0–1
+  confidence: number; // 0–100
   riskLevel: "LOW" | "MEDIUM" | "HIGH";
-  reason: string;
-  flags: string[];
+  requestedAmount: number;
+  suggestedSanctionAmount: number;
+  campaignRelevance: string;
+  budgetImpact: string;
+  priceAssessment: string;
+  creatorReliabilityScore: string;
+  proofHistory: string;
+  reasons: string[];
+  riskFlags: string[];
   evaluatedAt: string;
 }
 

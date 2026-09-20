@@ -134,15 +134,12 @@ A request is **open** while it is `PENDING`, `APPROVED`, or `RELEASED` without p
 - **Public event ledger**: every financial event with timestamp, transaction hash, donor and recipient addresses, no login.
 - **Phase 2 Quotation System**: A dynamic workflow allowing creators to submit structured spending quotes against remaining campaign balances, which can be partially or fully sanctioned.
 - **AI-Assisted Evaluation**: AI evaluates submitted quotations for risk and plausibility, serving as an advisory layer for donors before they sanction funds.
-- **Creator Reliability Score**: An on-chain tracked reputation score for creators (0-100) that dynamically adjusts based on their history of claiming allocations and submitting timely proofs.
-- **Portfolio Dashboards**: Dedicated transparent dashboards for both donors and creators to manage their active campaigns, track fund allocations, and sanction quotations.
-- **Demo tooling**: local Hardhat network, pre-funded demo wallets and a one-command reset.
-
-<!-- Add screenshots here once the UI is built:
-![Campaign dashboard](docs/img/dashboard.png)
-![Public ledger](docs/img/ledger.png)
-![Proof verification: match and tamper](docs/img/proof-check.png)
--->
+- **Creator Reliability Score (CIBIL-like Gauge)**: An on-chain tracked reputation score for creators (0-100 mapped to a 300-900 visual gauge) that dynamically adjusts based on their history of claiming allocations and submitting timely proofs.
+- **16 Custom Portfolio Dashboards**: Dedicated transparent dashboards fully implemented for all roles:
+  - **Admin**: System health, global audit ledger, user management, and campaign verification panels.
+  - **Creator**: My Campaigns, Create Campaign, Claims, Proof submissions, and the Reliability Score module.
+  - **Donor**: Contributions tracking, Approvals, Fund Tracking, Ledger, and Settings.
+- **Demo tooling**: local Hardhat network, pre-funded demo wallets, and a one-command reset.
 
 ## Architecture
 

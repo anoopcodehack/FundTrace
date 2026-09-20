@@ -19,6 +19,7 @@ interface WalletContextType {
   provider: ethers.BrowserProvider | ethers.JsonRpcProvider | null;
   signer: ethers.Signer | null;
   isLoading: boolean;
+  isVerifier: boolean;
   contractAddress: string;
   userRole: "ADMIN" | "CREATOR" | "DONOR" | null;
   connectMetaMask: () => Promise<void>;
@@ -120,6 +121,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }
 
   const userRole = wallet.appRole || null;
+  const isVerifier = wallet.address?.toLowerCase() === VERIFIER_ADDRESS;
 
   return (
     <WalletContext.Provider
@@ -128,6 +130,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         provider,
         signer,
         isLoading,
+        isVerifier,
         contractAddress,
         userRole,
         connectMetaMask,

@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import { useWallet } from "@/context/WalletContext";
 import RoleGuard from "@/components/RoleGuard";
 import { getFundTraceContract } from "@/lib/contract";
-import { getQuotationsByCampaign, sanctionQuotation, rejectQuotation } from "@/services/quotationService";
+import { getQuotationsByCampaign, sanctionQuotation, rejectQuotation, reviewQuotation } from "@/services/quotationService";
 import { formatFtu } from "@/types";
 import { toast } from "sonner";
 
@@ -157,6 +157,19 @@ export default function DonorPortfolioPage() {
       toast.success("Quotation rejected");
     } catch (err: any) {
       toast.error(err.message || "Rejection failed");
+    }
+  }
+
+  async function handleReview(quotationId: number) {
+    if (!wallet.address) return;
+    const reason = window.prompt("Reason for manual review:");
+    if (!reason) return;
+    try {
+      await reviewQuotation(quotationId, wallet.address, reason);
+      await loadQuotations(selectedCampaign!);
+      toast.success("Quotation flagged for review");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to flag quotation");
     }
   }
 
@@ -328,37 +341,118 @@ export default function DonorPortfolioPage() {
                             </div>
 
                             {rec && (
-                              <div className={`mb-4 p-4 rounded-xl bg-${recColor}-50 border border-${recColor}-200`}>
-                                <div className="flex items-center gap-2 mb-1.5">
-                                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-stone-600">🤖 AI Recommendation</span>
-                                  <span className={`px-2 py-0.5 rounded text-xs font-bold bg-${recColor}-100 text-${recColor}-800`}>
-                                    {rec.recommendation} · {Math.round((rec.confidence || 0) * 100)}%
-                                  </span>
-                                  <span className={`text-xs font-medium text-${recColor}-700`}>Risk: {rec.riskLevel}</span>
+                              <div className="mb-5 bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
+                                {/* Header */}
+                                <div className={`px-5 py-3 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                                  recColor === 'emerald' ? 'bg-emerald-50 border-emerald-100' :
+                                  recColor === 'red' ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'
+                                }`}>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xl">🤖</span>
+                                    <div>
+                                      <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500">AI Recommendation</div>
+                                      <div className={`text-base font-black tracking-wide ${
+                                        recColor === 'emerald' ? 'text-emerald-700' :
+                                        recColor === 'red' ? 'text-red-700' : 'text-amber-700'
+                                      }`}>
+                                        {rec.recommendation} ({Math.round(rec.confidence)}% CONFIDENCE)
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-stone-500">Risk Level:</span>
+                                    <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold tracking-wide uppercase ${
+                                      rec.riskLevel === 'HIGH' ? 'bg-red-100 text-red-800' :
+                                      rec.riskLevel === 'MEDIUM' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                                    }`}>
+                                      {rec.riskLevel}
+                                    </span>
+                                  </div>
                                 </div>
-                                {rec.reason && <p className="text-xs text-stone-600 leading-relaxed">{rec.reason}</p>}
-                                {(rec.flags || []).map((f: string, i: number) => (
-                                  <div key={i} className="text-xs text-amber-700 mt-1">⚠ {f}</div>
-                                ))}
-                                <p className="text-xs text-stone-400 mt-2 italic">
-                                  AI recommends — you decide. Your approval is final.
-                                </p>
+
+                                {/* Body */}
+                                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  {/* Left Col */}
+                                  <div className="space-y-4">
+                                    <div>
+                                      <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Financial Assessment</div>
+                                      <div className="flex items-center gap-3 mb-2">
+                                        <div className="bg-stone-50 px-3 py-1.5 rounded-lg border border-stone-100">
+                                          <div className="text-[10px] text-stone-500">Requested</div>
+                                          <div className="text-sm font-black text-stone-800 font-bebas tracking-wide">₹{rec.requestedAmount} FTU</div>
+                                        </div>
+                                        <div className="text-stone-300">→</div>
+                                        <div className={`px-3 py-1.5 rounded-lg border ${rec.suggestedSanctionAmount < rec.requestedAmount ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                                          <div className="text-[10px] text-stone-500">Suggested Sanction</div>
+                                          <div className="text-sm font-black text-stone-800 font-bebas tracking-wide">₹{rec.suggestedSanctionAmount} FTU</div>
+                                        </div>
+                                      </div>
+                                      <p className="text-[11px] text-stone-600 leading-relaxed"><strong className="text-stone-800">Budget Impact:</strong> {rec.budgetImpact}</p>
+                                      <p className="text-[11px] text-stone-600 leading-relaxed mt-1"><strong className="text-stone-800">Pricing:</strong> {rec.priceAssessment}</p>
+                                    </div>
+
+                                    <div>
+                                      <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Campaign Relevance</div>
+                                      <p className="text-[11px] text-stone-600 leading-relaxed">{rec.campaignRelevance}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Right Col */}
+                                  <div className="space-y-4">
+                                    <div>
+                                      <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Creator & Proof History</div>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-[11px] text-stone-600">Reliability Score:</span>
+                                        <span className="px-1.5 py-0.5 bg-stone-100 text-stone-800 text-[10px] font-mono font-bold rounded">{rec.creatorReliabilityScore}</span>
+                                      </div>
+                                      <p className="text-[11px] text-stone-600 leading-relaxed">{rec.proofHistory}</p>
+                                    </div>
+
+                                    <div>
+                                      <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">AI Reasoning & Flags</div>
+                                      <ul className="list-disc pl-4 space-y-1">
+                                        {rec.reasons?.map((r: string, i: number) => (
+                                          <li key={i} className="text-[11px] text-stone-600">{r}</li>
+                                        ))}
+                                      </ul>
+                                      {rec.riskFlags && rec.riskFlags.length > 0 && (
+                                        <div className="mt-2 space-y-1">
+                                          {rec.riskFlags.map((f: string, i: number) => (
+                                            <div key={i} className="flex items-start gap-1.5 text-[11px] text-red-700 bg-red-50 px-2 py-1.5 rounded border border-red-100">
+                                              <span>⚠</span>
+                                              <span>{f}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="px-5 py-2.5 bg-stone-50 border-t border-stone-100 text-[10px] text-stone-400 italic text-center">
+                                  AI suggests recommendations based on historical data and deterministic rules. You hold the final approval authority.
+                                </div>
                               </div>
                             )}
 
-                            <div className="flex gap-3">
+                            <div className="flex flex-col sm:flex-row gap-3">
                               <button
                                 onClick={() => handleSanction(q.id, q.requested_amount_ftu || q.requestedAmountFtu)}
                                 disabled={sanctioningId === q.id}
-                                className="flex-1 py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition-colors disabled:opacity-60"
+                                className="flex-1 py-3 px-4 rounded-xl bg-[#161813] hover:bg-black text-white font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-60 shadow-sm"
                               >
-                                {sanctioningId === q.id ? "Sanctioning..." : "✓ Approve & Sanction"}
+                                {sanctioningId === q.id ? "Sanctioning..." : "Approve"}
+                              </button>
+                              <button
+                                onClick={() => handleReview(q.id)}
+                                className="flex-1 py-3 px-4 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs uppercase tracking-wider transition-colors border border-amber-200"
+                              >
+                                Review
                               </button>
                               <button
                                 onClick={() => handleReject(q.id)}
-                                className="flex-1 py-3 px-4 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-sm transition-colors border border-red-200"
+                                className="flex-1 py-3 px-4 rounded-xl bg-white hover:bg-red-50 text-red-600 font-bold text-xs uppercase tracking-wider transition-colors border border-stone-200 hover:border-red-200"
                               >
-                                ✗ Reject
+                                Reject
                               </button>
                             </div>
                           </div>

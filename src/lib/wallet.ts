@@ -52,7 +52,7 @@ export const DEMO_PRESET_ACCOUNTS = [
     role: "Bob (Key Contributor)",
     appRole: "DONOR" as const,
     address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
-    privateKey: "0x47e179ec340f649b83564579282b404fc2458009ec06b916Bra4d85203303649",
+    privateKey: "0x47e179ec19401f8cb852cd80709033108c4e0906231eb9615553e19871783582",
     description: "Donated 1.0 FTC (31.3% voting weight, triggers >50% approval)",
   },
   {

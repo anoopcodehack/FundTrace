@@ -96,6 +96,20 @@ export async function rejectQuotation(
   return mapQuotation(await response.json());
 }
 
+export async function reviewQuotation(
+  id: number,
+  reviewedBy: string,
+  reason: string
+): Promise<QuotationMetadata> {
+  const response = await fetch(`${API_URL}/quotations/${id}/review`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reviewedBy, reason }),
+  });
+  if (!response.ok) throw new Error('Failed to mark quotation for review');
+  return mapQuotation(await response.json());
+}
+
 export async function recordClaim(
   id: number,
   claimAmountFtu: number,

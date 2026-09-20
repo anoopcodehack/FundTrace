@@ -27,7 +27,18 @@ export default function CreateCampaignPage() {
 
   // Step 2 State: Funding Setup
   const [goalFtu, setGoalFtu] = useState("100000"); // 1 FTU = ₹1
-  const [durationDays, setDurationDays] = useState("30");
+  const [deadline, setDeadline] = useState("");
+  
+  const [plannedBudget, setPlannedBudget] = useState<{ category: string; amount: number }[]>([
+    { category: "Equipment", amount: 0 },
+    { category: "Materials", amount: 0 },
+    { category: "Operations", amount: 0 },
+    { category: "Services", amount: 0 },
+    { category: "Other", amount: 0 },
+  ]);
+
+  const totalPlanned = plannedBudget.reduce((sum, item) => sum + item.amount, 0);
+  const remainingBudget = Number(goalFtu) - totalPlanned;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedId, setSubmittedId] = useState<number | null>(null);
@@ -50,6 +61,13 @@ export default function CreateCampaignPage() {
     }
 
     setIsSubmitting(true);
+    
+    if (totalPlanned > Number(goalFtu)) {
+      toast.error("Planned budget cannot exceed funding goal.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const toastId = toast.loading("Validating campaign via NestJS API...");
 
     try {
@@ -64,7 +82,8 @@ export default function CreateCampaignPage() {
         coverImage,
         supportingDocs,
         goalFtu: Number(goalFtu),
-        durationDays: Number(durationDays),
+        deadline,
+        plannedBudget,
         creatorAddress: wallet.address
       };
 
@@ -317,15 +336,63 @@ export default function CreateCampaignPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Funding Duration (Days) *</label>
+                    <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Campaign Funding Deadline *</label>
                     <input
-                      type="number"
+                      type="date"
                       required
-                      value={durationDays}
-                      onChange={(e) => setDurationDays(e.target.value)}
+                      value={deadline}
+                      onChange={(e) => setDeadline(e.target.value)}
                       className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
                     />
+                    <p className="text-[10px] text-stone-500 mt-1">This defines how long the campaign accepts contributions. It does NOT represent when funds will be claimed.</p>
                   </div>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-stone-200">
+                  <div>
+                    <h3 className="text-lg font-bold font-bebas tracking-wide uppercase text-[#141414]">Planned Fund Usage</h3>
+                    <p className="text-[11px] text-stone-500">Optionally define expected spending categories to provide context for the AI quotation analysis system.</p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {plannedBudget.map((item, index) => (
+                      <div key={item.category} className="flex items-center gap-4">
+                        <div className="w-1/3">
+                          <span className="text-xs font-semibold text-stone-700">{item.category}</span>
+                        </div>
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-2.5 text-stone-500 font-bold text-xs">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.amount || ""}
+                            onChange={(e) => {
+                              const newBudget = [...plannedBudget];
+                              newBudget[index].amount = Number(e.target.value);
+                              setPlannedBudget(newBudget);
+                            }}
+                            className="w-full p-2 pl-7 rounded-lg border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023]"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 mt-4 flex items-center justify-between text-xs font-mono">
+                    <div className="flex flex-col">
+                      <span className="text-stone-500 font-bold">PLANNED</span>
+                      <span className="text-stone-900 font-black text-sm">₹{totalPlanned}</span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <span className="text-stone-500 font-bold">REMAINING / UNASSIGNED</span>
+                      <span className={`font-black text-sm ${remainingBudget < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                        ₹{remainingBudget}
+                      </span>
+                    </div>
+                  </div>
+                  {remainingBudget < 0 && (
+                    <p className="text-xs text-red-500 font-bold">Planned budget cannot exceed the funding goal.</p>
+                  )}
                 </div>
 
               </div>

@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, User } from "lucide-react";
 
 type NavLink = { name: string; href: string };
 
@@ -30,14 +30,12 @@ export default function Navbar() {
     links = [
       { name: "Dashboard", href: "/admin" },
       { name: "Campaigns", href: "/admin/campaigns" },
-      { name: "Verification", href: "/verifier" },
       { name: "Users", href: "/admin/users" },
       { name: "Audit Ledger", href: "/admin/ledger" },
       { name: "System", href: "/admin/system" },
     ];
   } else if (userRole === "CREATOR") {
     links = [
-      { name: "Dashboard", href: "/portfolio/creator" },
       { name: "My Campaigns", href: "/portfolio/creator/campaigns" },
       { name: "Create Campaign", href: "/create" },
       { name: "Requests", href: "/portfolio/creator/requests" },
@@ -48,20 +46,16 @@ export default function Navbar() {
     ];
   } else if (userRole === "DONOR") {
     links = [
-      { name: "Dashboard", href: "/portfolio/donor" },
-      { name: "Explore", href: "/campaigns" },
       { name: "My Contributions", href: "/portfolio/donor/contributions" },
       { name: "Approvals", href: "/portfolio/donor/approvals" },
-      { name: "Settings", href: "/portfolio/donor/settings" },
       { name: "Fund Tracking", href: "/portfolio/donor/tracking" },
+      { name: "Settings", href: "/portfolio/donor/settings" },
       { name: "Audit Ledger", href: "/portfolio/donor/ledger" },
     ];
   } else {
     // Public unauthenticated
     links = [
       { name: "Explore", href: "/campaigns" },
-      { name: "How it works", href: "/#why-it-matters" },
-      { name: "Verify Proof", href: "/verify-proof" },
     ];
   }
 
@@ -152,6 +146,20 @@ export default function Navbar() {
             "CONNECT WALLET"
           )}
         </Button>
+
+        {wallet.isConnected && userRole && (
+          <Link
+            href={
+              userRole === "ADMIN" ? "/admin" :
+              userRole === "CREATOR" ? "/portfolio/creator/campaigns" :
+              "/portfolio/donor/contributions"
+            }
+            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors border border-stone-200 shadow-sm"
+            title="My Profile"
+          >
+            <User className="w-4 h-4" />
+          </Link>
+        )}
       </div>
     </header>
   );
