@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/landing/Hero";
 import Features from "@/components/landing/Features";
@@ -69,6 +70,11 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-white/5 py-8 text-center text-stone-500 text-xs font-mono">
         <p>© 2026 FundTrace Protocol. Built on Ethereum.</p>
+        <div className="mt-2">
+          <Link href="/privacy" className="hover:text-white transition-colors">
+            Privacy Policy
+          </Link>
+        </div>
       </footer>
     </div>
   );
