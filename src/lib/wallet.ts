@@ -25,8 +25,16 @@ export const INITIAL_WALLET_STATE: WalletState = {
   appRole: null,
 };
 
+export interface DemoPresetAccount {
+  role: string;
+  appRole: "ADMIN" | "CREATOR" | "DONOR";
+  address: string;
+  privateKey: string;
+  description: string;
+}
+
 // Known pre-funded local Hardhat accounts for instant hackathon demo role switching
-export const DEMO_PRESET_ACCOUNTS = [
+export const DEMO_PRESET_ACCOUNTS: DemoPresetAccount[] = [
   {
     role: "Deployer / Admin",
     appRole: "ADMIN" as const,

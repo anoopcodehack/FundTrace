@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useWallet } from "@/context/WalletContext";
-import { DEMO_PRESET_ACCOUNTS, formatAddress } from "@/lib/wallet";
+import { DEMO_PRESET_ACCOUNTS, DemoPresetAccount, formatAddress } from "@/lib/wallet";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, User, Check } from "lucide-react";
 
@@ -74,7 +74,7 @@ export default function Navbar() {
     links.push({ name: "Verifier Panel", href: "/verifier" });
   }
 
-  const handleRoleSwitch = (preset: any) => {
+  const handleRoleSwitch = (preset: DemoPresetAccount) => {
     selectDemoRole(preset);
     const roleStr = preset.role.toUpperCase();
     if (roleStr === "VERIFIER" || roleStr === "ADMIN") {
@@ -133,7 +133,7 @@ export default function Navbar() {
                 Switch Role (Instant Local Persona)
               </div>
               <div className="py-1 space-y-1 max-h-80 overflow-y-auto">
-                {DEMO_PRESET_ACCOUNTS.map((preset) => {
+                {DEMO_PRESET_ACCOUNTS.map((preset: DemoPresetAccount) => {
                   const isCurrent = preset.address.toLowerCase() === wallet.address?.toLowerCase();
                   const roleSlug = preset.appRole ? preset.appRole.toLowerCase() : preset.role.toLowerCase().replace(/[^a-z0-9]/g, '-');
                   return (
