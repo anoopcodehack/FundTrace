@@ -77,7 +77,7 @@ const SAMPLE_EVENTS: LedgerEvent[] = [
     timestamp: "52 mins ago",
     actor: "0x90F7...b906 (Alice)",
     details: "Cast 1.50 FTC Contribution Weight (46.9%)",
-    badge: "VOTE RECORDED",
+    badge: "SANCTION RECORDED",
   },
   {
     id: "5",

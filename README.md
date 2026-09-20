@@ -62,84 +62,57 @@ Crowdfunding platforms are good at collecting money and weak at proving what hap
 
 ## The Solution
 
-FundTrace connects campaign verification, fundraising, controlled spending, contributor approval, proof submission and public auditing in one workflow.
+FundTrace connects campaign verification, fundraising, full balance allocation, quotation-based spending, AI analysis, contributor sanctions, proof submission, and reliability scoring in one unified workflow:
 
+```text
+Campaign Funded
+→ Full Amount Allocated
+→ Creator Uploads Quotation
+→ AI Evaluation & Policy Check
+→ Donor Sanction (Manual or Per-Donor Auto)
+→ Creator Claims Portion
+→ Funds → Creator Wallet
+→ Invoice / Proof Upload (Keccak-256)
+→ Verification & Creator Reliability Score Update
 ```
-VERIFY CAMPAIGN → FUND → LOCK → REQUEST → VOTE → RELEASE → PROVE → CHECK PROOF → AUDIT
-```
 
-Donations are held by a smart contract, not by the campaign creator. Money leaves the contract in exactly two ways: an **approved release** to the request's visible recipient wallet, or a **refund** to donors of a failed campaign.
+Donations are held by a smart contract in full escrow. Money leaves the contract only through:
+1. **Sanctioned and Claimed allocations** to the creator's wallet following approved quotations.
+2. **Refunds** to donors if a campaign fails to reach its goal or becomes dormant.
 
-> FundTrace does not claim that locked funds or donor voting are new ideas on their own. Its contribution is combining verification, a closed funding phase, snapshot voting, a one-open-request rule, document hashes, proof deadlines and a public event ledger into a single accountability loop.
+---
 
 ## How It Works
 
-| Step | Action | What the contract enforces |
+| Step | Action | What the system & contract enforce |
 |---|---|---|
-| 1 | **Create campaign**: creator submits metadata, goal and deadline | A canonical `metadataHash` is recorded on-chain |
-| 2 | **Verify campaign**: an institutional verifier approves or rejects | Verifier cannot be the creator; verification only before the campaign deadline; only verified campaigns accept funds |
-| 3 | **Fund**: contributors donate from their wallets | Before the deadline; creator address cannot donate |
-| 4 | **Close funding**: the donation that reaches or exceeds the goal closes funding | No top-ups afterwards; raised may end above 100% |
-| 5 | **Request spending**: creator submits purpose, amount, recipient, quote and `requestHash` | Amount ≤ available balance; only one open request; voting window within configured bounds |
-| 6 | **Vote**: donors approve using their contribution as weight | One vote per donor; passes when `approvalWeight × 2 > totalRaised`; creator cannot vote |
-| 7 | **Release**: anyone can trigger release once approved, even after the voting deadline | State updated before transfer; reentrancy guarded |
-| 8 | **Submit proof**: creator submits the receipt hash | Within the fixed proof deadline; `receiptHash` recorded on-chain |
-| 9 | **Check proof**: anyone re-uploads the file and the browser re-hashes it | Match means unchanged since submission |
-| 10 | **Audit**: public ledger built from contract events | No login required |
+| 1 | **Create campaign** | Creator submits metadata, goal (in FTU: 1 FTU = ₹1), and deadline. Canonical `metadataHash` committed on-chain. |
+| 2 | **Verify campaign** | System Admin / designated verifier approves or rejects. Unverified campaigns cannot accept donations. |
+| 3 | **Fund & Lock** | Donors contribute in FTU. When the goal is met, **100% of the raised amount becomes the creator's ALLOCATED balance** locked in the smart contract. |
+| 4 | **Upload Quotation** | Creator submits itemized spending request with vendor details and quotation document hash. |
+| 5 | **AI Analysis** | Gemini / deterministic AI evaluates quotation relevance, budget plausibility, risk level, and historical Creator Reliability Score. |
+| 6 | **Donor Sanction** | **Manual mode**: Donor reviews AI recommendation and sanctions amount directly. <br>**Auto mode**: Trusted NestJS relay executes sanction on behalf of donors who enabled automation according to their configured policy. |
+| 7 | **Claim Portion** | Creator claims sanctioned allocation to their wallet. Remaining allocation stays locked in escrow. |
+| 8 | **Submit Proof** | Creator uploads invoice/receipt to Supabase Storage; Keccak-256 hash is anchored on-chain (`submitQuotationProof`). |
+| 9 | **Reliability Scoring** | Creator Reliability Score updates based on proof completion, on-time submissions, and expenditure consistency. |
+| 10 | **Public Audit** | Public ledger tracks all 6 metrics: **Raised / Allocated / Sanctioned / Claimed / Proof-backed / Remaining Allocation**. |
 
-### Campaign lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> PendingVerification: createCampaign
-    PendingVerification --> Funding: verifyCampaign
-    PendingVerification --> Rejected: rejectCampaign
-    Rejected --> [*]
-    Funding --> Active: goal reached, funding closes
-    Funding --> Failed: deadline passed, goal not reached
-    Failed --> [*]: donors claim refunds
-    Active --> Active: spending requests
-```
-
-### Spending request lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> Pending: createRequest
-    Pending --> Approved: approvalWeight x 2 > totalRaised
-    Pending --> Closed: voting deadline expires
-    Approved --> Released: release
-    Released --> ProofSubmitted: submitProof
-```
-
-`FAILED` and `PROOF OVERDUE` are computed statuses, not transactions. A campaign is failed once its deadline has passed without reaching the goal. A released request with no proof after the proof deadline is flagged in red on the dashboard.
-
-A request is **open** while it is `PENDING`, `APPROVED`, or `RELEASED` without proof; an expired `PENDING` request is no longer open and can be closed by anyone. Only one request may be open at a time, so an unresolved request also blocks any new spending request.
+---
 
 ## Key Features
 
-- **Institution-verified campaigns**: approve or reject, with the verifier separated from the creator.
-- **Locked-fund custody**: funds sit in the contract, not in a creator wallet.
-- **Closed funding phase**: funding ends before spending starts, so voting weights are final and simple.
-- **Contributor-weighted snapshot voting**: each donor's weight is their contribution; the denominator is the total raised.
-- **One open request at a time**: prevents overlapping fund commitments.
-- **Recipient wallet transparency**: every request shows exactly where the money goes.
-- **Request and receipt hashing**: Keccak-256 commitments for the quote and the receipt.
-- **Browser-side proof check**: upload a file, get an instant match or mismatch against the on-chain hash.
-- **Proof deadline with overdue status**: missing evidence is visible, and blocks further spending.
-- **Metadata integrity**: campaign story and details are hashed at creation and locked at verification.
-- **Refunds**: donors reclaim their contribution if a campaign misses its goal.
-- **Beneficiary Physical Delivery Attestation (`confirmDelivery`) [Versathon 2.0 Innovation]**: Solves "The Phantom Delivery" problem. Even after a vendor is paid and an invoice PDF is uploaded, subsequent spending requests are strictly blocked on-chain until the designated local school principal or hospital headmaster physically signs off on-chain that the physical goods arrived.
-- **Project Dormancy & Dead-Man's Auto-Refund (`claimDormancyRefund`) [Versathon 2.0 Innovation]**: Solves "The Abandoned Student Project" problem. If student organizers graduate or abandon a project for 30+ days, contributors can pull back their exact proportional share of unspent escrow (`(donorDonation * remainingEscrow) / totalDonated`) directly from the smart contract without organizer approval.
-- **Public event ledger**: every financial event with timestamp, transaction hash, donor and recipient addresses, no login.
-- **Phase 2 Quotation System**: A dynamic workflow allowing creators to submit structured spending quotes against remaining campaign balances, which can be partially or fully sanctioned.
-- **AI-Assisted Evaluation**: AI evaluates submitted quotations for risk and plausibility, serving as an advisory layer for donors before they sanction funds.
-- **Creator Reliability Score (CIBIL-like Gauge)**: An on-chain tracked reputation score for creators (0-100 mapped to a 300-900 visual gauge) that dynamically adjusts based on their history of claiming allocations and submitting timely proofs.
-- **16 Custom Portfolio Dashboards**: Dedicated transparent dashboards fully implemented for all roles:
-  - **Admin**: System health, global audit ledger, user management, and campaign verification panels.
-  - **Creator**: My Campaigns, Create Campaign, Claims, Proof submissions, and the Reliability Score module.
-  - **Donor**: Contributions tracking, Approvals, Fund Tracking, Ledger, and Settings.
-- **Demo tooling**: local Hardhat network, pre-funded demo wallets, and a one-command reset.
+- **Full Campaign Allocation**: When funding reaches 100%, the entire raised amount is allocated to the campaign, locked inside the smart contract escrow.
+- **Quotation & Sanction Workflow**: Eliminates lump-sum withdrawals. Creators request specific phase amounts backed by itemized vendor quotes.
+- **Per-Donor Automation**: Donors configure automation preferences per campaign. In AUTO mode, the trusted NestJS relay auto-sanctions quotations when AI evaluation criteria and policy spending limits are met.
+- **Fixed-Value Prototype Accounting (1 FTU = ₹1)**: Campaign values, donations, allocations, and claims use prototype FTU integer units to prevent ETH price volatility during project execution.
+- **Creator Reliability Score**: An on-chain tracked reputation score (0–100) dynamically updated based on proof completion, on-time submissions, missing proofs, and quotation consistency.
+- **AI-Assisted Evaluation (Gemini 2.0 Flash)**: Evaluates quotations for budget risk, item plausibility, and historical reliability before donor sanction.
+- **Keccak-256 Cryptographic Proof Integrity**: Invoices and receipts stored in Supabase Storage with tamper-evident on-chain hash commitments.
+- **Role Unification**: Streamlined into `ADMIN`, `CREATOR`, and `DONOR`. Admin handles institutional verification for rapid MVP onboarding.
+- **6-Metric Transparent Tracking**: Tracks Raised, Allocated, Sanctioned, Claimed, Proof-backed, and Remaining Allocation (`Allocated - Claimed`).
+- **Beneficiary Physical Delivery Attestation (`confirmDelivery`)**: Blocks subsequent spending until local ground-truth delivery is attested by the beneficiary.
+- **Dead-Man's Auto-Refund (`claimDormancyRefund`)**: Automatically allows proportional refunds if a project goes dormant for 30+ days.
+- **Automated Test Suite**: 69 passing Hardhat unit tests covering all financial rules and governance flows.
 
 ## Architecture
 
@@ -441,7 +414,7 @@ Demo files live in `demo-files/`: the quotes for Request #01 and Request #02, th
 
 ## Testing
 
-Run `npx hardhat test`. The suite contains **63 automated unit tests** (100% pass rate) covering the complete rule verification suite:
+Run `npx hardhat test`. The suite contains **69 automated unit tests** (100% pass rate) covering the complete rule verification suite:
 
 - Donations update totals, and only verified campaigns in the funding phase accept them
 - Creator cannot donate or vote
@@ -452,9 +425,12 @@ Run `npx hardhat test`. The suite contains **63 automated unit tests** (100% pas
 - Expired voting closes the request (time travel with `evm_increaseTime`)
 - Proof deadline and overdue status
 - Refunds after a failed campaign, and not before
-- Verifier cannot be the creator; rejected campaigns cannot be funded
+- Admin and designated verifiers can verify/reject campaigns
 - **Beneficiary Delivery Attestation rules**: Ground-truth confirmation, non-beneficiary rejection, and phantom delivery spending blocks
 - **Dormancy Auto-Refund rules**: 30-day inactivity detection, exact proportional share calculation, and double-claim prevention
+- **Final Fund-Flow & Full Allocation rules**: Goal reached triggers full 100% allocation into smart contract escrow
+- **Quotation & Sanction rules**: Sanction within un-sanctioned allocation, partial claims, and proof-backed expenditure tracking
+- **Per-Donor Automation rules**: Relay auto-sanction gated strictly on donor automation permissions and limits
 
 ## Problem Statement Mapping
 

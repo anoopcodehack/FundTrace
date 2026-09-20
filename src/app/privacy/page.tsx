@@ -37,7 +37,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="list-disc pl-6 space-y-2 text-stone-600 text-sm">
               <li><strong>Public Wallet Addresses:</strong> Addresses of campaign creators, institutional verifiers, donors, and spending recipients are publicly viewable.</li>
-              <li><strong>Financial Transactions:</strong> Contribution amounts, timestamps, voting weight, approval tallies, and fund releases are immutable on-chain records.</li>
+              <li><strong>Financial Transactions:</strong> Contribution amounts, timestamps, contribution share, quotation sanction tallies, and fund releases are immutable on-chain records.</li>
               <li><strong>Cryptographic Hashes:</strong> Keccak-256 fingerprints of campaign metadata, vendor quotes, and expenditure receipts are recorded publicly on-chain.</li>
             </ul>
           </section>

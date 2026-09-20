@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { getFundTraceContract } from '@/lib/contract';
 import { ethers } from 'ethers';
+import { useWallet } from '@/context/WalletContext';
+import { toast } from 'sonner';
 
 function parseAmount(val: any): number {
   if (!val) return 0;
@@ -33,10 +35,57 @@ function parseAmount(val: any): number {
 }
 
 export default function AdminCampaignsPage() {
+  const { signer } = useWallet();
   const [filter, setFilter] = useState<string>('ALL');
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+
+  const handleVerify = async (onChainId: number) => {
+    if (!signer) {
+      toast.error('Please connect admin wallet first');
+      return;
+    }
+    setActionLoading(onChainId);
+    try {
+      const contract = getFundTraceContract(signer);
+      const tx = await contract.verifyCampaign(onChainId);
+      toast.loading('Verifying campaign on blockchain...', { id: 'verify-tx' });
+      await tx.wait();
+      toast.success(`Campaign #${onChainId} verified successfully!`, { id: 'verify-tx' });
+      await loadCampaigns();
+    } catch (err: any) {
+      console.error('Verify error:', err);
+      toast.error(err.message || 'Failed to verify campaign', { id: 'verify-tx' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReject = async (onChainId: number) => {
+    if (!signer) {
+      toast.error('Please connect admin wallet first');
+      return;
+    }
+    const reason = window.prompt('Enter reason for campaign rejection:');
+    if (!reason) return;
+
+    setActionLoading(onChainId);
+    try {
+      const contract = getFundTraceContract(signer);
+      const tx = await contract.rejectCampaign(onChainId, reason);
+      toast.loading('Rejecting campaign on blockchain...', { id: 'reject-tx' });
+      await tx.wait();
+      toast.success(`Campaign #${onChainId} rejected`, { id: 'reject-tx' });
+      await loadCampaigns();
+    } catch (err: any) {
+      console.error('Reject error:', err);
+      toast.error(err.message || 'Failed to reject campaign', { id: 'reject-tx' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const loadCampaigns = async () => {
     setIsLoading(true);
@@ -237,12 +286,32 @@ export default function AdminCampaignsPage() {
                           {getStatusBadge(c.state)}
                         </td>
                         <td className="p-4 text-center">
-                          <Link 
-                            href={`/campaigns/${c.id}`}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold transition-colors"
-                          >
-                            <Eye className="w-3.5 h-3.5" /> View
-                          </Link>
+                          <div className="flex items-center justify-center gap-2">
+                            <Link 
+                              href={`/campaigns/${c.id}`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold transition-colors"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> View
+                            </Link>
+                            {c.state === CampaignState.PendingVerification && c.onChainId > 0 && (
+                              <>
+                                <button
+                                  onClick={() => handleVerify(c.onChainId)}
+                                  disabled={actionLoading === c.onChainId}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5" /> Verify
+                                </button>
+                                <button
+                                  onClick={() => handleReject(c.onChainId)}
+                                  disabled={actionLoading === c.onChainId}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" /> Reject
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -48,9 +48,11 @@ export const FUNDTRACE_ABI = [
   // ── READ FUNCTIONS (New) ──────────────────────────────────────────────────
   "function getQuotation(uint256 _campaignId, uint256 _quotationId) view returns (tuple(uint256 id, uint256 campaignId, address creator, uint256 requestedAmount, bytes32 quotationHash, uint256 submittedAt, uint8 state, uint256 allocatedAmount, uint256 claimedAmount, bytes32 aiRecommendationHash, uint256 sanctionedAt, uint256 claimedAt, address sanctionedBy, bytes32 proofHash, bool proofSubmitted, uint256 proofSubmittedAt, uint8 proofTiming))",
   "function getCreatorProfile(address _creator) view returns (tuple(uint256 score, uint256 totalQuotations, uint256 approvedQuotations, uint256 claimedAmount, uint256 proofSubmitted, uint256 onTimeProofs, uint256 lateProofs, uint256 missingProofs, uint256 unresolvedRequests, uint256 completedCampaigns, uint256 lastUpdated))",
-  "function getCampaignFinancials(uint256 _campaignId) view returns (uint256 totalRaised, uint256 totalSanctioned, uint256 totalAllocated, uint256 totalClaimed, uint256 proofBackedAmount, uint256 remainingBalance)",
-  "function automationEnabled(uint256) view returns (bool)",
+  "function getCampaignFinancials(uint256 _campaignId) view returns (uint256 totalRaised, uint256 totalAllocated, uint256 totalSanctioned, uint256 totalClaimed, uint256 proofBackedAmount, uint256 remainingAllocation)",
+  "function donorAutomation(uint256, address) view returns (bool)",
+  "function isDonorAutomationEnabled(uint256 _campaignId, address _donor) view returns (bool)",
   "function trustedRelayAddress() view returns (address)",
+  "function admin() view returns (address)",
 
   // ── WRITE FUNCTIONS (Existing) ─────────────────────────────────────────────
   "function createCampaign(uint256 _goal, uint256 _deadline, bytes32 _metadataHash, address _verifier) returns (uint256)",
@@ -70,7 +72,7 @@ export const FUNDTRACE_ABI = [
   // ── WRITE FUNCTIONS (New) ─────────────────────────────────────────────────
   "function registerQuotation(uint256 _campaignId, uint256 _requestedAmount, bytes32 _quotationHash) returns (uint256)",
   "function recordAIRecommendation(uint256 _campaignId, uint256 _quotationId, bytes32 _aiRecommendationHash)",
-  "function sanctionQuotation(uint256 _campaignId, uint256 _quotationId, uint256 _allocatedAmount, bool _isAutomated)",
+  "function sanctionQuotation(uint256 _campaignId, uint256 _quotationId, uint256 _allocatedAmount, bool _isAutomated, address _onBehalfOfDonor)",
   "function rejectQuotation(uint256 _campaignId, uint256 _quotationId, string _reason)",
   "function claimAllocation(uint256 _campaignId, uint256 _quotationId, uint256 _claimAmount)",
   "function submitQuotationProof(uint256 _campaignId, uint256 _quotationId, bytes32 _proofHash)",
@@ -129,6 +131,8 @@ export const SOLIDITY_CUSTOM_ERRORS: Record<string, string> = {
   "0xb931e8c9": "Quotation not found on blockchain.",
   "0x34332468": "Insufficient campaign balance for this allocation.",
   "0x12f02dca": "Claim exceeds approved allocation amount.",
+  "0xd5a5a1af": "Donor automation is not enabled for this campaign.",
+  "0x21ccfed7": "Caller is not a donor of this campaign.",
 };
 
 export function parseContractError(err: any): string {

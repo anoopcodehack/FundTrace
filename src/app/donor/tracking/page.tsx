@@ -170,7 +170,7 @@ export default function DonorTrackingPage() {
   const proofBacked = quotations
     .filter(q => q.state === QuotationState.ProofSubmitted || q.state === QuotationState.Completed || q.state === "Completed")
     .reduce((acc, q) => acc + (q.claimedAmountFtu || q.claimed_amount_ftu || 0), 0);
-  const remaining = Math.max(0, raised - allocated);
+  const remaining = Math.max(0, allocated - claimed);
 
   const steps = [
     { label: "Raised", value: raised, color: "bg-emerald-500", text: "text-emerald-700" },
@@ -178,7 +178,7 @@ export default function DonorTrackingPage() {
     { label: "Sanctioned", value: sanctioned, color: "bg-blue-500", text: "text-blue-700" },
     { label: "Claimed", value: claimed, color: "bg-purple-500", text: "text-purple-700" },
     { label: "Proof-backed", value: proofBacked, color: "bg-emerald-600", text: "text-emerald-800" },
-    { label: "Remaining Escrow", value: remaining, color: "bg-stone-300", text: "text-stone-600" },
+    { label: "Remaining Allocation", value: remaining, color: "bg-stone-300", text: "text-stone-600" },
   ];
 
   return (

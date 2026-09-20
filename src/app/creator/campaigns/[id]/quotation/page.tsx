@@ -256,7 +256,7 @@ export default function CreatorQuotationPage() {
           <div className="flex items-center gap-2 text-xs font-bold text-stone-500 mb-6 uppercase tracking-wider">
             <Link href="/creator/campaigns" className="hover:text-stone-900">My Campaigns</Link>
             <ChevronRight className="w-3 h-3 text-stone-400" />
-            <Link href={`/creator/campaigns/${campaignId}`} className="hover:text-stone-900">Campaign #{campaignId}</Link>
+            <Link href={`/creator/campaigns/${rawId}`} className="hover:text-stone-900">Campaign #{rawId}</Link>
             <ChevronRight className="w-3 h-3 text-stone-400" />
             <span className="text-stone-900">Submit Quotation</span>
           </div>

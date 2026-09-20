@@ -5,9 +5,10 @@ import { DatabaseModule } from '../database/database.module';
 import { AiModule } from '../ai/ai.module';
 import { BlockchainModule } from '../blockchain/blockchain.module';
 import { ScoresModule } from '../scores/scores.module';
+import { AutomationModule } from '../automation/automation.module';
 
 @Module({
-  imports: [DatabaseModule, AiModule, BlockchainModule, ScoresModule],
+  imports: [DatabaseModule, AiModule, BlockchainModule, ScoresModule, AutomationModule],
   providers: [QuotationsService],
   controllers: [QuotationsController],
   exports: [QuotationsService],

@@ -1,16 +1,18 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { FundTrace } from "../typechain-types";
 
 describe("FundTrace Complete Rule Verification (30+ Tests)", function () {
   async function deployFixture() {
-    const [deployer, creator, verifier, donor1, donor2, donor3, recipient, other, beneficiary] = await ethers.getSigners();
+    const [deployer, creator, verifier, donor1, donor2, donor3, recipient, relay, beneficiary, other] = await ethers.getSigners();
 
     const FundTraceFactory = await ethers.getContractFactory("FundTrace");
-    const fundTrace = await FundTraceFactory.deploy();
+    // relay = trusted NestJS backend signer for automated sanctions
+    const fundTrace = (await FundTraceFactory.deploy(relay.address)) as unknown as FundTrace;
     await fundTrace.waitForDeployment();
 
-    return { fundTrace, deployer, creator, verifier, donor1, donor2, donor3, recipient, other, beneficiary };
+    return { fundTrace, deployer, creator, verifier, donor1, donor2, donor3, recipient, relay, beneficiary, other };
   }
 
   // Helper to create and verify a campaign
@@ -590,7 +592,7 @@ describe("FundTrace Complete Rule Verification (30+ Tests)", function () {
       const balBefore = await ethers.provider.getBalance(donor1.address);
       const tx = await fundTrace.connect(donor1).refund(1);
       const receipt = await tx.wait();
-      const gas = receipt!.gasUsed * receipt!.gasPrice;
+      const gas = BigInt(receipt!.gasUsed) * BigInt(receipt!.gasPrice ?? 0n);
 
       const balAfter = await ethers.provider.getBalance(donor1.address);
       expect(balAfter + gas - balBefore).to.equal(ethers.parseEther("1.2"));
@@ -823,7 +825,7 @@ describe("FundTrace Complete Rule Verification (30+ Tests)", function () {
       const balBefore = await ethers.provider.getBalance(donor1.address);
       const tx = await fundTrace.connect(donor1).claimDormancyRefund(1);
       const receipt = await tx.wait();
-      const gas = receipt!.gasUsed * receipt!.gasPrice;
+      const gas = BigInt(receipt!.gasUsed) * BigInt(receipt!.gasPrice ?? 0n);
       const balAfter = await ethers.provider.getBalance(donor1.address);
 
       expect(balAfter + gas - balBefore).to.equal(expectedRefund1);
@@ -844,6 +846,135 @@ describe("FundTrace Complete Rule Verification (30+ Tests)", function () {
 
       await expect(fundTrace.connect(other).claimDormancyRefund(1))
         .to.be.revertedWithCustomError(fundTrace, "InvalidAmount");
+    });
+  });
+
+  // ==========================================
+  // 9. FINAL FUND-FLOW: QUOTATION, SANCTION, CLAIM & PROOF
+  // ==========================================
+  describe("Final Fund-Flow: Quotation, Sanction, Claim & Proof", function () {
+    it("64. admin can verify campaign even if not designated verifier", async function () {
+      const { fundTrace, deployer, creator, verifier } = await deployFixture();
+      const goal = ethers.parseEther("1.0");
+      const deadline = (await time.latest()) + 86400;
+      const metadataHash = ethers.keccak256(ethers.toUtf8Bytes("admin-verify-test"));
+
+      await fundTrace.connect(creator).createCampaign(goal, deadline, metadataHash, verifier.address);
+      // deployer is admin
+      await expect(fundTrace.connect(deployer).verifyCampaign(1))
+        .to.emit(fundTrace, "CampaignVerified")
+        .withArgs(1, deployer.address);
+
+      const c = await fundTrace.getCampaign(1);
+      expect(c.state).to.equal(1); // Verified
+    });
+
+    it("65. full raised amount becomes allocated balance upon reaching goal", async function () {
+      const { fundTrace } = await setupFundedCampaign();
+      const financials = await fundTrace.getCampaignFinancials(1);
+
+      // Total donated = 3.2 ETH
+      expect(financials.totalRaised).to.equal(ethers.parseEther("3.2"));
+      expect(financials.totalAllocated).to.equal(ethers.parseEther("3.2"));
+      expect(financials.totalSanctioned).to.equal(0);
+      expect(financials.totalClaimed).to.equal(0);
+      expect(financials.proofBackedAmount).to.equal(0);
+      expect(financials.remainingAllocation).to.equal(ethers.parseEther("3.2"));
+    });
+
+    it("66. creator can register quotation within allocated balance", async function () {
+      const { fundTrace, creator } = await setupFundedCampaign();
+      const qAmount = ethers.parseEther("1.0");
+      const qHash = ethers.keccak256(ethers.toUtf8Bytes("quotation-doc-1"));
+
+      await expect(fundTrace.connect(creator).registerQuotation(1, qAmount, qHash))
+        .to.emit(fundTrace, "QuotationRegistered")
+        .withArgs(1, 1, creator.address, qAmount, qHash, await time.latest() + 1);
+
+      const q = await fundTrace.getQuotation(1, 1);
+      expect(q.requestedAmount).to.equal(qAmount);
+      expect(q.state).to.equal(0); // Pending
+    });
+
+    it("67. donor can manually sanction quotation and creator can claim", async function () {
+      const { fundTrace, creator, donor1 } = await setupFundedCampaign();
+      const qAmount = ethers.parseEther("1.0");
+      const qHash = ethers.keccak256(ethers.toUtf8Bytes("quotation-doc-2"));
+
+      await fundTrace.connect(creator).registerQuotation(1, qAmount, qHash);
+
+      // Donor 1 manually sanctions
+      await expect(fundTrace.connect(donor1).sanctionQuotation(1, 1, qAmount, false, ethers.ZeroAddress))
+        .to.emit(fundTrace, "QuotationSanctioned")
+        .withArgs(1, 1, donor1.address, qAmount, false);
+
+      const qAfter = await fundTrace.getQuotation(1, 1);
+      expect(qAfter.state).to.equal(5); // Claimable
+      expect(qAfter.allocatedAmount).to.equal(qAmount);
+
+      // Creator claims 0.6 ETH
+      const claimAmount = ethers.parseEther("0.6");
+      const creatorBalBefore = await ethers.provider.getBalance(creator.address);
+      const tx = await fundTrace.connect(creator).claimAllocation(1, 1, claimAmount);
+      const receipt = await tx.wait();
+      const gas = BigInt(receipt!.gasUsed) * BigInt(receipt!.gasPrice ?? 0n);
+      const creatorBalAfter = await ethers.provider.getBalance(creator.address);
+
+      expect(creatorBalAfter + gas - creatorBalBefore).to.equal(claimAmount);
+
+      // Check remaining allocation
+      const financials = await fundTrace.getCampaignFinancials(1);
+      expect(financials.totalClaimed).to.equal(claimAmount);
+      expect(financials.remainingAllocation).to.equal(ethers.parseEther("3.2") - claimAmount);
+    });
+
+    it("68. per-donor automation enables trusted relay to auto-sanction", async function () {
+      const { fundTrace, creator, donor2, relay, other } = await setupFundedCampaign();
+      const qAmount = ethers.parseEther("0.8");
+      const qHash = ethers.keccak256(ethers.toUtf8Bytes("quotation-doc-3"));
+
+      await fundTrace.connect(creator).registerQuotation(1, qAmount, qHash);
+
+      // Donor 2 has NOT enabled automation yet -> auto-sanction fails
+      await expect(
+        fundTrace.connect(relay).sanctionQuotation(1, 1, qAmount, true, donor2.address)
+      ).to.be.revertedWithCustomError(fundTrace, "DonorAutomationNotEnabled");
+
+      // Donor 2 enables automation
+      await expect(fundTrace.connect(donor2).enableAutomation(1))
+        .to.emit(fundTrace, "AutomationToggled")
+        .withArgs(1, donor2.address, true);
+
+      expect(await fundTrace.isDonorAutomationEnabled(1, donor2.address)).to.be.true;
+
+      // Now relay can auto-sanction on behalf of donor 2
+      await expect(
+        fundTrace.connect(relay).sanctionQuotation(1, 1, qAmount, true, donor2.address)
+      ).to.emit(fundTrace, "QuotationSanctioned")
+       .withArgs(1, 1, donor2.address, qAmount, true);
+
+      // Non-relay cannot call with isAutomated=true
+      await expect(
+        fundTrace.connect(other).sanctionQuotation(1, 1, qAmount, true, donor2.address)
+      ).to.be.revertedWithCustomError(fundTrace, "Unauthorized");
+    });
+
+    it("69. proof submission updates proofBackedAmount in getCampaignFinancials", async function () {
+      const { fundTrace, creator, donor1 } = await setupFundedCampaign();
+      const qAmount = ethers.parseEther("1.0");
+      const qHash = ethers.keccak256(ethers.toUtf8Bytes("quotation-doc-4"));
+
+      await fundTrace.connect(creator).registerQuotation(1, qAmount, qHash);
+      await fundTrace.connect(donor1).sanctionQuotation(1, 1, qAmount, false, ethers.ZeroAddress);
+      await fundTrace.connect(creator).claimAllocation(1, 1, qAmount);
+
+      const proofHash = ethers.keccak256(ethers.toUtf8Bytes("invoice-receipt-1"));
+      await expect(fundTrace.connect(creator).submitQuotationProof(1, 1, proofHash))
+        .to.emit(fundTrace, "QuotationProofSubmitted")
+        .withArgs(1, 1, proofHash, false, await time.latest() + 1);
+
+      const financials = await fundTrace.getCampaignFinancials(1);
+      expect(financials.proofBackedAmount).to.equal(qAmount);
     });
   });
 });

@@ -144,11 +144,12 @@ export interface CreatorProfileOnChain {
 
 export interface CampaignFinancials {
   totalRaised: string;        // FTU
-  totalSanctioned: string;    // FTU
   totalAllocated: string;     // FTU
+  totalSanctioned: string;    // FTU
   totalClaimed: string;       // FTU
   proofBackedAmount: string;  // FTU
-  remainingBalance: string;   // FTU
+  remainingAllocation: string; // FTU (Allocated - Claimed)
+  remainingBalance?: string;   // Alias for backwards compatibility
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -356,9 +357,37 @@ export interface IntegrityVerificationResult {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 9. DONOR AUTOMATION SETTINGS
+// 9. DONOR AUTOMATION SETTINGS (Per-donor, per-campaign)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Per-donor, per-campaign automation preference stored in Supabase.
+ *
+ * IMPORTANT: This is NOT global. Alice + Campaign A can be MANUAL while
+ * Bob + Campaign A is AUTO. Each donor controls their own automation independently.
+ *
+ * The on-chain `donorAutomation[campaignId][donor]` mapping is the authoritative
+ * source for the enabled flag; Supabase stores the additional policy fields that
+ * cannot be stored on-chain cheaply.
+ */
+export interface DonorAutomationSetting {
+  campaignId: number;
+  donorAddress: string;
+  /** Master switch: if false, donor always sees quotations for manual review */
+  isEnabled: boolean;
+  /** FTU ceiling: auto-sanction only if suggestedAmount <= this value */
+  maxAutoAmount: number;
+  /** If true, HIGH risk AI outputs always require manual donor review */
+  requireManualHighRisk: boolean;
+  /** If true, HIGH risk REJECT recommendations are automatically rejected */
+  autoRejectFraud: boolean;
+  updatedAt?: string;
+}
+
+/**
+ * @deprecated Use DonorAutomationSetting instead.
+ * This was the old global-per-campaign setting.
+ */
 export interface AutomationSettings {
   campaignId: number;
   isEnabled: boolean;

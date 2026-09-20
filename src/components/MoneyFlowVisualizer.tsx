@@ -44,7 +44,7 @@ export default function MoneyFlowVisualizer({ campaignId = 1 }: { campaignId?: n
       amount: "3.20 FTC",
       statusBadge: "Deposited",
       statusType: "neutral",
-      details: "Multi-donor contribution pool locked in non-custodial smart escrow. Alice (1.50 FTC · 46.9% voting weight), Bob (1.00 FTC · 31.3%), Charlie (0.70 FTC · 21.8%).",
+      details: "Multi-donor contribution pool locked in non-custodial smart escrow. Alice (1.50 FTC · 46.9% contribution share), Bob (1.00 FTC · 31.3%), Charlie (0.70 FTC · 21.8%).",
       txHash: "0x4a19e83f72e9a2b5c018274d9e0129fbc81203",
       metrics: [
         { label: "Donor Count", value: "3 Contributors" },
@@ -60,7 +60,7 @@ export default function MoneyFlowVisualizer({ campaignId = 1 }: { campaignId?: n
       amount: "2.00 FTC",
       statusBadge: "In Escrow",
       statusType: "neutral",
-      details: "Autonomous smart contract vault. Contributed funds remain locked in escrow until milestone requests pass contributor majority voting.",
+      details: "Autonomous smart contract vault. Contributed funds remain locked in escrow until milestone requests pass contributor quotation sanctions.",
       txHash: "0x8f3c71a04b12d59e44921074da918239049182",
       metrics: [
         { label: "Escrow Balance", value: "2.00 FTC Remaining" },
@@ -149,7 +149,7 @@ export default function MoneyFlowVisualizer({ campaignId = 1 }: { campaignId?: n
             Visual Fund Trace &amp; Spending Flow
           </h2>
           <p className="text-xs sm:text-sm text-stone-600 max-w-2xl mt-1 leading-relaxed">
-            Track donated capital step-by-step from contributor deposits into the smart escrow contract, down to community milestone votes, vendor disbursement, and permanent receipt verification.
+            Track donated capital step-by-step from contributor deposits into the smart escrow contract, down to quotation sanctions, vendor disbursement, and permanent receipt verification.
           </p>
         </div>
 

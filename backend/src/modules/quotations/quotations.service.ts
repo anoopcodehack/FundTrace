@@ -6,6 +6,7 @@ import { SUPABASE_CLIENT } from '../database/supabase.provider';
 import { AiService, AIEvaluationInput } from '../ai/ai.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { ScoresService } from '../scores/scores.service';
+import { AutomationService } from '../automation/automation.service';
 import { computeFileKeccak256 } from '../../utils/canonical';
 import { ConfigService } from '@nestjs/config';
 
@@ -34,6 +35,7 @@ export class QuotationsService {
     private readonly aiService: AiService,
     private readonly blockchainService: BlockchainService,
     private readonly scoresService: ScoresService,
+    private readonly automationService: AutomationService,
     private readonly configService: ConfigService,
   ) {
     this.bucket = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'receipts';
@@ -179,6 +181,14 @@ export class QuotationsService {
     }
 
     this.logger.log(`Quotation #${saved.id} created for campaign ${campaignId} with AI: ${aiRecommendation.recommendation}`);
+
+    // Trigger automation processing asynchronously (non-blocking).
+    // Auto-donors with isEnabled=true will be sanctioned according to their policy.
+    setImmediate(() => {
+      this.automationService.processQuotationAutomation(saved.id).catch((err) => {
+        this.logger.error(`Automation processing failed for quotation ${saved.id}: ${err.message}`);
+      });
+    });
 
     return {
       quotation: saved,

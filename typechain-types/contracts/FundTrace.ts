@@ -241,8 +241,8 @@ export interface FundTraceInterface extends Interface {
     nameOrSignature:
       | "DORMANCY_TIMEOUT"
       | "MAX_SCORE"
+      | "admin"
       | "approveRequest"
-      | "automationEnabled"
       | "campaignCount"
       | "campaigns"
       | "checkAndUpdateCampaignFailure"
@@ -258,6 +258,7 @@ export interface FundTraceInterface extends Interface {
       | "disableAutomation"
       | "donate"
       | "donations"
+      | "donorAutomation"
       | "enableAutomation"
       | "getCampaign"
       | "getCampaignFinancials"
@@ -268,6 +269,7 @@ export interface FundTraceInterface extends Interface {
       | "hasUnconfirmedDelivery"
       | "hasVoted"
       | "isCampaignDormant"
+      | "isDonorAutomationEnabled"
       | "quotations"
       | "recordAIRecommendation"
       | "refund"
@@ -319,13 +321,10 @@ export interface FundTraceInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(functionFragment: "MAX_SCORE", values?: undefined): string;
+  encodeFunctionData(functionFragment: "admin", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "approveRequest",
     values: [BigNumberish, BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "automationEnabled",
-    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "campaignCount",
@@ -395,6 +394,10 @@ export interface FundTraceInterface extends Interface {
     values: [BigNumberish, AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "donorAutomation",
+    values: [BigNumberish, AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "enableAutomation",
     values: [BigNumberish]
   ): string;
@@ -435,6 +438,10 @@ export interface FundTraceInterface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "isDonorAutomationEnabled",
+    values: [BigNumberish, AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "quotations",
     values: [BigNumberish, BigNumberish]
   ): string;
@@ -468,7 +475,7 @@ export interface FundTraceInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "sanctionQuotation",
-    values: [BigNumberish, BigNumberish, BigNumberish, boolean]
+    values: [BigNumberish, BigNumberish, BigNumberish, boolean, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "setBeneficiary",
@@ -504,12 +511,9 @@ export interface FundTraceInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "MAX_SCORE", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "admin", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "approveRequest",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "automationEnabled",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -564,6 +568,10 @@ export interface FundTraceInterface extends Interface {
   decodeFunctionResult(functionFragment: "donate", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "donations", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "donorAutomation",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "enableAutomation",
     data: BytesLike
   ): Result;
@@ -595,6 +603,10 @@ export interface FundTraceInterface extends Interface {
   decodeFunctionResult(functionFragment: "hasVoted", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "isCampaignDormant",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "isDonorAutomationEnabled",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "quotations", data: BytesLike): Result;
@@ -1273,16 +1285,12 @@ export interface FundTrace extends BaseContract {
 
   MAX_SCORE: TypedContractMethod<[], [bigint], "view">;
 
+  admin: TypedContractMethod<[], [string], "view">;
+
   approveRequest: TypedContractMethod<
     [_campaignId: BigNumberish, _requestId: BigNumberish],
     [void],
     "nonpayable"
-  >;
-
-  automationEnabled: TypedContractMethod<
-    [arg0: BigNumberish],
-    [boolean],
-    "view"
   >;
 
   campaignCount: TypedContractMethod<[], [bigint], "view">;
@@ -1459,6 +1467,12 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
 
+  donorAutomation: TypedContractMethod<
+    [arg0: BigNumberish, arg1: AddressLike],
+    [boolean],
+    "view"
+  >;
+
   enableAutomation: TypedContractMethod<
     [_campaignId: BigNumberish],
     [void],
@@ -1476,11 +1490,11 @@ export interface FundTrace extends BaseContract {
     [
       [bigint, bigint, bigint, bigint, bigint, bigint] & {
         totalRaised: bigint;
-        totalSanctioned: bigint;
         totalAllocated: bigint;
+        totalSanctioned: bigint;
         totalClaimed: bigint;
         proofBackedAmount: bigint;
-        remainingBalance: bigint;
+        remainingAllocation: bigint;
       }
     ],
     "view"
@@ -1524,6 +1538,12 @@ export interface FundTrace extends BaseContract {
 
   isCampaignDormant: TypedContractMethod<
     [_campaignId: BigNumberish],
+    [boolean],
+    "view"
+  >;
+
+  isDonorAutomationEnabled: TypedContractMethod<
+    [_campaignId: BigNumberish, _donor: AddressLike],
     [boolean],
     "view"
   >;
@@ -1661,7 +1681,8 @@ export interface FundTrace extends BaseContract {
       _campaignId: BigNumberish,
       _quotationId: BigNumberish,
       _allocatedAmount: BigNumberish,
-      _isAutomated: boolean
+      _isAutomated: boolean,
+      _onBehalfOfDonor: AddressLike
     ],
     [void],
     "nonpayable"
@@ -1724,15 +1745,15 @@ export interface FundTrace extends BaseContract {
     nameOrSignature: "MAX_SCORE"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
+    nameOrSignature: "admin"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
     nameOrSignature: "approveRequest"
   ): TypedContractMethod<
     [_campaignId: BigNumberish, _requestId: BigNumberish],
     [void],
     "nonpayable"
   >;
-  getFunction(
-    nameOrSignature: "automationEnabled"
-  ): TypedContractMethod<[arg0: BigNumberish], [boolean], "view">;
   getFunction(
     nameOrSignature: "campaignCount"
   ): TypedContractMethod<[], [bigint], "view">;
@@ -1911,6 +1932,13 @@ export interface FundTrace extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "donorAutomation"
+  ): TypedContractMethod<
+    [arg0: BigNumberish, arg1: AddressLike],
+    [boolean],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "enableAutomation"
   ): TypedContractMethod<[_campaignId: BigNumberish], [void], "nonpayable">;
   getFunction(
@@ -1927,11 +1955,11 @@ export interface FundTrace extends BaseContract {
     [
       [bigint, bigint, bigint, bigint, bigint, bigint] & {
         totalRaised: bigint;
-        totalSanctioned: bigint;
         totalAllocated: bigint;
+        totalSanctioned: bigint;
         totalClaimed: bigint;
         proofBackedAmount: bigint;
-        remainingBalance: bigint;
+        remainingAllocation: bigint;
       }
     ],
     "view"
@@ -1973,6 +2001,13 @@ export interface FundTrace extends BaseContract {
   getFunction(
     nameOrSignature: "isCampaignDormant"
   ): TypedContractMethod<[_campaignId: BigNumberish], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "isDonorAutomationEnabled"
+  ): TypedContractMethod<
+    [_campaignId: BigNumberish, _donor: AddressLike],
+    [boolean],
+    "view"
+  >;
   getFunction(
     nameOrSignature: "quotations"
   ): TypedContractMethod<
@@ -2112,7 +2147,8 @@ export interface FundTrace extends BaseContract {
       _campaignId: BigNumberish,
       _quotationId: BigNumberish,
       _allocatedAmount: BigNumberish,
-      _isAutomated: boolean
+      _isAutomated: boolean,
+      _onBehalfOfDonor: AddressLike
     ],
     [void],
     "nonpayable"

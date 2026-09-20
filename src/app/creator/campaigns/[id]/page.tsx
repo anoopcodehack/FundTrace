@@ -52,7 +52,7 @@ export default function CampaignDetailPage() {
   const [campaignQuotations, setCampaignQuotations] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [myContribution, setMyContribution] = useState(0);
-  const [myVotingWeight, setMyVotingWeight] = useState(0);
+  const [myContributionShare, setMyContributionShare] = useState(0);
 
   function parseAmount(val: any): number {
     if (!val) return 0;
@@ -128,7 +128,7 @@ export default function CampaignDetailPage() {
           setMyContribution(donatedNum);
           const totalRaised = parseAmount(c.totalDonated);
           if (totalRaised > 0 && donatedNum > 0) {
-            setMyVotingWeight(Math.round((donatedNum / totalRaised) * 100));
+            setMyContributionShare(Math.round((donatedNum / totalRaised) * 100));
           }
         } catch {}
       }

@@ -160,11 +160,17 @@ contract FundTrace is ReentrancyGuard {
 
     mapping(uint256 => mapping(uint256 => Quotation)) public quotations;
     mapping(address => CreatorProfile) public creatorProfiles;
-    mapping(uint256 => bool) public automationEnabled;
-    // Track which donors are "authorized" for a campaign (donated > 0)
-    // used for automation sanction gating — anyone who donated can sanction in manual mode
-    // automation mode: NestJS backend calls sanctionQuotation via a trusted relay address
+    /**
+     * @notice Per-donor, per-campaign automation preference.
+     * @dev donorAutomation[campaignId][donorAddress] = true means the NestJS relay
+     *      may auto-sanction quotations on behalf of this donor according to their
+     *      configured policy (stored off-chain in Supabase donor_automation_settings).
+     * @dev Replaces the previous global `automationEnabled[campaignId]` mapping.
+     */
+    mapping(uint256 => mapping(address => bool)) public donorAutomation;
+    // Trusted relay address (NestJS backend signer) — used for automated sanctions.
     address public trustedRelayAddress; // Set at deploy time (NestJS signer)
+    address public admin; // Deployer / system administrator
 
     // ==========================================
     // EVENTS — EXISTING
@@ -271,6 +277,13 @@ contract FundTrace is ReentrancyGuard {
     );
 
     // ==========================================
+    // CUSTOM ERRORS — AUTOMATION
+    // ==========================================
+
+    error DonorAutomationNotEnabled();
+    error NotADonor();
+
+    // ==========================================
     // CUSTOM ERRORS — EXISTING
     // ==========================================
 
@@ -310,6 +323,7 @@ contract FundTrace is ReentrancyGuard {
         // trustedRelay = NestJS backend signer (for automated sanctions)
         // Can be zero if not using automated mode
         trustedRelayAddress = _trustedRelay;
+        admin = msg.sender;
     }
 
     // ==========================================
@@ -350,7 +364,7 @@ contract FundTrace is ReentrancyGuard {
 
     function verifyCampaign(uint256 _campaignId) external {
         Campaign storage c = campaigns[_campaignId];
-        if (msg.sender != c.verifier) revert Unauthorized();
+        if (msg.sender != c.verifier && msg.sender != admin) revert Unauthorized();
         if (c.state != CampaignState.PendingVerification) revert InvalidState();
 
         c.state = CampaignState.Verified;
@@ -360,7 +374,7 @@ contract FundTrace is ReentrancyGuard {
 
     function rejectCampaign(uint256 _campaignId, string calldata _reason) external {
         Campaign storage c = campaigns[_campaignId];
-        if (msg.sender != c.verifier) revert Unauthorized();
+        if (msg.sender != c.verifier && msg.sender != admin) revert Unauthorized();
         if (c.state != CampaignState.PendingVerification) revert InvalidState();
 
         c.state = CampaignState.Rejected;
@@ -396,6 +410,7 @@ contract FundTrace is ReentrancyGuard {
 
         if (c.totalDonated >= c.goal) {
             c.state = CampaignState.FundingClosed;
+            c.totalAllocated = c.totalDonated;
             emit FundingClosed(_campaignId, c.totalDonated);
         }
     }
@@ -404,6 +419,13 @@ contract FundTrace is ReentrancyGuard {
     // 3. SPENDING & GOVERNANCE (EXISTING — PRESERVED)
     // ==========================================
 
+    /**
+     * @notice Creates a spending request for donor-vote governance.
+     * @dev DEPRECATED — Superseded by the Quotation → AI Review → Donor Sanction →
+     *      Allocation → Claim → Proof workflow. Use registerQuotation() instead.
+     *      Kept for backwards-compatibility and audit trail; may be removed in a
+     *      future major version.
+     */
     function createRequest(
         uint256 _campaignId,
         address payable _recipient,
@@ -449,6 +471,10 @@ contract FundTrace is ReentrancyGuard {
         return reqId;
     }
 
+    /**
+     * @dev DEPRECATED — Part of the old createRequest/vote/release flow.
+     *      Use sanctionQuotation() in the new quotation workflow instead.
+     */
     function vote(uint256 _campaignId, uint256 _requestId) external {
         Campaign storage c = campaigns[_campaignId];
         Request storage r = requests[_campaignId][_requestId];
@@ -473,6 +499,10 @@ contract FundTrace is ReentrancyGuard {
         }
     }
 
+    /**
+     * @dev DEPRECATED — Part of the old createRequest/vote/release flow.
+     *      Use sanctionQuotation() in the new quotation workflow instead.
+     */
     function approveRequest(uint256 _campaignId, uint256 _requestId) external {
         Campaign storage c = campaigns[_campaignId];
         Request storage r = requests[_campaignId][_requestId];
@@ -497,6 +527,10 @@ contract FundTrace is ReentrancyGuard {
         }
     }
 
+    /**
+     * @dev DEPRECATED — Part of the old createRequest/vote/release flow.
+     *      Use claimAllocation() in the new quotation workflow instead.
+     */
     function release(uint256 _campaignId, uint256 _requestId) external nonReentrant {
         Campaign storage c = campaigns[_campaignId];
         Request storage r = requests[_campaignId][_requestId];
@@ -699,8 +733,8 @@ contract FundTrace is ReentrancyGuard {
         if (_requestedAmount == 0) revert InvalidAmount();
         if (_quotationHash == bytes32(0)) revert InvalidAmount();
 
-        uint256 remainingBalance = c.totalDonated - c.totalReleased - c.totalAllocated;
-        if (_requestedAmount > remainingBalance) revert InsufficientCampaignBalance();
+        uint256 remainingUnsanctioned = c.totalAllocated > c.totalSanctioned ? c.totalAllocated - c.totalSanctioned : 0;
+        if (_requestedAmount > remainingUnsanctioned) revert InsufficientCampaignBalance();
 
         c.quotationCount++;
         uint256 qId = c.quotationCount;
@@ -753,21 +787,37 @@ contract FundTrace is ReentrancyGuard {
      * @notice A donor who contributed to this campaign sanctions a quotation.
      * @param _allocatedAmount The amount actually approved (may be <= requestedAmount).
      */
+    /**
+     * @notice Sanctions a quotation, locking the allocation for the creator to claim.
+     * @param _campaignId The campaign ID.
+     * @param _quotationId The quotation ID.
+     * @param _allocatedAmount Amount approved (may be <= requestedAmount).
+     * @param _isAutomated True if called by the NestJS trusted relay acting on a donor's
+     *        configured automation policy. The relay must pass the donor address it is
+     *        acting on behalf of in _onBehalfOfDonor.
+     * @param _onBehalfOfDonor In automated mode: the donor whose policy triggered this
+     *        sanction. Must have donorAutomation[campaignId][_onBehalfOfDonor] = true.
+     *        In manual mode: pass address(0) (ignored).
+     */
     function sanctionQuotation(
         uint256 _campaignId,
         uint256 _quotationId,
         uint256 _allocatedAmount,
-        bool _isAutomated
+        bool _isAutomated,
+        address _onBehalfOfDonor
     ) external {
         Campaign storage c = campaigns[_campaignId];
         Quotation storage q = quotations[_campaignId][_quotationId];
 
-        // In manual mode: caller must be a donor
-        // In automated mode: caller must be the trusted relay
         if (_isAutomated) {
+            // Automated mode: must be the trusted relay acting on a donor who has enabled automation
             if (msg.sender != trustedRelayAddress) revert Unauthorized();
-            if (!automationEnabled[_campaignId]) revert AutomationNotEnabled();
+            if (_onBehalfOfDonor == address(0)) revert InvalidAddress();
+            if (!donorAutomation[_campaignId][_onBehalfOfDonor]) revert DonorAutomationNotEnabled();
+            uint256 donorWeight = donations[_campaignId][_onBehalfOfDonor];
+            if (donorWeight == 0) revert NotADonor();
         } else {
+            // Manual mode: caller must be a donor who has contributed
             uint256 donorWeight = donations[_campaignId][msg.sender];
             if (donorWeight == 0) revert Unauthorized();
         }
@@ -775,16 +825,16 @@ contract FundTrace is ReentrancyGuard {
         if (q.state != QuotationState.AIEvaluated && q.state != QuotationState.Pending) revert InvalidState();
         if (_allocatedAmount == 0 || _allocatedAmount > q.requestedAmount) revert InvalidAmount();
 
-        uint256 remainingBalance = c.totalDonated - c.totalReleased - c.totalAllocated;
-        if (_allocatedAmount > remainingBalance) revert InsufficientCampaignBalance();
+        uint256 remainingUnsanctioned = c.totalAllocated > c.totalSanctioned ? c.totalAllocated - c.totalSanctioned : 0;
+        if (_allocatedAmount > remainingUnsanctioned) revert InsufficientCampaignBalance();
 
         q.allocatedAmount = _allocatedAmount;
         q.state = QuotationState.Claimable;
         q.sanctionedAt = block.timestamp;
-        q.sanctionedBy = msg.sender;
+        // Record who actually signed: relay address in auto mode (donor identity stored off-chain)
+        q.sanctionedBy = _isAutomated ? _onBehalfOfDonor : msg.sender;
 
         c.totalSanctioned += _allocatedAmount;
-        c.totalAllocated += _allocatedAmount;
         c.lastActivityTimestamp = block.timestamp;
 
         // Update creator profile
@@ -792,7 +842,8 @@ contract FundTrace is ReentrancyGuard {
         profile.approvedQuotations++;
         profile.lastUpdated = block.timestamp;
 
-        emit QuotationSanctioned(_campaignId, _quotationId, msg.sender, _allocatedAmount, _isAutomated);
+        address sanctionedByAddress = _isAutomated ? _onBehalfOfDonor : msg.sender;
+        emit QuotationSanctioned(_campaignId, _quotationId, sanctionedByAddress, _allocatedAmount, _isAutomated);
     }
 
     /**
@@ -840,7 +891,7 @@ contract FundTrace is ReentrancyGuard {
         uint256 remainingAllocation = q.allocatedAmount - q.claimedAmount;
         if (_claimAmount > remainingAllocation) revert ClaimExceedsAllocation();
 
-        uint256 remainingBalance = c.totalDonated - c.totalReleased - c.totalClaimed;
+        uint256 remainingBalance = address(this).balance;
         if (_claimAmount > remainingBalance) revert InsufficientCampaignBalance();
 
         q.claimedAmount += _claimAmount;
@@ -969,26 +1020,36 @@ contract FundTrace is ReentrancyGuard {
     // ==========================================
 
     /**
-     * @notice Donor enables automated AI-driven sanction for a campaign.
-     * @dev Only a donor who has contributed can enable automation.
+     * @notice Donor enables automated AI-driven sanction for this donor on a campaign.
+     * @dev Per-donor: only affects msg.sender's automation preference, not other donors.
+     *      The NestJS backend (trusted relay) will read donorAutomation[campaignId][donor]
+     *      before auto-sanctioning on behalf of this donor.
      */
     function enableAutomation(uint256 _campaignId) external {
         uint256 donorWeight = donations[_campaignId][msg.sender];
         if (donorWeight == 0) revert Unauthorized();
 
-        automationEnabled[_campaignId] = true;
+        donorAutomation[_campaignId][msg.sender] = true;
         emit AutomationToggled(_campaignId, msg.sender, true);
     }
 
     /**
-     * @notice Donor disables automated sanction for a campaign.
+     * @notice Donor disables automated sanction for this donor on a campaign.
+     * @dev Per-donor: only affects msg.sender's automation preference.
      */
     function disableAutomation(uint256 _campaignId) external {
         uint256 donorWeight = donations[_campaignId][msg.sender];
         if (donorWeight == 0) revert Unauthorized();
 
-        automationEnabled[_campaignId] = false;
+        donorAutomation[_campaignId][msg.sender] = false;
         emit AutomationToggled(_campaignId, msg.sender, false);
+    }
+
+    /**
+     * @notice Check if a specific donor has enabled automation for a campaign.
+     */
+    function isDonorAutomationEnabled(uint256 _campaignId, address _donor) external view returns (bool) {
+        return donorAutomation[_campaignId][_donor];
     }
 
     // ==========================================
@@ -1013,16 +1074,16 @@ contract FundTrace is ReentrancyGuard {
 
     function getCampaignFinancials(uint256 _campaignId) external view returns (
         uint256 totalRaised,
-        uint256 totalSanctioned,
         uint256 totalAllocated,
+        uint256 totalSanctioned,
         uint256 totalClaimed,
         uint256 proofBackedAmount,
-        uint256 remainingBalance
+        uint256 remainingAllocation
     ) {
         Campaign storage c = campaigns[_campaignId];
         totalRaised = c.totalDonated;
+        totalAllocated = c.state == CampaignState.FundingClosed ? c.totalDonated : c.totalAllocated;
         totalSanctioned = c.totalSanctioned;
-        totalAllocated = c.totalAllocated;
         totalClaimed = c.totalClaimed;
 
         // Count proof-backed amount from quotations
@@ -1034,6 +1095,6 @@ contract FundTrace is ReentrancyGuard {
             }
         }
         proofBackedAmount = backed;
-        remainingBalance = c.totalDonated - c.totalReleased - c.totalClaimed;
+        remainingAllocation = totalAllocated > totalClaimed ? totalAllocated - totalClaimed : 0;
     }
 }

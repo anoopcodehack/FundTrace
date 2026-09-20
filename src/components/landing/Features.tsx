@@ -7,7 +7,7 @@ export default function Features() {
   const features = [
     {
       title: "Consensus Escrow",
-      description: "Funds aren't released immediately. Donors vote to approve milestone spending requests before smart contracts unlock capital.",
+      description: "Funds aren't released immediately. Donors review AI audits and sanction milestone spending requests before smart contracts unlock capital.",
       icon: <Coins className="w-6 h-6 text-[#FF5023]" />,
     },
     {

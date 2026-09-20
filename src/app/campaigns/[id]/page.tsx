@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
+import { toast } from 'sonner';
 import { formatFtu, CampaignState, QuotationState } from '@/types';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -28,13 +29,12 @@ import {
   RefreshCw,
   ExternalLink,
   Lock,
+  Sparkles,
 } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
-import { getFundTraceContract } from '@/lib/contract';
+import { getFundTraceContract, parseContractError } from '@/lib/contract';
 import { getQuotationsByCampaign } from '@/services/quotationService';
 
-// ─────────────────────────────────────────────────────────
-// Contribution Modal
 // ─────────────────────────────────────────────────────────
 // Main Page
 // ─────────────────────────────────────────────────────────
@@ -52,15 +52,12 @@ export default function CampaignDetailPage() {
   const [campaignQuotations, setCampaignQuotations] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [myContribution, setMyContribution] = useState(0);
-  const [myVotingWeight, setMyVotingWeight] = useState(0);
+  const [myContributionShare, setMyContributionShare] = useState(0);
 
-  useEffect(() => {
-    if (appRole === 'DONOR') {
-      router.replace(`/donor/campaigns/${id}`);
-    } else if (appRole === 'CREATOR') {
-      router.replace(`/creator/campaigns/${id}`);
-    }
-  }, [appRole, id, router]);
+  // Custom Contribution Modal State
+  const [showContributeModal, setShowContributeModal] = useState(false);
+  const [customAmount, setCustomAmount] = useState('');
+  const [isContributing, setIsContributing] = useState(false);
 
   function parseAmount(val: any): number {
     if (!val) return 0;
@@ -136,7 +133,7 @@ export default function CampaignDetailPage() {
           setMyContribution(donatedNum);
           const totalRaised = parseAmount(c.totalDonated);
           if (totalRaised > 0 && donatedNum > 0) {
-            setMyVotingWeight(Math.round((donatedNum / totalRaised) * 100));
+            setMyContributionShare(Math.min(100, Math.round((donatedNum / totalRaised) * 100)));
           }
         } catch {}
       }
@@ -154,9 +151,64 @@ export default function CampaignDetailPage() {
 
   useEffect(() => { loadCampaign(); }, [loadCampaign]);
 
-  function handleContributionSuccess(amount: number) {
-    setMyContribution(prev => prev + amount);
-    loadCampaign();
+  async function handleContribute(amountToFund?: number) {
+    if (!signer) {
+      toast.error('Please connect your wallet or select a demo role from the navbar to contribute.');
+      return;
+    }
+    if (!onchain) {
+      toast.error('Campaign data not loaded yet.');
+      return;
+    }
+    if (onchain.state !== CampaignState.Verified) {
+      if (onchain.state === CampaignState.FundingClosed) {
+        toast.info('This campaign has reached its funding goal and is fully allocated!');
+      } else {
+        toast.error('Campaign is not currently open for contributions.');
+      }
+      return;
+    }
+
+    const amt = amountToFund !== undefined ? amountToFund : Number(customAmount);
+    if (!amt || amt <= 0) {
+      toast.error('Please enter a valid contribution amount');
+      return;
+    }
+
+    const goalBig = BigInt(onchain.goalWei || 0);
+    let valueToSend: bigint;
+    if (goalBig > 1_000_000_000_000n) {
+      try {
+        const numStr = Number(amt).toFixed(6).replace(/\.?0+$/, '');
+        valueToSend = ethers.parseEther(numStr);
+      } catch {
+        valueToSend = ethers.parseEther(amt.toString());
+      }
+    } else {
+      valueToSend = BigInt(Math.floor(amt));
+    }
+
+    if (valueToSend <= 0n) {
+      toast.error('Contribution amount is too small');
+      return;
+    }
+
+    setIsContributing(true);
+    try {
+      const contract = getFundTraceContract(signer);
+      const tx = await contract.donate(onchain.id, { value: valueToSend });
+      await tx.wait();
+
+      toast.success(`Contributed ${formatFtu(amt)} successfully! Allotted to campaign pool.`);
+      setShowContributeModal(false);
+      setCustomAmount('');
+      await loadCampaign();
+    } catch (err: any) {
+      const errorMsg = parseContractError(err);
+      toast.error(errorMsg);
+    } finally {
+      setIsContributing(false);
+    }
   }
 
   if (isLoading) {
@@ -184,6 +236,7 @@ export default function CampaignDetailPage() {
   const isFunding = onchain.state === CampaignState.Verified;
   const allocated = parseAmount(onchain.totalAllocatedWei);
   const claimed = parseAmount(onchain.totalClaimedWei);
+  const remainingNeeded = goal > raised ? goal - raised : 0;
   const proofBacked = campaignQuotations
     .filter((q: any) => q.state === QuotationState.Completed || q.state === QuotationState.ProofSubmitted)
     .reduce((acc: number, q: any) => acc + (q.claimedAmountFtu || 0), 0);
@@ -223,26 +276,130 @@ export default function CampaignDetailPage() {
       </div>
     );
 
-    return (
-      <div className="bg-white border-2 border-indigo-100 rounded-3xl p-6 shadow-sm text-center space-y-4">
-        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
-          <Heart className="w-6 h-6" />
-        </div>
-        <div>
-          <h3 className="font-black font-display text-stone-900 text-lg">Contribute as a Donor</h3>
-          <p className="text-xs text-stone-500 mt-1">
-            Back this campaign directly and take part in on-chain milestone governance in the donor portal.
+    if (effectiveRole === 'CREATOR') return (
+      <div className="space-y-3">
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1 flex items-center gap-1">
+            <User className="w-3 h-3" /> Creator Portal
           </p>
+          <p className="text-sm font-bold text-amber-950">You are the creator of this initiative.</p>
         </div>
-        <Link
-          href={`/donor/campaigns/${id}`}
-          className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black font-display text-sm rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md cursor-pointer"
-        >
-          <Wallet className="w-4 h-4" /> Open in Donor Campaign Page <ArrowRight className="w-4 h-4" />
+        <Link href={`/creator/campaigns/${id}`}
+          className="w-full py-4 bg-stone-900 hover:bg-stone-800 text-white font-black font-display text-base rounded-xl transition-colors flex items-center justify-center gap-2 group">
+          Manage Campaign & Claims <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </Link>
       </div>
     );
- }
+
+    return (
+      <div className="bg-white border-2 border-indigo-100 rounded-3xl p-6 shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center shrink-0">
+            <Heart className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-black font-display text-stone-900 text-base">
+              {isFunding ? 'Approve & Back Campaign' : 'Campaign 100% Allocated'}
+            </h3>
+            <p className="text-xs text-stone-500">
+              {isFunding
+                ? 'Approve campaign proposal & allot funds to smart escrow pool.'
+                : '100% of funds locked in escrow. Donors sanction milestone claims.'}
+            </p>
+          </div>
+        </div>
+
+        {/* 2-Step Fund-Flow Guide */}
+        <div className="bg-stone-50 rounded-2xl p-3.5 border border-stone-100 text-xs space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-bold">
+            <span className={`flex items-center gap-1.5 ${isFunding ? 'text-indigo-700' : 'text-emerald-700'}`}>
+              {isFunding ? <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" /> : <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+              Step 1: Approve & Back Pool
+            </span>
+            <span className={`flex items-center gap-1.5 ${!isFunding ? 'text-indigo-700 font-bold' : 'text-stone-400'}`}>
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Step 2: Sanction Quotations
+            </span>
+          </div>
+          <div className="w-full bg-stone-200 h-1 rounded-full overflow-hidden">
+            <div
+              className={`h-1 rounded-full transition-all duration-500 ${isFunding ? 'bg-indigo-600 w-1/2' : 'bg-emerald-500 w-full'}`}
+            />
+          </div>
+        </div>
+
+        {isFunding ? (
+          <div className="space-y-3 pt-1">
+            <button
+              onClick={() => setShowContributeModal(true)}
+              className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-black font-display text-base rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 cursor-pointer"
+            >
+              <Heart className="w-5 h-5" /> Approve & Contribute to Campaign <ArrowRight className="w-4 h-4" />
+            </button>
+
+            <div className="grid grid-cols-3 gap-2">
+              {[500, 1000, 5000].map((preset) => (
+                <button
+                  key={preset}
+                  onClick={() => handleContribute(preset)}
+                  disabled={isContributing}
+                  className="py-2.5 px-3 bg-stone-50 hover:bg-indigo-50 border border-stone-200 hover:border-indigo-300 text-stone-800 hover:text-indigo-700 font-bold text-xs rounded-xl transition-all cursor-pointer text-center"
+                >
+                  +{formatFtu(preset)}
+                </button>
+              ))}
+            </div>
+
+            {remainingNeeded > 0 && (
+              <button
+                onClick={() => handleContribute(remainingNeeded)}
+                disabled={isContributing}
+                className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {isContributing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <>Fund Full Remaining ({formatFtu(remainingNeeded)})</>}
+              </button>
+            )}
+
+            <p className="text-[11px] text-stone-400 text-center font-medium">
+              🔒 100% of contribution is allotted to the campaign & protected by milestone sanctions
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3 pt-1">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+              <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider block mb-1">
+                ✓ Campaign Approved & 100% Allocated ({formatFtu(raised)})
+              </span>
+              <p className="text-xs text-emerald-700 font-medium">
+                Funds are locked in smart escrow. Donors can now review vendor quotations and sanction milestone claims.
+              </p>
+            </div>
+
+            <Link
+              href={`/donor/campaigns/${id}`}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black font-display text-sm rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4" /> Review & Sanction Quotations ({campaignQuotations.length}) <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
+
+        <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
+          <Link
+            href={`/donor/campaigns/${id}`}
+            className="text-indigo-600 hover:text-indigo-800 font-bold inline-flex items-center gap-1"
+          >
+            <Wallet className="w-3.5 h-3.5" /> Full Donor Portal View <ArrowRight className="w-3 h-3" />
+          </Link>
+          {hasContributed && (
+            <span className="text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-full text-[11px]">
+              You backed {formatFtu(myContribution)} ({myContributionShare}%)
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // ── Donor-specific extra sections ──
   function renderAdminSections() {
@@ -568,6 +725,116 @@ export default function CampaignDetailPage() {
           {renderAdminSections()}
         </div>
       </div>
+
+      {/* Contribution Modal */}
+      {showContributeModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-stone-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                  <Heart className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black font-display text-stone-900">Approve &amp; Contribute to Campaign</h3>
+                  <p className="text-xs text-stone-500">1 FTU = ₹1 · 100% allotted to smart contract escrow</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowContributeModal(false); setCustomAmount(''); }}
+                className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
+                  Select Preset Amount
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[500, 1000, 2500, 5000].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCustomAmount(preset.toString())}
+                      className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer border text-center ${
+                        customAmount === preset.toString()
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                          : 'bg-stone-50 hover:bg-indigo-50/50 border-stone-200 text-stone-700'
+                      }`}
+                    >
+                      {formatFtu(preset)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
+                  Contribution Amount (FTU / ₹)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-stone-400">₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="e.g. 5000"
+                    value={customAmount}
+                    onChange={(e) => setCustomAmount(e.target.value)}
+                    className="w-full pl-9 pr-4 py-3.5 bg-stone-50 border-2 border-stone-200 focus:border-indigo-600 rounded-2xl text-stone-900 font-bold font-mono text-lg outline-none transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Security & Allocation Banner */}
+              <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 text-xs space-y-2 text-indigo-950">
+                <div className="flex items-center gap-2 font-bold text-indigo-900">
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" /> 2-Stage Escrow Protection
+                </div>
+                <div className="space-y-1 text-stone-600 leading-relaxed text-[11px]">
+                  <p>• <strong>Stage 1 (Now):</strong> Your deposit approves the campaign target and is locked in non-custodial smart escrow.</p>
+                  <p>• <strong>Stage 2 (Post-Funding):</strong> When the creator submits vendor quotations, you sanction fund releases before any money leaves escrow.</p>
+                </div>
+                {remainingNeeded > 0 && (
+                  <p className="text-stone-500 font-medium pt-1 border-t border-indigo-100/60">
+                    Remaining needed to reach goal: <strong className="text-stone-800">{formatFtu(remainingNeeded)}</strong>
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowContributeModal(false); setCustomAmount(''); }}
+                  disabled={isContributing}
+                  className="w-1/3 py-3.5 border border-stone-200 hover:bg-stone-50 text-stone-700 font-bold text-sm rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleContribute()}
+                  disabled={isContributing || !customAmount || Number(customAmount) <= 0}
+                  className="w-2/3 py-3.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-black font-display text-sm rounded-xl transition-all shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isContributing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Allotting Funds...
+                    </>
+                  ) : (
+                    <>
+                      <Heart className="w-4 h-4" /> Approve &amp; Allot {customAmount ? formatFtu(Number(customAmount)) : ''}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

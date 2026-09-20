@@ -61,21 +61,21 @@ export const DEMO_PRESET_ACCOUNTS: DemoPresetAccount[] = [
     appRole: "DONOR" as const,
     address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
     privateKey: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
-    description: "Donated 1.5 FTC (46.9% voting weight)",
+    description: "Donated 1.5 FTC (46.9% contribution share)",
   },
   {
     role: "Bob (Key Contributor)",
     appRole: "DONOR" as const,
     address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
     privateKey: "0x47e179ec19401f8cb852cd80709033108c4e0906231eb9615553e19871783582",
-    description: "Donated 1.0 FTC (31.3% voting weight, triggers >50% approval)",
+    description: "Donated 1.0 FTC (31.3% contribution share, triggers >50% sanction)",
   },
   {
     role: "Charlie (Community Donor)",
     appRole: "DONOR" as const,
     address: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
     privateKey: "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba",
-    description: "Donated 0.7 FTC (21.9% voting weight)",
+    description: "Donated 0.7 FTC (21.9% contribution share)",
   },
 ];
 
