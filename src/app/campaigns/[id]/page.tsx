@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import MoneyFlowVisualizer from "@/components/MoneyFlowVisualizer";
+import AiReceiptFraudDetector from "@/components/AiReceiptFraudDetector";
 import { useWallet } from "@/context/WalletContext";
 import { formatAddress } from "@/lib/wallet";
 
@@ -215,6 +217,11 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
+        {/* INTERACTIVE MONEY FLOW VISUALIZER (UNIQUE HACKATHON FEATURE) */}
+        <div className="mt-12">
+          <MoneyFlowVisualizer campaignId={id} />
+        </div>
+
         {/* SPENDING REQUESTS SECTION */}
         <div className="mt-12 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-stone-300 pb-4 gap-2">
@@ -309,6 +316,9 @@ export default function CampaignDetailPage() {
                 <div className="text-xs font-mono text-stone-500 mt-1">Vendor: 0x14dC...9955</div>
               </div>
             </div>
+
+            {/* AI RECEIPT FRAUD & INFLATION DETECTOR (ORANGE & BLACK THEME) */}
+            <AiReceiptFraudDetector />
 
             {/* Voting Bar & Threshold Meter */}
             <div className="space-y-2">

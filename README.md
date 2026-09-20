@@ -16,7 +16,7 @@
 
 Built for **Versathon 2.0** (24-hour hackathon), Problem Statement **F4: Transparent Crowdfunding & Fund Ledger**.
 
-[Live Demo](#) · [Demo Video](#) · [Slides](#) · [Walkthrough](#demo-walkthrough)
+ · [Demo Video & Slides](https://drive.google.com/drive/folders/1DlSpEKJ_hgrK7pnzfpWpgAeHnWrQxMvi?usp=sharing) · [Walkthrough](#demo-walkthrough)
 
 </div>
 
