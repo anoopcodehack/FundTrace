@@ -1,15 +1,19 @@
 import {
   Controller, Post, Get, Patch, Param, Body, UploadedFile,
-  UseInterceptors, ParseIntPipe,
+  UseInterceptors, ParseIntPipe, UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { QuotationsService } from './quotations.service';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 
-@Controller('api/quotations')
+@Controller('quotations')
+@UseGuards(RolesGuard)
 export class QuotationsController {
   constructor(private readonly quotationsService: QuotationsService) {}
 
   @Post()
+  @Roles('CREATOR')
   @UseInterceptors(FileInterceptor('file'))
   async create(
     @Body() body: any,
@@ -38,6 +42,7 @@ export class QuotationsController {
   }
 
   @Patch(':id/sanction')
+  @Roles('DONOR')
   async sanction(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { sanctionedBy: string; allocatedAmountFtu: number; isAutomated?: boolean },
@@ -51,6 +56,7 @@ export class QuotationsController {
   }
 
   @Patch(':id/reject')
+  @Roles('DONOR')
   async reject(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { rejectedBy: string; reason: string },
@@ -58,7 +64,17 @@ export class QuotationsController {
     return this.quotationsService.rejectQuotation(id, body.rejectedBy, body.reason);
   }
 
+  @Patch(':id/review')
+  @Roles('DONOR')
+  async review(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { reviewedBy: string; reason: string },
+  ) {
+    return this.quotationsService.markForReview(id, body.reviewedBy, body.reason);
+  }
+
   @Patch(':id/claim')
+  @Roles('CREATOR')
   async recordClaim(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { claimAmountFtu: number; txHash: string },
@@ -66,7 +82,16 @@ export class QuotationsController {
     return this.quotationsService.recordClaim(id, body.claimAmountFtu, body.txHash);
   }
 
+  @Patch(':id/onchain-id')
+  async updateOnChainId(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { onChainQuotationId: number },
+  ) {
+    return this.quotationsService.updateOnChainId(id, Number(body.onChainQuotationId));
+  }
+
   @Post(':id/proof')
+  @Roles('CREATOR')
   @UseInterceptors(FileInterceptor('file'))
   async submitProof(
     @Param('id', ParseIntPipe) id: number,

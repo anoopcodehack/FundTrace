@@ -3,13 +3,13 @@
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import { useWallet } from "@/context/WalletContext";
 import { getFundTraceContract } from "@/lib/contract";
 import { createQuotation } from "@/services/quotationService";
 import { toast } from "sonner";
 import { ethers } from "ethers";
 import { QuotationState } from "@/types";
+import { CheckCircle2, XCircle, AlertTriangle, FileText, Bot } from "lucide-react";
 
 interface LineItem {
   description: string;
@@ -115,13 +115,11 @@ export default function QuotationPage() {
       ? "emerald" : rec.recommendation === "REJECT" ? "red" : "amber";
 
     return (
-      <div className="min-h-screen bg-[#F7F4ED] pb-24">
-        <Navbar />
-        <main className="max-w-3xl mx-auto px-6 pt-8">
+      <div className="min-h-screen bg-[#F7F4ED] pb-24">        <main className="max-w-3xl mx-auto px-6 pt-8">
           <div className="bg-white rounded-3xl border border-stone-200 shadow-lg p-8 space-y-6">
             <div className="flex items-center gap-3">
               <div className={`w-12 h-12 rounded-2xl bg-${recColor}-100 flex items-center justify-center`}>
-                <span className="text-2xl">{rec.recommendation === "APPROVE" ? "✅" : rec.recommendation === "REJECT" ? "❌" : "⚠️"}</span>
+                {rec.recommendation === "APPROVE" ? <CheckCircle2 className="w-6 h-6 text-emerald-600" /> : rec.recommendation === "REJECT" ? <XCircle className="w-6 h-6 text-red-600" /> : <AlertTriangle className="w-6 h-6 text-amber-600" />}
               </div>
               <div>
                 <h2 className="text-xl font-black text-stone-900">Quotation Submitted</h2>
@@ -144,7 +142,7 @@ export default function QuotationPage() {
                 <div className="space-y-1">
                   {rec.flags.map((f: string, i: number) => (
                     <div key={i} className="flex items-start gap-2 text-xs text-stone-600">
-                      <span className="text-amber-500 mt-0.5">⚠</span>
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
                       {f}
                     </div>
                   ))}
@@ -178,9 +176,7 @@ export default function QuotationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F4ED] pb-24">
-      <Navbar />
-      <main className="max-w-3xl mx-auto px-6 pt-8">
+    <div className="min-h-screen bg-[#F7F4ED] pb-24">      <main className="max-w-3xl mx-auto px-6 pt-8">
 
         {/* Header */}
         <div className="flex items-center gap-2 text-xs font-bold text-stone-500 mb-6 uppercase tracking-wider">
@@ -346,7 +342,7 @@ export default function QuotationPage() {
                   </div>
                 ) : (
                   <div>
-                    <div className="text-3xl mb-2">📄</div>
+                    <FileText className="w-8 h-8 mx-auto text-stone-400 mb-2" />
                     <p className="text-sm font-medium text-stone-600">Drop quotation file here or click to upload</p>
                     <p className="text-xs text-stone-400 mt-1">PDF, JPG, PNG up to 10MB</p>
                   </div>
@@ -364,7 +360,7 @@ export default function QuotationPage() {
           {/* AI Notice */}
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
             <div className="flex items-start gap-3">
-              <span className="text-xl">🤖</span>
+              <Bot className="w-6 h-6 text-blue-600 flex-shrink-0" />
               <div>
                 <p className="text-sm font-bold text-blue-900">AI Evaluation</p>
                 <p className="text-xs text-blue-700 leading-relaxed mt-1">

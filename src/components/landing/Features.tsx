@@ -12,7 +12,7 @@ export default function Features() {
     },
     {
       title: "Immutable Audits",
-      description: "Every campaign story, location, and expense receipt is hashed via Keccak-256 and anchored permanently on the Ethereum blockchain.",
+      description: "Every campaign story, location, and expense receipt is hashed via Keccak-256 and anchored permanently on the FundTrace Network.",
       icon: <Fingerprint className="w-6 h-6 text-emerald-400" />,
     },
     {

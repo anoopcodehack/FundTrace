@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import Navbar from "@/components/Navbar";
+import RoleGuard from "@/components/RoleGuard";
 import { useWallet } from "@/context/WalletContext";
 import { computeCanonicalMetadataHash } from "@/lib/canonical";
 import { ethers } from "ethers";
@@ -26,8 +26,18 @@ export default function CreateCampaignPage() {
 
   // Step 2 State: Funding Setup
   const [goalFtu, setGoalFtu] = useState("100000"); // 1 FTU = ₹1
-  const [durationDays, setDurationDays] = useState("30");
-  const [approvalMode, setApprovalMode] = useState<"manual" | "ai">("manual");
+  const [deadline, setDeadline] = useState("");
+  
+  const [plannedBudget, setPlannedBudget] = useState<{ category: string; amount: number }[]>([
+    { category: "Equipment", amount: 0 },
+    { category: "Materials", amount: 0 },
+    { category: "Operations", amount: 0 },
+    { category: "Services", amount: 0 },
+    { category: "Other", amount: 0 },
+  ]);
+
+  const totalPlanned = plannedBudget.reduce((sum, item) => sum + item.amount, 0);
+  const remainingBudget = Number(goalFtu) - totalPlanned;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedId, setSubmittedId] = useState<number | null>(null);
@@ -38,9 +48,7 @@ export default function CreateCampaignPage() {
         title,
         story,
         category,
-        location,
-        shortDescription,
-        approvalMode
+        location
       })
     : "0x7c21b8d862db1881c3edd13b662e0815f119004521083617159f709d45b52003";
 
@@ -52,6 +60,13 @@ export default function CreateCampaignPage() {
     }
 
     setIsSubmitting(true);
+    
+    if (totalPlanned > Number(goalFtu)) {
+      toast.error("Planned budget cannot exceed funding goal.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const toastId = toast.loading("Validating campaign via NestJS API...");
 
     try {
@@ -66,8 +81,8 @@ export default function CreateCampaignPage() {
         coverImage,
         supportingDocs,
         goalFtu: Number(goalFtu),
-        durationDays: Number(durationDays),
-        approvalMode,
+        deadline,
+        plannedBudget,
         creatorAddress: wallet.address
       };
 
@@ -75,15 +90,20 @@ export default function CreateCampaignPage() {
       // Mocking the backend API call here. In reality this calls the NestJS backend.
       const apiResponse = await fetch("http://localhost:3001/api/campaigns/prepare", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-wallet-address": wallet.address || "" 
+        },
         body: JSON.stringify(payload)
       });
 
+      const responseText = await apiResponse.text();
       if (!apiResponse.ok) {
-        throw new Error("Failed to prepare campaign via API");
+        console.error("API Error Response:", responseText);
+        throw new Error(`Failed to prepare campaign via API: ${responseText}`);
       }
-
-      const { transactionData, metadataHash, offChainId } = await apiResponse.json();
+      
+      const { transactionData, metadataHash, offChainId } = JSON.parse(responseText);
 
       toast.loading("Please sign the transaction in MetaMask...", { id: toastId });
 
@@ -99,17 +119,44 @@ export default function CreateCampaignPage() {
       // Assuming the backend has a webhook or we notify the backend it succeeded
       await fetch(`http://localhost:3001/api/campaigns/${offChainId}/confirm`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-wallet-address": wallet.address || ""
+        },
         body: JSON.stringify({ txHash: receipt?.hash })
       });
 
-      toast.success(`Campaign successfully registered!`, { id: toastId });
+      try {
+        const localCampaign = {
+          id: offChainId,
+          title,
+          tagline: shortDescription,
+          category,
+          story,
+          location,
+          coverImageUrl: coverImage,
+          goalWei: (Number(goalFtu) * 1e18).toString(),
+          totalDonatedWei: "0",
+          totalSanctionedWei: "0",
+          totalAllocatedWei: "0",
+          totalClaimedWei: "0",
+          state: 0, // PendingVerification
+          creator: wallet.address || "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+          createdAt: new Date().toISOString()
+        };
+        const existing = JSON.parse(localStorage.getItem("fundtrace_created_campaigns") || "[]");
+        localStorage.setItem("fundtrace_created_campaigns", JSON.stringify([localCampaign, ...existing.filter((e: any) => e.id !== offChainId)]));
+      } catch (storageErr) {
+        console.warn("Could not save to localStorage:", storageErr);
+      }
+
+      toast.success(`Campaign successfully registered! Redirecting to your campaigns...`, { id: toastId });
       setSubmittedId(offChainId);
       
-      // Redirect to dashboard
+      // Redirect to creator campaigns page
       setTimeout(() => {
-        router.push("/dashboard");
-      }, 2000);
+        router.push("/creator/campaigns");
+      }, 1800);
 
     } catch (err: any) {
       console.error(err);
@@ -120,10 +167,9 @@ export default function CreateCampaignPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
-      <Navbar />
-
-      <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-8 pb-16">
+    <RoleGuard allowedRoles={["CREATOR"]}>
+      <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
+        <main className="max-w-5xl mx-auto px-6 sm:px-12 pt-8 pb-16">
         
         {/* Colorful Editorial Hero Banner (FinFLO Theme) */}
         <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-8 border border-stone-800">
@@ -142,7 +188,7 @@ export default function CreateCampaignPage() {
                 DEPLOY AUDITED CAMPAIGN
               </h1>
               <p className="text-xs sm:text-sm text-stone-300 max-w-xl leading-relaxed">
-                Submit campaign details, funding goal in FTU, and approval model. The quotation, AI analysis, donor sanction, and allocation process happens after the campaign is created.
+                Submit campaign details and funding goal in FTU. The quotation, AI analysis, donor sanction, and allocation process happens after the campaign is created.
               </p>
             </div>
 
@@ -169,7 +215,7 @@ export default function CreateCampaignPage() {
                 step > s ? "bg-[#141414] border-[#141414] text-white" :
                 "bg-white border-stone-300 text-stone-400"
               }`}>
-                {step > s ? "✓" : s}
+                {step > s ? "âœ“" : s}
               </div>
               <span className={`text-[10px] font-mono font-bold uppercase tracking-wider ${
                 step === s ? "text-[#FF5023]" : step > s ? "text-[#141414]" : "text-stone-400"
@@ -311,62 +357,63 @@ export default function CreateCampaignPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Funding Duration (Days) *</label>
+                    <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Campaign Funding Deadline *</label>
                     <input
-                      type="number"
+                      type="date"
                       required
-                      value={durationDays}
-                      onChange={(e) => setDurationDays(e.target.value)}
+                      value={deadline}
+                      onChange={(e) => setDeadline(e.target.value)}
                       className="w-full p-3.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
                     />
+                    <p className="text-[10px] text-stone-500 mt-1">This defines how long the campaign accepts contributions. It does NOT represent when funds will be claimed.</p>
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-4 border-t border-stone-200">
-                  <label className="text-[11px] font-mono font-bold uppercase tracking-widest text-stone-600">Approval Mode *</label>
+                <div className="space-y-4 pt-4 border-t border-stone-200">
+                  <div>
+                    <h3 className="text-lg font-bold font-bebas tracking-wide uppercase text-[#141414]">Planned Fund Usage</h3>
+                    <p className="text-[11px] text-stone-500">Optionally define expected spending categories to provide context for the AI quotation analysis system.</p>
+                  </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Manual Approval Card */}
-                    <div 
-                      onClick={() => setApprovalMode("manual")}
-                      className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                        approvalMode === "manual" ? "border-[#FF5023] bg-[#FF5023]/5" : "border-stone-200 hover:border-stone-300 bg-white"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${approvalMode === "manual" ? "border-[#FF5023]" : "border-stone-300"}`}>
-                          {approvalMode === "manual" && <div className="w-2 h-2 rounded-full bg-[#FF5023]" />}
+                  <div className="space-y-3">
+                    {plannedBudget.map((item, index) => (
+                      <div key={item.category} className="flex items-center gap-4">
+                        <div className="w-1/3">
+                          <span className="text-xs font-semibold text-stone-700">{item.category}</span>
                         </div>
-                        <h4 className="font-black uppercase text-sm">Manual Approval</h4>
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-2.5 text-stone-500 font-bold text-xs">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.amount || ""}
+                            onChange={(e) => {
+                              const newBudget = [...plannedBudget];
+                              newBudget[index].amount = Number(e.target.value);
+                              setPlannedBudget(newBudget);
+                            }}
+                            className="w-full p-2 pl-7 rounded-lg border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023]"
+                          />
+                        </div>
                       </div>
-                      <ul className="text-xs text-stone-600 space-y-1.5 pl-6 list-disc">
-                        <li>Creator submits quotations later.</li>
-                        <li>AI evaluates each quotation.</li>
-                        <li>Donor manually approves/rejects.</li>
-                      </ul>
-                    </div>
+                    ))}
+                  </div>
 
-                    {/* AI-Assisted Approval Card */}
-                    <div 
-                      onClick={() => setApprovalMode("ai")}
-                      className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                        approvalMode === "ai" ? "border-emerald-500 bg-emerald-500/5" : "border-stone-200 hover:border-stone-300 bg-white"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${approvalMode === "ai" ? "border-emerald-500" : "border-stone-300"}`}>
-                          {approvalMode === "ai" && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
-                        </div>
-                        <h4 className="font-black uppercase text-sm text-emerald-700">AI-Assisted Approval</h4>
-                      </div>
-                      <ul className="text-xs text-stone-600 space-y-1.5 pl-6 list-disc">
-                        <li>Donor enables automated processing.</li>
-                        <li>Quotations automatically evaluated by AI.</li>
-                        <li>AI recommends APPROVE/REJECT based on policy.</li>
-                        <li>Donor can override the decision.</li>
-                      </ul>
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 mt-4 flex items-center justify-between text-xs font-mono">
+                    <div className="flex flex-col">
+                      <span className="text-stone-500 font-bold">PLANNED</span>
+                      <span className="text-stone-900 font-black text-sm">₹{totalPlanned}</span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <span className="text-stone-500 font-bold">REMAINING / UNASSIGNED</span>
+                      <span className={`font-black text-sm ${remainingBudget < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                        ₹{remainingBudget}
+                      </span>
                     </div>
                   </div>
+                  {remainingBudget < 0 && (
+                    <p className="text-xs text-red-500 font-bold">Planned budget cannot exceed the funding goal.</p>
+                  )}
                 </div>
 
               </div>
@@ -388,15 +435,11 @@ export default function CreateCampaignPage() {
                     </div>
                     <div className="flex flex-col border-b border-stone-100 pb-2">
                       <span className="text-[10px] font-mono uppercase text-stone-500">Category & Location</span>
-                      <strong className="text-[#141414]">{category} · {location}</strong>
+                      <strong className="text-[#141414]">{category} &middot; {location}</strong>
                     </div>
                     <div className="flex flex-col border-b border-stone-100 pb-2">
                       <span className="text-[10px] font-mono uppercase text-stone-500">Goal</span>
                       <strong className="text-[#FF5023] text-lg font-bebas tracking-wide">{goalFtu} FTU / ₹{goalFtu}</strong>
-                    </div>
-                    <div className="flex flex-col border-b border-stone-100 pb-2">
-                      <span className="text-[10px] font-mono uppercase text-stone-500">Approval Mode</span>
-                      <strong className="text-[#141414]">{approvalMode === "manual" ? "Manual Approval" : "AI-Assisted Approval"}</strong>
                     </div>
                     <div className="flex flex-col border-b border-stone-100 pb-2">
                       <span className="text-[10px] font-mono uppercase text-stone-500">Creator Wallet</span>
@@ -410,21 +453,21 @@ export default function CreateCampaignPage() {
                     
                     <div className="flex flex-col items-center gap-1 font-mono text-[10px] sm:text-xs">
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">DONATIONS</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-[#FF5023]/20 text-[#FF5023] font-bold px-3 py-1.5 rounded-lg border border-[#FF5023]/30">FUNDS LOCKED</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">QUOTATION</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-emerald-500/20 text-emerald-400 font-bold px-3 py-1.5 rounded-lg border border-emerald-500/30">AI ANALYSIS</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">DONOR SANCTION</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">ALLOCATION</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">CREATOR CLAIM</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-white/10 px-3 py-1.5 rounded-lg border border-white/5">INVOICE / PROOF</div>
-                      <div className="text-stone-500">↓</div>
+                      <div className="text-stone-500">â†“</div>
                       <div className="bg-amber-500/20 text-amber-400 font-bold px-3 py-1.5 rounded-lg border border-amber-500/30">AUDIT</div>
                     </div>
                   </div>
@@ -450,7 +493,7 @@ export default function CreateCampaignPage() {
                 >
                   <span>{isSubmitting ? "Processing via NestJS API..." : "Register Campaign & Commit Hash"}</span>
                   <span className="w-7 h-7 rounded-full bg-[#FF5023] text-white flex items-center justify-center text-sm font-bold">
-                    →
+                    â†’
                   </span>
                 </button>
               </div>
@@ -464,7 +507,7 @@ export default function CreateCampaignPage() {
                   onClick={() => setStep(step - 1)}
                   className="px-6 py-2.5 rounded-full font-bold text-xs uppercase bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
                 >
-                  ← Back
+                  â† Back
                 </button>
               ) : <div/>}
 
@@ -474,7 +517,7 @@ export default function CreateCampaignPage() {
                   onClick={() => setStep(step + 1)}
                   className="px-6 py-2.5 rounded-full font-bold text-xs uppercase bg-[#FF5023] hover:bg-[#ff5d32] text-white transition-colors"
                 >
-                  Next Step →
+                  Next Step â†’
                 </button>
               ) : <div/>}
             </div>
@@ -483,6 +526,7 @@ export default function CreateCampaignPage() {
         </form>
 
       </main>
-    </div>
+      </div>
+    </RoleGuard>
   );
 }

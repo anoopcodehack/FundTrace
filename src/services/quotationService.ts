@@ -1,4 +1,4 @@
-import { QuotationMetadata, AIRecommendation } from '../types';
+import { QuotationMetadata, AIRecommendation, QuotationState } from '../types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -35,6 +35,9 @@ export async function createQuotation(payload: CreateQuotationPayload): Promise<
 
   const response = await fetch(`${API_URL}/quotations`, {
     method: 'POST',
+    headers: {
+      'x-wallet-address': payload.creatorAddress,
+    },
     body: formData,
   });
 
@@ -72,7 +75,10 @@ export async function sanctionQuotation(
 ): Promise<QuotationMetadata> {
   const response = await fetch(`${API_URL}/quotations/${id}/sanction`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-wallet-address': sanctionedBy,
+    },
     body: JSON.stringify({ sanctionedBy, allocatedAmountFtu, isAutomated }),
   });
   if (!response.ok) {
@@ -89,21 +95,64 @@ export async function rejectQuotation(
 ): Promise<QuotationMetadata> {
   const response = await fetch(`${API_URL}/quotations/${id}/reject`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-wallet-address': rejectedBy,
+    },
     body: JSON.stringify({ rejectedBy, reason }),
   });
   if (!response.ok) throw new Error('Failed to reject quotation');
   return mapQuotation(await response.json());
 }
 
+export async function reviewQuotation(
+  id: number,
+  reviewedBy: string,
+  reason: string
+): Promise<QuotationMetadata> {
+  const response = await fetch(`${API_URL}/quotations/${id}/review`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-wallet-address': reviewedBy,
+    },
+    body: JSON.stringify({ reviewedBy, reason }),
+  });
+  if (!response.ok) throw new Error('Failed to mark quotation for review');
+  return mapQuotation(await response.json());
+}
+
+export async function updateQuotationOnChainId(
+  id: number,
+  onChainQuotationId: number
+): Promise<QuotationMetadata | null> {
+  try {
+    const response = await fetch(`${API_URL}/quotations/${id}/onchain-id`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ onChainQuotationId }),
+    });
+    if (!response.ok) return null;
+    return mapQuotation(await response.json());
+  } catch (e) {
+    console.warn('Could not update quotation on-chain ID:', e);
+    return null;
+  }
+}
+
 export async function recordClaim(
   id: number,
   claimAmountFtu: number,
-  txHash: string
+  txHash: string,
+  creatorAddress?: string
 ): Promise<QuotationMetadata> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (creatorAddress) {
+    headers['x-wallet-address'] = creatorAddress;
+  }
   const response = await fetch(`${API_URL}/quotations/${id}/claim`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ claimAmountFtu, txHash }),
   });
   if (!response.ok) throw new Error('Failed to record claim');
@@ -127,6 +176,27 @@ export async function submitQuotationProof(
   return mapQuotation(await response.json());
 }
 
+const QUOTATION_STATE_MAP: Record<string, QuotationState> = {
+  'Pending': QuotationState.Pending,
+  'AIEvaluated': QuotationState.AIEvaluated,
+  'DonorApproved': QuotationState.DonorApproved,
+  'DonorRejected': QuotationState.DonorRejected,
+  'Sanctioned': QuotationState.Sanctioned,
+  'Claimable': QuotationState.Claimable,
+  'Claimed': QuotationState.Claimed,
+  'ProofPending': QuotationState.ProofPending,
+  'ProofSubmitted': QuotationState.ProofSubmitted,
+  'Completed': QuotationState.Completed,
+};
+
+function parseQuotationState(val: any): QuotationState {
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string' && QUOTATION_STATE_MAP[val] !== undefined) {
+    return QUOTATION_STATE_MAP[val];
+  }
+  return QuotationState.Pending;
+}
+
 function mapQuotation(raw: any): QuotationMetadata {
   return {
     id: raw.id,
@@ -140,7 +210,7 @@ function mapQuotation(raw: any): QuotationMetadata {
     quotationDocumentUrl: raw.quotation_document_url,
     quotationHash: raw.quotation_hash,
     onChainQuotationId: raw.on_chain_quotation_id,
-    state: raw.state,
+    state: parseQuotationState(raw.state),
     aiRecommendation: raw.ai_recommendation,
     allocatedAmountFtu: raw.allocated_amount_ftu ? Number(raw.allocated_amount_ftu) : undefined,
     claimedAmountFtu: raw.claimed_amount_ftu ? Number(raw.claimed_amount_ftu) : undefined,

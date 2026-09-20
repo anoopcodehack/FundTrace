@@ -3,7 +3,8 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from '../database/supabase.provider';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { computeCanonicalMetadataHash, verifyHashMatch } from '../../utils/canonical';
-import { CreateCampaignDto } from './dto/create-campaign.dto';
+import { CreateCampaignDto, PrepareCampaignDto } from './dto/create-campaign.dto';
+import { ethers } from 'ethers';
 
 @Injectable()
 export class CampaignsService {
@@ -63,6 +64,128 @@ export class CampaignsService {
     }
   }
 
+  async prepareCampaign(dto: PrepareCampaignDto) {
+    try {
+      const deadlineTimestamp = Math.floor(new Date(dto.deadline).getTime() / 1000);
+      const currentTimestamp = Math.floor(Date.now() / 1000);
+      if (deadlineTimestamp <= currentTimestamp) {
+        throw new Error("Deadline must be in the future");
+      }
+
+      const canonicalHash = computeCanonicalMetadataHash({
+        title: dto.title,
+        story: dto.story,
+        category: dto.category,
+        location: dto.location
+      });
+
+      // Generate a temporary negative on_chain_id to satisfy the DB NOT NULL constraint
+      // It will be updated to the real positive on_chain_id during the confirm step
+      const tempOnChainId = -Math.floor(Math.random() * 1000000) - 1;
+
+      const campaignData: any = {
+        on_chain_id: tempOnChainId,
+        title: dto.title,
+        tagline: dto.shortDescription,
+        category: dto.category,
+        story: dto.story,
+        location: dto.location,
+        cover_image_url: dto.coverImage || '',
+        canonical_hash: canonicalHash,
+        creator_address: dto.creatorAddress,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Ensure creator exists in the users table to satisfy foreign key constraint
+      if (dto.creatorAddress) {
+        await this.supabase.from('users').upsert({
+          wallet_address: dto.creatorAddress,
+          role: 'CREATOR'
+        }, { onConflict: 'wallet_address' });
+      }
+
+      // Store pending campaign to get an offChainId
+      const { data: inserted, error } = await this.supabase
+        .from('campaigns')
+        .insert(campaignData)
+        .select()
+        .single();
+
+      if (error) {
+        this.logger.error(`Failed to insert pending campaign: ${error.message}`);
+        throw new Error(`DB Error: ${error.message}`);
+      }
+
+      const contract = this.blockchainService.getContract();
+      if (!contract) throw new Error("Contract not connected");
+
+      const deadline = deadlineTimestamp;
+      
+      // Default institutional verifier
+      const defaultVerifier = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'; 
+      const goalWei = ethers.parseEther(dto.goalFtu.toString());
+
+      const txData = await contract.createCampaign.populateTransaction(
+        goalWei,
+        deadline,
+        canonicalHash,
+        defaultVerifier
+      );
+
+      return {
+        transactionData: {
+          to: txData.to,
+          data: txData.data,
+        },
+        metadataHash: canonicalHash,
+        offChainId: inserted.id
+      };
+    } catch (err: any) {
+      console.error("PREPARE CAMPAIGN ERROR:", err);
+      throw err;
+    }
+  }
+
+  async confirmCampaign(id: string, txHash: string) {
+    const provider = this.blockchainService.getProvider();
+    const contract = this.blockchainService.getContract();
+    if (!contract || !provider) throw new Error("Blockchain not connected");
+
+    const receipt = await provider.getTransactionReceipt(txHash);
+    if (!receipt) throw new Error("Transaction receipt not found");
+
+    let onChainId = null;
+    for (const log of receipt.logs) {
+      try {
+        const parsed = contract.interface.parseLog({
+          topics: [...log.topics],
+          data: log.data
+        });
+        if (parsed && parsed.name === 'CampaignCreated') {
+          onChainId = Number(parsed.args[0]);
+          break;
+        }
+      } catch (e) {
+        // Not all logs will parse with our contract interface, ignore errors
+      }
+    }
+
+    if (onChainId === null) {
+      // Just save the txHash for now if we can't parse it
+      await this.supabase.from('campaigns').update({ tx_hash: txHash }).eq('id', id);
+      return { status: 'pending_confirmation', txHash };
+    }
+
+    // Update with the confirmed on_chain_id
+    await this.supabase.from('campaigns').update({ 
+      on_chain_id: onChainId,
+      tx_hash: txHash 
+    }).eq('id', id);
+
+    return { status: 'confirmed', onChainId };
+  }
+
+
   async findAll() {
     const { data, error } = await this.supabase.from('campaigns').select('*').order('created_at', { ascending: false });
     if (error) {
@@ -72,16 +195,18 @@ export class CampaignsService {
     return data || [];
   }
 
-  async findOne(onChainId: number) {
+  async findOne(idOrOnChainId: number) {
     const { data: campaign, error } = await this.supabase
       .from('campaigns')
       .select('*')
-      .eq('on_chain_id', onChainId)
-      .single();
+      .or(`on_chain_id.eq.${idOrOnChainId},id.eq.${idOrOnChainId}`)
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (error || !campaign) {
-      this.logger.error(`Campaign ${onChainId} not found in Supabase: ${error?.message}`);
-      throw new NotFoundException(`Campaign ${onChainId} not found`);
+      this.logger.error(`Campaign ${idOrOnChainId} not found in Supabase: ${error?.message}`);
+      throw new NotFoundException(`Campaign ${idOrOnChainId} not found`);
     }
 
     // Check integrity against on-chain
@@ -101,19 +226,24 @@ export class CampaignsService {
       details: 'Off-chain data matches computed hash.'
     };
 
-    if (campaign.on_chain_id) {
-      onChainData = await this.blockchainService.getCampaignFromChain(Number(campaign.on_chain_id));
-      if (onChainData && onChainData.metadataHash) {
-        const matchResult = verifyHashMatch(onChainData.metadataHash, computedHash);
-        integrity = {
-          isTampered: !matchResult.isMatch,
-          calculatedHash: computedHash,
-          onChainHash: onChainData.metadataHash,
-          status: matchResult.status,
-          details: matchResult.isMatch ? 'Hash matches immutable on-chain record.' : 'CRITICAL TAMPER DETECTED',
-        };
+    if (campaign.on_chain_id && Number(campaign.on_chain_id) > 0) {
+      try {
+        onChainData = await this.blockchainService.getCampaignFromChain(Number(campaign.on_chain_id));
+        if (onChainData && onChainData.metadataHash) {
+          const matchResult = verifyHashMatch(onChainData.metadataHash, computedHash);
+          integrity = {
+            isTampered: !matchResult.isMatch,
+            calculatedHash: computedHash,
+            onChainHash: onChainData.metadataHash,
+            status: matchResult.status,
+            details: matchResult.isMatch ? 'Hash matches immutable on-chain record.' : 'CRITICAL TAMPER DETECTED',
+          };
+        }
+      } catch (chainErr) {
+        this.logger.warn(`Could not read on-chain data for campaign ${campaign.on_chain_id}: ${chainErr}`);
       }
     }
+
 
     return {
       metadata: campaign,

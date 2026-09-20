@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Navbar from "@/components/Navbar";
 import { computeFileKeccak256 } from "@/lib/canonical";
 
 const ON_CHAIN_RECEIPT_HASH = "0xb80dd0075275c63869fb31316e6d22a58911ec5896ed2c98bdaf0382ac4925fd";
@@ -59,8 +58,6 @@ export default function VerifyProofPage() {
 
   return (
     <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
-      <Navbar />
-
       <main className="max-w-6xl mx-auto px-6 sm:px-12 pt-8 pb-16">
         
         {/* Clean Editorial Hero Banner (FinFLO Theme) */}
@@ -93,7 +90,7 @@ export default function VerifyProofPage() {
                 BYTE-FOR-BYTE
               </span>
               <span className="text-xs font-mono text-emerald-400 font-semibold">
-                ● 100% Tamper Proof
+                â— 100% Tamper Proof
               </span>
             </div>
           </div>
@@ -125,7 +122,7 @@ export default function VerifyProofPage() {
                 onChange={(e) => setSelectedRequest(e.target.value)}
                 className="w-full p-3 rounded-xl border border-stone-300 bg-stone-50 text-xs font-semibold text-stone-900 focus:outline-none focus:border-[#FF5023] focus:ring-1 focus:ring-[#FF5023]"
               >
-                <option value="req-1">Campaign #1 · Request #01: 50 Arduino Boards (1.20 ETH)</option>
+                <option value="req-1">Campaign #1 &middot; Request #01: 50 Arduino Boards (1.20 FTC)</option>
               </select>
             </div>
 
@@ -265,11 +262,11 @@ export default function VerifyProofPage() {
             {testResult === "match" && (
               <div className="p-5 rounded-2xl bg-emerald-950/80 border-2 border-emerald-500 text-emerald-100 flex items-start gap-4 shadow-xl animate-fade-in">
                 <div className="w-8 h-8 rounded-full bg-emerald-500 text-stone-950 flex items-center justify-center shrink-0 mt-0.5 text-base font-black">
-                  ✓
+                  âœ“
                 </div>
                 <div className="space-y-1">
                   <div className="text-lg font-black font-bebas uppercase tracking-wide text-emerald-300">
-                    Cryptographic Integrity Verified · 100% Match
+                    Cryptographic Integrity Verified &middot; 100% Match
                   </div>
                   <p className="text-xs text-emerald-200/90 leading-relaxed font-sans">
                     The document bytes produce an exact byte-for-byte Keccak-256 match against the smart contract commitment (<code className="font-mono text-[11px] text-emerald-300 font-bold">{ON_CHAIN_RECEIPT_HASH.slice(0, 14)}...</code>). Document is authentic and un-tampered.
@@ -281,11 +278,11 @@ export default function VerifyProofPage() {
             {testResult === "failed" && (
               <div className="p-5 rounded-2xl bg-rose-950/80 border-2 border-rose-500 text-rose-100 flex items-start gap-4 shadow-xl animate-fade-in">
                 <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5 text-base font-black">
-                  ✕
+                  âœ•
                 </div>
                 <div className="space-y-1">
                   <div className="text-lg font-black font-bebas uppercase tracking-wide text-rose-300">
-                    Integrity Check Failed · Tamper Detected
+                    Integrity Check Failed &middot; Tamper Detected
                   </div>
                   <p className="text-xs text-rose-200/90 leading-relaxed font-sans">
                     Computed byte hash does not match the on-chain commitment. The file has been modified, replaced, or forged. The protocol automatically blocks disbursements.

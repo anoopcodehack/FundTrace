@@ -16,7 +16,7 @@ export const NETWORKS: Record<number, NetworkConfig> = {
     hexChainId: "0x7a69",
     name: "Hardhat Local",
     rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8545",
-    symbol: "ETH",
+    symbol: "FTC",
     decimals: 18,
   },
   11155111: {
@@ -24,7 +24,7 @@ export const NETWORKS: Record<number, NetworkConfig> = {
     hexChainId: "0xaa36a7",
     name: "Ethereum Sepolia",
     rpcUrl: process.env.SEPOLIA_RPC_URL || "https://rpc.sepolia.org",
-    symbol: "ETH",
+    symbol: "FTC",
     decimals: 18,
     blockExplorerUrl: "https://sepolia.etherscan.io",
   },

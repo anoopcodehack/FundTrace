@@ -1,255 +1,350 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import Navbar from "@/components/Navbar";
+import React, { useState, useEffect } from 'react';
+import { MOCK_CAMPAIGNS_ONCHAIN, MOCK_CAMPAIGNS_METADATA } from '@/lib/mock';
+import { getFundTraceContract } from '@/lib/contract';
+import { formatFtu, CampaignState } from '@/types';
+import Link from 'next/link';
+import { useWallet } from '@/context/WalletContext';
+import { 
+  Search,
+  CheckCircle2,
+  TrendingUp,
+  MapPin,
+  Clock,
+  Loader2,
+  AlertCircle
+} from 'lucide-react';
+import { ethers } from 'ethers';
 
-interface CampaignItem {
+interface PublicCampaign {
   id: number;
   title: string;
+  tagline: string;
   category: string;
-  creator: string;
-  verifier: string;
-  goalEth: number;
-  raisedEth: number;
-  releasedEth: number;
-  balanceEth: number;
-  status: "FUNDING_CLOSED" | "PENDING_VERIFICATION" | "ACTIVE" | "PROOF_OVERDUE";
-  isVerified: boolean;
-  description: string;
-  activeRequestId?: number;
+  location: string;
+  coverImageUrl?: string;
+  fundingDeadline?: string | null;
+  raisedFtu: number;
+  goalFtu: number;
+  state: CampaignState;
 }
 
-const CAMPAIGNS_DATA: CampaignItem[] = [
-  {
-    id: 1,
-    title: "Build Rural STEM Lab & Robotics Center",
-    category: "Education",
-    creator: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-    verifier: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-    goalEth: 3.0,
-    raisedEth: 3.2,
-    releasedEth: 1.2,
-    balanceEth: 2.0,
-    status: "FUNDING_CLOSED",
-    isVerified: true,
-    description: "Equipping 500+ rural students with robotics toolkits, solar computers, and 3D printing equipment.",
-    activeRequestId: 2,
-  },
-  {
-    id: 2,
-    title: "Clean Water Well & Community Filtration",
-    category: "Sanitation",
-    creator: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
-    verifier: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-    goalEth: 5.0,
-    raisedEth: 0.0,
-    releasedEth: 0.0,
-    balanceEth: 0.0,
-    status: "PENDING_VERIFICATION",
-    isVerified: false,
-    description: "Deep borewell and ceramic membrane purification delivering potable drinking water to 1,200 villagers.",
-  },
-  {
-    id: 3,
-    title: "Solar Clinic Medical Refrigerators",
-    category: "Healthcare",
-    creator: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
-    verifier: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-    goalEth: 1.0,
-    raisedEth: 1.0,
-    releasedEth: 0.8,
-    balanceEth: 0.2,
-    status: "PROOF_OVERDUE",
-    isVerified: true,
-    description: "Solar battery units preserving pediatric vaccines. Request #01 was released but proof deadline expired.",
-  },
-];
+function parseContractFtu(val: any): number {
+  if (!val) return 0;
+  const str = val.toString();
+  if (str.length > 12) {
+    try {
+      return Math.round(Number(ethers.formatEther(val)));
+    } catch {
+      return Number(str);
+    }
+  }
+  return Number(str);
+}
 
-export default function CampaignsPage() {
-  const [filter, setFilter] = useState<"all" | "verified" | "pending">("all");
+export default function PublicCampaignsPage() {
+  const [filter, setFilter] = useState<'ALL' | 'FUNDING' | 'EXECUTING'>('ALL');
+  const [search, setSearch] = useState('');
+  const [campaigns, setCampaigns] = useState<PublicCampaign[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredCampaigns = CAMPAIGNS_DATA.filter((c) => {
-    if (filter === "verified") return c.isVerified;
-    if (filter === "pending") return !c.isVerified;
+  useEffect(() => {
+    async function fetchAllCampaigns() {
+      setIsLoading(true);
+      try {
+        const loaded: PublicCampaign[] = [];
+        const seenIds = new Set<number>();
+
+        // 1. Fetch DB campaigns
+        let dbCampaigns: any[] = [];
+        try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/campaigns`);
+          if (res.ok) {
+            dbCampaigns = await res.json();
+          }
+        } catch (e) {
+          console.warn("Could not fetch DB campaigns:", e);
+        }
+
+        // 2. Fetch contract campaigns
+        let contract: any = null;
+        let count = 0;
+        try {
+          contract = getFundTraceContract();
+          count = Number(await contract.campaignCount());
+        } catch {}
+
+        for (let i = 1; i <= count; i++) {
+          seenIds.add(i);
+          try {
+            const c = await contract.getCampaign(i);
+            const dbMeta = dbCampaigns.find((db: any) => Number(db.on_chain_id) === i);
+            const mockMeta = MOCK_CAMPAIGNS_METADATA[i];
+
+            const raisedFtu = parseContractFtu(c.totalDonated);
+            const goalFtu = parseContractFtu(c.goal);
+            const state = Number(c.state) as CampaignState;
+
+            loaded.push({
+              id: i,
+              title: dbMeta?.title || mockMeta?.title || `Campaign #${i}`,
+              tagline: dbMeta?.tagline || mockMeta?.tagline || "Decentralized audited fund initiative",
+              category: dbMeta?.category || mockMeta?.category || "Community",
+              location: dbMeta?.location || mockMeta?.location || "Global",
+              coverImageUrl: dbMeta?.cover_image_url || mockMeta?.coverImageUrl || "",
+              fundingDeadline: dbMeta?.funding_deadline || (c.deadline ? new Date(Number(c.deadline) * 1000).toISOString() : null),
+              raisedFtu,
+              goalFtu,
+              state
+            });
+          } catch (err) {
+            console.warn(`Error reading campaign #${i}:`, err);
+          }
+        }
+
+        // 3. Add DB campaigns (including pending verification ones)
+        for (const db of dbCampaigns) {
+          const cId = Number(db.on_chain_id > 0 ? db.on_chain_id : db.id);
+          if (!seenIds.has(cId)) {
+            seenIds.add(cId);
+            loaded.push({
+              id: cId,
+              title: db.title || `Campaign #${cId}`,
+              tagline: db.tagline || db.story || "Decentralized audited fund initiative",
+              category: db.category || "Community",
+              location: db.location || "Global",
+              coverImageUrl: db.cover_image_url || "",
+              fundingDeadline: db.funding_deadline || null,
+              raisedFtu: 0,
+              goalFtu: db.goal_ftu || 10000,
+              state: db.on_chain_id > 0 ? CampaignState.Verified : CampaignState.PendingVerification
+            });
+          }
+        }
+
+        // 4. Merge mock campaigns so demo always has complete initial items
+        for (const mock of MOCK_CAMPAIGNS_ONCHAIN) {
+          if (!seenIds.has(mock.id)) {
+            const meta = MOCK_CAMPAIGNS_METADATA[mock.id];
+            seenIds.add(mock.id);
+            loaded.push({
+              id: mock.id,
+              title: meta?.title || `Campaign #${mock.id}`,
+              tagline: meta?.tagline || "",
+              category: meta?.category || "Community",
+              location: meta?.location || "India",
+              coverImageUrl: meta?.coverImageUrl || "",
+              fundingDeadline: meta?.fundingDeadline || null,
+              raisedFtu: Number(mock.totalDonatedWei),
+              goalFtu: Number(mock.goalWei),
+              state: mock.state
+            });
+          }
+        }
+
+        setCampaigns(loaded);
+      } catch (err) {
+        console.error("Failed to load campaigns:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchAllCampaigns();
+  }, []);
+
+  const { wallet } = useWallet();
+  const getCampaignLink = (id: number) => {
+    if (wallet.appRole === 'DONOR') return `/donor/campaigns/${id}`;
+    if (wallet.appRole === 'CREATOR') return `/creator/campaigns/${id}`;
+    return `/campaigns/${id}`;
+  };
+
+  const filteredCampaigns = campaigns.filter(c => {
+    if (filter === 'FUNDING' && c.state !== CampaignState.Verified) return false;
+    if (filter === 'EXECUTING' && c.state !== CampaignState.FundingClosed) return false;
+    
+    if (search) {
+      const q = search.toLowerCase();
+      return c.title.toLowerCase().includes(q) || c.tagline.toLowerCase().includes(q);
+    }
     return true;
   });
 
+  const totalRaisedAll = campaigns.reduce((acc, c) => acc + c.raisedFtu, 0);
+
   return (
-    <div className="min-h-screen bg-[#F7F4ED] text-[#141414] pb-24">
-      <Navbar />
-
-      <main className="max-w-7xl mx-auto px-6 sm:px-12 pt-8 pb-16">
-        
-        {/* Colorful Editorial Hero Banner (FinFLO Theme) */}
-        <div className="bg-[#161813] text-white rounded-[32px] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-8 border border-stone-800">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2.5 mb-3">
-                <span className="px-3 py-1 rounded-full bg-white/10 text-stone-200 text-xs font-mono font-medium border border-white/10">
-                  On-Chain Directory
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 text-stone-300 text-xs font-mono font-medium border border-white/10">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  Verified Audits
-                </span>
-              </div>
-              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black font-bebas uppercase leading-[0.88] tracking-tight text-white">
-                EXPLORE CAMPAIGNS
-              </h1>
-              <p className="text-xs sm:text-sm text-stone-300 max-w-xl leading-relaxed">
-                Discover transparent fundraising initiatives with milestone-based escrow release and cryptographically verified expense receipts.
-              </p>
+    <div className="min-h-screen bg-[#F7F4ED] text-[#141414]">
+      {/* Hero Section */}
+      <section className="bg-stone-900 text-[#F7F4ED] pt-24 pb-16 px-8 lg:px-12 rounded-b-[40px]">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
+          <div className="md:w-1/2">
+            <h1 className="text-6xl md:text-8xl font-black font-bebas uppercase leading-[0.85] tracking-tight mb-6">
+              Discover <br />
+              <span className="text-indigo-400">Impact</span>
+            </h1>
+            <p className="text-stone-400 text-lg md:text-xl font-medium max-w-lg mb-8 leading-relaxed">
+              Explore verified campaigns leveraging on-chain transparency and AI to guarantee your funds reach their intended destination.
+            </p>
+          </div>
+          <div className="md:w-1/2 w-full grid grid-cols-2 gap-4">
+            <div className="bg-stone-800 p-6 rounded-2xl border border-stone-700">
+              <h3 className="text-4xl font-black font-bebas text-white">{formatFtu(totalRaisedAll || 450000)}</h3>
+              <p className="text-sm font-bold text-stone-400 uppercase tracking-wider mt-1">Total FTU Raised</p>
             </div>
-
-            {/* Filter Control: High-Contrast Segmented Bar */}
-            <div className="inline-flex p-1.5 rounded-2xl bg-black/60 border border-stone-800 gap-1.5 self-start lg:self-center">
-              <button
-                onClick={() => setFilter("all")}
-                className={`py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  filter === "all"
-                    ? "bg-[#FF5023] text-white shadow-md"
-                    : "text-stone-300 hover:text-white"
-                }`}
-              >
-                All ({CAMPAIGNS_DATA.length})
-              </button>
-              <button
-                onClick={() => setFilter("verified")}
-                className={`py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  filter === "verified"
-                    ? "bg-[#FF5023] text-white shadow-md"
-                    : "text-stone-300 hover:text-white"
-                }`}
-              >
-                Verified
-              </button>
-              <button
-                onClick={() => setFilter("pending")}
-                className={`py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  filter === "pending"
-                    ? "bg-[#FF5023] text-white shadow-md"
-                    : "text-stone-300 hover:text-white"
-                }`}
-              >
-                Pending Audit
-              </button>
+            <div className="bg-stone-800 p-6 rounded-2xl border border-stone-700">
+              <h3 className="text-4xl font-black font-bebas text-white">100%</h3>
+              <p className="text-sm font-bold text-stone-400 uppercase tracking-wider mt-1">On-Chain Audit</p>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Campaign Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-10">
-          {filteredCampaigns.map((campaign) => {
-            const pct = Math.round((campaign.raisedEth / campaign.goalEth) * 100);
-            return (
-              <div
-                key={campaign.id}
-                className="bg-white rounded-2xl p-6 border border-stone-200/90 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between space-y-5 relative"
+      {/* Discovery Feed */}
+      <section className="py-16 px-8 lg:px-12">
+        <div className="max-w-7xl mx-auto space-y-8">
+          
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-stone-200 shadow-sm">
+            <div className="relative w-full md:w-96">
+              <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+              <input 
+                type="text" 
+                placeholder="Search all campaigns..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
+              <button 
+                onClick={() => setFilter('ALL')}
+                className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors cursor-pointer ${filter === 'ALL' ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
               >
-                {/* Header: Category & Status Badges */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 border border-stone-200">
-                    {campaign.category} <span className="text-stone-400">#{campaign.id}</span>
-                  </span>
+                All Campaigns ({campaigns.length})
+              </button>
+              <button 
+                onClick={() => setFilter('FUNDING')}
+                className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors cursor-pointer ${filter === 'FUNDING' ? 'bg-indigo-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+              >
+                Actively Funding
+              </button>
+              <button 
+                onClick={() => setFilter('EXECUTING')}
+                className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors cursor-pointer ${filter === 'EXECUTING' ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+              >
+                Fully Funded
+              </button>
+            </div>
+          </div>
 
-                  {campaign.status === "PROOF_OVERDUE" && (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-xs font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                      Proof Overdue
-                    </span>
-                  )}
-                  {campaign.status === "PENDING_VERIFICATION" && (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-xs font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                      Pending Audit
-                    </span>
-                  )}
-                  {campaign.status === "FUNDING_CLOSED" && (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Funded ({pct}%)
-                    </span>
-                  )}
-                </div>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-24 bg-white rounded-3xl border border-stone-200 shadow-sm">
+              <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
+              <p className="text-stone-600 font-bold">Fetching all campaigns...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredCampaigns.map(c => {
+                const raised = c.raisedFtu;
+                const goal = c.goalFtu;
+                const progress = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0;
+                const isFunding = c.state === CampaignState.Verified;
+                const isPending = c.state === CampaignState.PendingVerification;
 
-                {/* Title & Description */}
-                <div>
-                  <h3 className="text-base sm:text-lg font-bold text-stone-900 leading-snug tracking-tight hover:text-[#FF5023] transition-colors">
-                    <Link href={`/campaigns/${campaign.id}`}>
-                      {campaign.title}
-                    </Link>
-                  </h3>
-                  <p className="text-xs text-stone-600 mt-2 line-clamp-2 leading-relaxed">
-                    {campaign.description}
-                  </p>
-                </div>
-
-                {/* Financial Metrics (FinFLO Editorial Style) */}
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <div className="text-[10px] font-mono font-bold tracking-widest uppercase text-stone-500">
-                        TOTAL RAISED
+                return (
+                  <Link href={getCampaignLink(c.id)} key={c.id} className="group bg-white rounded-3xl border border-stone-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full hover:-translate-y-1">
+                    
+                    {/* Image */}
+                    <div className="h-56 bg-stone-200 relative overflow-hidden">
+                      {c.coverImageUrl ? (
+                        <img src={c.coverImageUrl} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-stone-400 font-medium">No Image</div>
+                      )}
+                      
+                      <div className="absolute top-4 left-4 flex flex-col gap-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/90 backdrop-blur-sm text-stone-900 text-xs font-black rounded-lg shadow-sm">
+                          <MapPin className="w-3 h-3 text-indigo-500" /> {c.location}
+                        </span>
                       </div>
-                      <div className="text-3xl sm:text-4xl font-black font-bebas text-stone-900 leading-none tracking-wide mt-0.5">
-                        {campaign.raisedEth.toFixed(2)} <span className="text-lg font-bold text-stone-500">ETH</span>
+                      
+                      <div className="absolute top-4 right-4">
+                        {isPending ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-xs font-black rounded-lg shadow-sm">
+                            <Clock className="w-3 h-3" /> Pending Review
+                          </span>
+                        ) : isFunding ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 text-white text-xs font-black rounded-lg shadow-sm">
+                            <TrendingUp className="w-3 h-3" /> Funding
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-black rounded-lg shadow-sm">
+                            <CheckCircle2 className="w-3 h-3" /> Funded
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-[10px] font-mono font-bold tracking-widest uppercase text-stone-500">
-                        TARGET GOAL
+
+                    {/* Content */}
+                    <div className="p-8 flex-1 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold font-mono tracking-wider text-indigo-600 uppercase bg-indigo-50 px-2.5 py-1 rounded-md mb-3 inline-block">
+                          {c.category}
+                        </span>
+                        
+                        <h3 className="text-2xl font-black font-display text-stone-900 leading-tight mb-2 group-hover:text-indigo-600 transition-colors">
+                          {c.title}
+                        </h3>
+                        
+                        <p className="text-sm text-stone-500 font-medium line-clamp-2 mb-6">
+                          {c.tagline}
+                        </p>
                       </div>
-                      <div className="text-xl font-black font-bebas text-stone-700 leading-none tracking-wide mt-0.5">
-                        {campaign.goalEth.toFixed(2)} ETH
+
+                      {/* Progress Bar & Stats */}
+                      <div className="space-y-4 pt-4 border-t border-stone-100">
+                        <div>
+                          <div className="flex justify-between items-end mb-2">
+                            <span className="text-2xl font-black font-bebas text-stone-900">{formatFtu(raised)}</span>
+                            <span className="text-sm font-bold text-stone-400">of {formatFtu(goal)}</span>
+                          </div>
+                          
+                          <div className="w-full bg-stone-100 rounded-full h-2 overflow-hidden">
+                            <div className="bg-indigo-600 h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center text-xs font-bold text-stone-400">
+                          <span>{progress}% funded</span>
+                          {c.fundingDeadline && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {Math.max(0, Math.ceil((new Date(c.fundingDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} Days Left
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Sleek Minimal Progress Track */}
-                  <div className="w-full bg-stone-200/70 rounded-full h-2 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        campaign.status === "PROOF_OVERDUE" ? "bg-rose-500" : "bg-[#FF5023]"
-                      }`}
-                      style={{ width: `${Math.min(pct, 100)}%` }}
-                    />
-                  </div>
-
-                  {/* Accounting Escrow Breakdown */}
-                  <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
-                    <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/70">
-                      <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-stone-400 block">In Escrow</span>
-                      <span className="text-base font-black font-bebas text-stone-800 tracking-wide">{campaign.balanceEth.toFixed(2)} ETH</span>
                     </div>
-                    <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/70">
-                      <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-stone-400 block">Released</span>
-                      <span className="text-base font-black font-bebas text-stone-800 tracking-wide">{campaign.releasedEth.toFixed(2)} ETH</span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
-                  <Link
-                    href={`/campaigns/${campaign.id}`}
-                    className="flex-1 py-3 px-4 rounded-xl bg-[#181816] hover:bg-black text-white text-center font-bold text-xs uppercase tracking-wider transition-colors shadow-sm"
-                  >
-                    View Campaign
                   </Link>
-                  <Link
-                    href={`/campaigns/${campaign.id}/ledger`}
-                    className="py-3 px-4 rounded-xl bg-white hover:bg-stone-50 text-stone-800 text-center font-mono font-bold text-xs uppercase tracking-wider transition-colors border border-stone-300 shadow-xs"
-                    title="Inspect Public Ledger"
-                  >
-                    Ledger
-                  </Link>
+                );
+              })}
+
+              {filteredCampaigns.length === 0 && (
+                <div className="col-span-full py-16 bg-white rounded-3xl border border-stone-200 text-center">
+                  <AlertCircle className="w-10 h-10 text-stone-400 mx-auto mb-3" />
+                  <p className="text-lg font-bold text-stone-900 mb-1">No campaigns matched your search</p>
+                  <p className="text-sm text-stone-500">Try adjusting your filters or search keywords.</p>
                 </div>
-              </div>
-            );
-          })}
+              )}
+            </div>
+          )}
+
         </div>
-      </main>
+      </section>
     </div>
   );
 }

@@ -188,10 +188,24 @@ export class QuotationsService {
   }
 
   async findByCampaign(campaignId: number) {
+    const idsToMatch = [campaignId];
+    try {
+      const { data: c } = await this.supabase
+        .from('campaigns')
+        .select('id, on_chain_id')
+        .or(`on_chain_id.eq.${campaignId},id.eq.${campaignId}`)
+        .maybeSingle();
+
+      if (c) {
+        if (c.id && !idsToMatch.includes(c.id)) idsToMatch.push(c.id);
+        if (c.on_chain_id && !idsToMatch.includes(c.on_chain_id)) idsToMatch.push(c.on_chain_id);
+      }
+    } catch {}
+
     const { data, error } = await this.supabase
       .from('quotations')
       .select('*')
-      .eq('campaign_id', campaignId)
+      .in('campaign_id', idsToMatch)
       .order('submitted_at', { ascending: false });
 
     if (error) throw new BadRequestException(error.message);
@@ -239,6 +253,36 @@ export class QuotationsService {
         rejected_by: rejectedBy.toLowerCase(),
         rejection_reason: reason,
         rejected_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async updateOnChainId(id: number, onChainId: number) {
+    const { data, error } = await this.supabase
+      .from('quotations')
+      .update({
+        on_chain_quotation_id: onChainId,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async markForReview(id: number, reviewedBy: string, reason: string) {
+    const { data, error } = await this.supabase
+      .from('quotations')
+      .update({
+        state: 'DonorReview',
+        rejected_by: reviewedBy.toLowerCase(), // Store reviewer in rejected_by or add a new field, but state is enough
+        rejection_reason: reason, // Store review note here
       })
       .eq('id', id)
       .select()

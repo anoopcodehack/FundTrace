@@ -111,3 +111,40 @@ export function getFundTraceContract(
   const runner = signerOrProvider || getRpcProvider(DEFAULT_CHAIN_ID);
   return new ethers.Contract(address, FUNDTRACE_ABI, runner);
 }
+
+export const SOLIDITY_CUSTOM_ERRORS: Record<string, string> = {
+  "0xbaf3f0f7": "This campaign cannot accept donations because it is not in the 'Verified' state (e.g. pending verification or unanchored).",
+  "0x82b42900": "The campaign creator cannot donate to their own campaign.",
+  "0x70f65caa": "The campaign funding deadline has passed.",
+  "0x2eb35430": "The campaign deadline has not passed yet.",
+  "0x8cb8251e": "The funding goal for this campaign has already been reached.",
+  "0x2c5211c6": "Invalid contribution amount (must be greater than 0).",
+  "0xe6c4247b": "Invalid address provided.",
+  "0xef9a91a6": "An active spending request already exists for this campaign.",
+  "0x69a354c9": "Spending requests are locked because a proof of expenditure is overdue.",
+  "0xe2d72c20": "Spending requests are locked pending beneficiary delivery confirmation.",
+  "0x7c9a1cf9": "You have already voted on this spending request.",
+  "0x66b6cb4a": "Voting on this spending request has closed.",
+  "0x90b8ec18": "Blockchain ETH transfer failed.",
+  "0xb931e8c9": "Quotation not found on blockchain.",
+  "0x34332468": "Insufficient campaign balance for this allocation.",
+  "0x12f02dca": "Claim exceeds approved allocation amount.",
+};
+
+export function parseContractError(err: any): string {
+  const data = err?.data || err?.error?.data || err?.info?.error?.data;
+  if (typeof data === 'string') {
+    const selector = data.slice(0, 10).toLowerCase();
+    if (SOLIDITY_CUSTOM_ERRORS[selector]) {
+      return SOLIDITY_CUSTOM_ERRORS[selector];
+    }
+  }
+  const message = err?.message || '';
+  for (const [selector, desc] of Object.entries(SOLIDITY_CUSTOM_ERRORS)) {
+    if (message.toLowerCase().includes(selector.toLowerCase())) {
+      return desc;
+    }
+  }
+  return err?.reason || err?.shortMessage || err?.message || 'Transaction failed on blockchain';
+}
+

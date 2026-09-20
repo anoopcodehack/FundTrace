@@ -145,8 +145,8 @@ export default function AiReceiptFraudDetector() {
                   <span className="text-[10px] text-stone-500">Model: SunPower Pro 5kVA</span>
                 </div>
                 <div className="flex items-center gap-10 font-mono">
-                  <span className="text-stone-800 font-bold">0.30 ETH</span>
-                  <span className="text-stone-500">0.29 ETH</span>
+                  <span className="text-stone-800 font-bold">0.30 FTC</span>
+                  <span className="text-stone-500">0.29 FTC</span>
                   <span className="text-emerald-700 font-bold">+3.4% (Fair)</span>
                 </div>
               </div>
@@ -157,15 +157,15 @@ export default function AiReceiptFraudDetector() {
                   <span className="text-[10px] text-stone-500">ESD-Safe Steel Frame Tables</span>
                 </div>
                 <div className="flex items-center gap-10 font-mono">
-                  <span className="text-stone-800 font-bold">0.20 ETH</span>
-                  <span className="text-stone-500">0.21 ETH</span>
+                  <span className="text-stone-800 font-bold">0.20 FTC</span>
+                  <span className="text-stone-500">0.21 FTC</span>
                   <span className="text-emerald-700 font-bold">-4.7% (Under Budget)</span>
                 </div>
               </div>
 
               <div className="pt-2 border-t border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between text-stone-500 text-[11px] gap-1">
-                <span>Total Milestone Request: <strong className="text-stone-900">0.50 ETH</strong></span>
-                <span className="text-emerald-700 font-bold">✓ Within acceptable ±10% fair market corridor</span>
+                <span>Total Milestone Request: <strong className="text-stone-900">0.50 FTC</strong></span>
+                <span className="text-emerald-700 font-bold flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Within acceptable ±10% fair market corridor</span>
               </div>
             </div>
           )}
