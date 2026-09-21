@@ -11,6 +11,8 @@ export interface LedgerEvent {
   blockNumber: number;
   transactionHash: string;
   timestamp?: number;
+  actorAddress?: string;
+  amountFtu?: number;
   args: Record<string, any>;
   summary: string;
 }
@@ -47,6 +49,8 @@ export class LedgerService {
             blockNumber: Number(ev.block_number || 0),
             transactionHash: ev.tx_hash || '0x',
             timestamp: ev.recorded_at ? new Date(ev.recorded_at).getTime() : Date.now(),
+            actorAddress: ev.actor_address || args.donor || undefined,
+            amountFtu: ev.amount_ftu ? Number(ev.amount_ftu) : undefined,
             args,
             summary: this.generateSummary(ev.event_name, args),
           };
@@ -96,6 +100,7 @@ export class LedgerService {
             campaignId: cid,
             blockNumber: log.blockNumber,
             transactionHash: log.transactionHash,
+            actorAddress: parsedArgs.donor || parsedArgs.creator || parsedArgs.verifier || parsedArgs.recipient || undefined,
             args: parsedArgs,
             summary: this.generateSummary(log.fragment.name, parsedArgs),
           });

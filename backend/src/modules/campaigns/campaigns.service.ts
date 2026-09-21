@@ -147,41 +147,49 @@ export class CampaignsService {
     }
   }
 
-  async confirmCampaign(id: string, txHash: string) {
-    const provider = this.blockchainService.getProvider();
-    const contract = this.blockchainService.getContract();
-    if (!contract || !provider) throw new Error("Blockchain not connected");
+  async confirmCampaign(id: string, txHash: string, explicitOnChainId?: number) {
+    let onChainId = explicitOnChainId ? Number(explicitOnChainId) : null;
 
-    const receipt = await provider.getTransactionReceipt(txHash);
-    if (!receipt) throw new Error("Transaction receipt not found");
-
-    let onChainId = null;
-    for (const log of receipt.logs) {
+    if (!onChainId) {
       try {
-        const parsed = contract.interface.parseLog({
-          topics: [...log.topics],
-          data: log.data
-        });
-        if (parsed && parsed.name === 'CampaignCreated') {
-          onChainId = Number(parsed.args[0]);
-          break;
+        const provider = this.blockchainService.getProvider();
+        const contract = this.blockchainService.getContract();
+        if (contract && provider && txHash && txHash.startsWith('0x')) {
+          const receipt = await provider.getTransactionReceipt(txHash);
+          if (receipt) {
+            for (const log of receipt.logs) {
+              try {
+                const parsed = contract.interface.parseLog({
+                  topics: [...log.topics],
+                  data: log.data
+                });
+                if (parsed && parsed.name === 'CampaignCreated') {
+                  onChainId = Number(parsed.args[0]);
+                  break;
+                }
+              } catch (e) {}
+            }
+          }
         }
-      } catch (e) {
-        // Not all logs will parse with our contract interface, ignore errors
+      } catch (chainErr) {
+        this.logger.warn(`Could not parse on-chain ID from tx receipt: ${chainErr}`);
       }
     }
 
     if (onChainId === null) {
-      // Just save the txHash for now if we can't parse it
       await this.supabase.from('campaigns').update({ tx_hash: txHash }).eq('id', id);
       return { status: 'pending_confirmation', txHash };
     }
 
-    // Update with the confirmed on_chain_id
-    await this.supabase.from('campaigns').update({ 
+    const numericId = !isNaN(Number(id)) ? Number(id) : id;
+    const { error: updateError } = await this.supabase.from('campaigns').update({ 
       on_chain_id: onChainId,
       tx_hash: txHash 
-    }).eq('id', id);
+    }).eq('id', numericId);
+
+    if (updateError) {
+      this.logger.error(`Failed to update campaign ${id} with onChainId ${onChainId}: ${updateError.message}`);
+    }
 
     return { status: 'confirmed', onChainId };
   }
@@ -250,6 +258,59 @@ export class CampaignsService {
       metadata: campaign,
       onChain: onChainData,
       integrity,
+    };
+  }
+
+  async delete(id: number) {
+    this.logger.log(`Admin requested deletion of campaign #${id}`);
+
+    // Retrieve campaign first to find on_chain_id
+    const { data: campaign } = await this.supabase
+      .from('campaigns')
+      .select('id, on_chain_id, title')
+      .or(`id.eq.${id},on_chain_id.eq.${id}`)
+      .maybeSingle();
+
+    const targetIds = new Set<number>();
+    targetIds.add(id);
+    if (campaign?.id) targetIds.add(Number(campaign.id));
+    if (campaign?.on_chain_id && Number(campaign.on_chain_id) > 0) {
+      targetIds.add(Number(campaign.on_chain_id));
+    }
+
+    const idsList = Array.from(targetIds);
+
+    // 1. Delete associated child records
+    for (const cId of idsList) {
+      try {
+        await this.supabase.from('quotations').delete().eq('campaign_id', cId);
+        await this.supabase.from('audit_events').delete().eq('campaign_id', cId);
+        await this.supabase.from('spending_requests').delete().eq('on_chain_campaign_id', cId);
+        await this.supabase.from('proof_documents').delete().eq('campaign_id', cId);
+        await this.supabase.from('campaign_updates').delete().eq('campaign_id', cId);
+        await this.supabase.from('automation_settings').delete().eq('campaign_id', cId);
+      } catch (childErr: any) {
+        this.logger.warn(`Non-fatal warning deleting child rows for campaign #${cId}: ${childErr.message}`);
+      }
+    }
+
+    // 2. Delete the campaign row itself
+    for (const cId of idsList) {
+      const { error } = await this.supabase
+        .from('campaigns')
+        .delete()
+        .or(`id.eq.${cId},on_chain_id.eq.${cId}`);
+      if (error) {
+        this.logger.error(`Error deleting campaign row ${cId}: ${error.message}`);
+      }
+    }
+
+    this.logger.log(`✔ Successfully deleted campaign #${id} (${campaign?.title || ''})`);
+    return {
+      success: true,
+      deletedId: id,
+      title: campaign?.title || `Campaign #${id}`,
+      message: `Campaign #${id} and associated records successfully deleted from database.`
     };
   }
 }

@@ -411,7 +411,7 @@ export default function CampaignDetailPage() {
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {[
-            { label: 'Status', value: CampaignState[onchain.state] },
+            { label: 'Status', value: CampaignState[onchain.state] || 'Active' },
             { label: 'Requests', value: String(onchain.requestCount) },
             { label: 'Quotations', value: String(onchain.quotationCount) },
             { label: 'Raised', value: formatFtu(raised) },

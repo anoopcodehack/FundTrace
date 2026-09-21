@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import RoleGuard from '@/components/RoleGuard';
 import { getFundTraceContract } from '@/lib/contract';
 import { getQuotationsByCampaign } from '@/services/quotationService';
@@ -24,9 +24,12 @@ import { ethers } from 'ethers';
 interface CampaignOption {
   id: number;
   title: string;
+  category: string;
+  totalDonatedFtu: number;
+  goalFtu: number;
 }
 
-function parseContractFtu(val: any): number {
+function parseFtu(val: any): number {
   if (!val) return 0;
   const str = val.toString();
   if (str.length > 12) {
@@ -39,7 +42,7 @@ function parseContractFtu(val: any): number {
   return Number(str);
 }
 
-export default function DonorTrackingPage() {
+function DonorTrackingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const campaignIdParam = searchParams?.get('campaignId');
@@ -76,7 +79,10 @@ export default function DonorTrackingPage() {
             seen.add(cId);
             options.push({
               id: cId,
-              title: db.title || `Campaign #${cId}`
+              title: db.title || `Campaign #${cId}`,
+              category: db.category || 'General',
+              totalDonatedFtu: Number(db.raised_ftu || 0),
+              goalFtu: Number(db.goal_ftu || 10000)
             });
           }
         }
@@ -121,11 +127,11 @@ export default function DonorTrackingPage() {
           const c = await contract.getCampaign(selectedId);
           onchain = {
             id: selectedId,
-            totalDonatedWei: parseContractFtu(c.totalDonated),
-            totalAllocatedWei: parseContractFtu(c.totalAllocated),
-            totalSanctionedWei: parseContractFtu(c.totalSanctioned),
-            totalClaimedWei: parseContractFtu(c.totalClaimed),
-            goalWei: parseContractFtu(c.goal),
+            totalDonatedWei: parseFtu(c.totalDonated),
+            totalAllocatedWei: parseFtu(c.totalAllocated),
+            totalSanctionedWei: parseFtu(c.totalSanctioned),
+            totalClaimedWei: parseFtu(c.totalClaimed),
+            goalWei: parseFtu(c.goal),
             state: Number(c.state)
           };
         } catch {}
@@ -351,5 +357,20 @@ export default function DonorTrackingPage() {
         </div>
       </div>
     </RoleGuard>
+  );
+}
+
+export default function DonorTrackingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen p-12 bg-[#F7F4ED] flex flex-col items-center justify-center space-y-4">
+          <Loader2 className="w-10 h-10 animate-spin text-stone-900" />
+          <p className="text-sm font-mono text-stone-500 font-bold uppercase tracking-wider">Loading fund tracking...</p>
+        </div>
+      }
+    >
+      <DonorTrackingContent />
+    </Suspense>
   );
 }

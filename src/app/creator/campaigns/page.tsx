@@ -3,7 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import RoleGuard from '@/components/RoleGuard';
 import { useWallet } from '@/context/WalletContext';
-import { getFundTraceContract } from '@/lib/contract';
+import { ethers } from 'ethers';
+import { 
+  getFundTraceContract,
+  getStoredAnchoredMap,
+  saveStoredAnchoredId,
+  saveStoredAllottedId,
+  isCampaignAllotted
+} from '@/lib/contract';
 import { formatFtu, CampaignState } from '@/types';
 import Link from 'next/link';
 import { 
@@ -24,15 +31,29 @@ interface CreatorCampaign {
   onChainId?: number | null;
   creator: string;
   state: CampaignState;
-  goalWei: string | number;
-  totalDonatedWei: string | number;
-  totalSanctionedWei: string | number;
-  totalAllocatedWei: string | number;
-  totalClaimedWei: string | number;
+  goalFtu: number;
+  raisedFtu: number;
+  sanctionedFtu: number;
+  allocatedFtu: number;
+  claimedFtu: number;
   title: string;
   tagline: string;
   coverImageUrl?: string;
   isPendingVerification?: boolean;
+}
+
+function parseFtuAmount(val: any): number {
+  if (!val) return 0;
+  const str = val.toString();
+  if (str.length > 12) {
+    try {
+      const ethNum = parseFloat(ethers.formatEther(val));
+      return Math.round(ethNum * 100000); // 1 ETH = 100,000 FTU
+    } catch {
+      return Number(str);
+    }
+  }
+  return Number(str);
 }
 
 export default function CreatorCampaignsPage() {
@@ -47,7 +68,8 @@ export default function CreatorCampaignsPage() {
     setIsLoading(true);
     try {
       const items: CreatorCampaign[] = [];
-      const seenIds = new Set<string | number>();
+      const seenItemIds = new Set<string | number>();
+      const usedOnChainIds = new Set<number>();
 
       // 1. Fetch campaigns from DB (includes all created campaigns)
       let dbCampaigns: any[] = [];
@@ -60,7 +82,14 @@ export default function CreatorCampaignsPage() {
         console.warn("Could not fetch DB campaigns:", e);
       }
 
-      // 2. Fetch contract instance with timeout
+      // 2. Fetch quotations to know exact allocated/sanctioned/claimed figures
+      let dbQuotations: any[] = [];
+      try {
+        const qRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/quotations`);
+        if (qRes.ok) dbQuotations = await qRes.json();
+      } catch {}
+
+      // 3. Fetch contract instance with timeout
       let contract: any = null;
       let count = 0;
       try {
@@ -72,77 +101,130 @@ export default function CreatorCampaignsPage() {
         console.warn("Could not read contract campaigns (using Supabase records):", chainErr);
       }
 
-      // Process DB campaigns matching creator
-      for (const db of dbCampaigns) {
-        const dbCreator = (db.creator_address || "").toLowerCase();
-        const isMatch = dbCreator === currentAddress || 
-          (currentAddress === DEMO_CREATOR.toLowerCase() && (!dbCreator || dbCreator === DEMO_CREATOR.toLowerCase()));
+      // 4. Map DB campaigns first
+      if (dbCampaigns.length > 0) {
+        for (const db of dbCampaigns) {
+          let onChainId = Number(db.on_chain_id);
+          const storedAnchoredMap = getStoredAnchoredMap();
+          if ((!onChainId || onChainId <= 0) && storedAnchoredMap[db.id?.toString()]) {
+            onChainId = Number(storedAnchoredMap[db.id.toString()]);
+          }
 
-        if (isMatch) {
-          const onChainId = Number(db.on_chain_id);
+          // If onChainId has already been claimed by another campaign, don't duplicate
+          if (onChainId > 0 && usedOnChainIds.has(onChainId)) {
+            onChainId = 0;
+          }
+
           let state = CampaignState.PendingVerification;
-          let goalWei: string | number = "10000000000000000000000"; // default 10k FTU
-          let totalDonatedWei: string | number = "0";
-          let totalSanctionedWei: string | number = "0";
-          let totalAllocatedWei: string | number = "0";
-          let totalClaimedWei: string | number = "0";
+          const plannedBudgetSum = Array.isArray(db.planned_budget) 
+            ? db.planned_budget.reduce((acc: number, item: any) => acc + (Number(item.amount) || 0), 0)
+            : 0;
+          let goalFtu = plannedBudgetSum > 0 ? plannedBudgetSum : (Number(db.goal_ftu) || 100000);
+          let raisedFtu = Number(db.raised_ftu || 0);
+          let sanctionedFtu = 0;
+          let allocatedFtu = 0;
+          let claimedFtu = 0;
 
           // If confirmed on-chain, read live financials
           if (onChainId > 0 && contract && onChainId <= count) {
             try {
               const c = await contract.getCampaign(onChainId);
               state = Number(c.state) as CampaignState;
-              goalWei = c.goal.toString();
-              totalDonatedWei = c.totalDonated.toString();
-              totalSanctionedWei = c.totalSanctioned.toString();
-              totalAllocatedWei = c.totalAllocated.toString();
-              totalClaimedWei = c.totalClaimed.toString();
+              const contractGoal = parseFtuAmount(c.goal);
+              if (contractGoal > 0) goalFtu = contractGoal;
+
+              const contractRaised = parseFtuAmount(c.totalDonated);
+              if (contractRaised > 0) raisedFtu = contractRaised;
+
+              sanctionedFtu = parseFtuAmount(c.totalSanctioned);
+              allocatedFtu = parseFtuAmount(c.totalAllocated);
+              claimedFtu = parseFtuAmount(c.totalClaimed);
+              usedOnChainIds.add(onChainId);
             } catch (err) {
               console.warn(`Could not read on-chain data for campaign ${onChainId}`, err);
             }
           }
 
-          const campaignId = onChainId > 0 ? onChainId : db.id;
-          seenIds.add(campaignId);
-          seenIds.add(db.id);
-          if (onChainId > 0) seenIds.add(onChainId);
+          // Merge quotation financials from Supabase
+          const campaignQuotes = dbQuotations.filter((q: any) => 
+            Number(q.campaign_id) === Number(db.id) || 
+            (onChainId > 0 && Number(q.campaign_id) === onChainId)
+          );
 
-          items.push({
-            id: campaignId,
-            onChainId: onChainId > 0 ? onChainId : null,
-            creator: db.creator_address || currentAddress,
-            state,
-            goalWei,
-            totalDonatedWei,
-            totalSanctionedWei,
-            totalAllocatedWei,
-            totalClaimedWei,
-            title: db.title || `Campaign #${campaignId}`,
-            tagline: db.tagline || db.story || "Decentralized audited fund initiative",
-            coverImageUrl: db.cover_image_url || "",
-            isPendingVerification: onChainId <= 0 || state === CampaignState.PendingVerification
-          });
+          if (campaignQuotes.length > 0) {
+            let qAllocated = 0;
+            let qSanctioned = 0;
+            let qClaimed = 0;
+
+            for (const q of campaignQuotes) {
+              const reqAmt = Number(q.requested_amount_ftu) || 0;
+              const allocAmt = Number(q.allocated_amount_ftu) || (q.state !== 'DonorRejected' && q.state !== 'Pending' ? reqAmt : 0);
+              const claimAmt = Number(q.claimed_amount_ftu) || (q.state === 'Claimed' || q.state === 'Completed' ? allocAmt : 0);
+
+              qAllocated += allocAmt;
+              if (['Claimable', 'Claimed', 'Completed', 'ProofPending', 'ProofSubmitted', 'DonorApproved', 'Sanctioned'].includes(q.state)) {
+                qSanctioned += allocAmt;
+              }
+              qClaimed += claimAmt;
+            }
+
+            allocatedFtu = Math.max(allocatedFtu, qAllocated);
+            sanctionedFtu = Math.max(sanctionedFtu, qSanctioned);
+            claimedFtu = Math.max(claimedFtu, qClaimed);
+          }
+
+          const isAllotted = isCampaignAllotted(db.id) || (onChainId > 0 && isCampaignAllotted(onChainId)) || state === CampaignState.FundingClosed;
+          if (isAllotted && state === CampaignState.PendingVerification) {
+            state = CampaignState.FundingClosed;
+            if (raisedFtu === 0) {
+              raisedFtu = goalFtu;
+            }
+            // Note: allocatedFtu stays whatever has actually been requested in quotations (starts at 0)
+          }
+
+          const isPending = !isAllotted && (onChainId <= 0 || state === CampaignState.PendingVerification);
+          const campaignKey = db.id;
+          
+          if (!seenItemIds.has(campaignKey)) {
+            seenItemIds.add(campaignKey);
+            items.push({
+              id: campaignKey,
+              onChainId: onChainId > 0 ? onChainId : null,
+              creator: db.creator_address || currentAddress,
+              state,
+              goalFtu,
+              raisedFtu,
+              sanctionedFtu,
+              allocatedFtu,
+              claimedFtu,
+              title: db.title || `Campaign #${campaignKey}`,
+              tagline: db.tagline || db.story || "Decentralized audited fund initiative",
+              coverImageUrl: db.cover_image_url || "",
+              isPendingVerification: isPending
+            });
+          }
         }
       }
 
-      // 3. Process additional on-chain campaigns if any
+      // 5. Process additional on-chain campaigns if any
       if (contract && count > 0) {
         for (let i = 1; i <= count; i++) {
-          if (!seenIds.has(i)) {
+          if (!usedOnChainIds.has(i) && !seenItemIds.has(i)) {
             try {
               const c = await contract.getCampaign(i);
               if (c.creator.toLowerCase() === currentAddress) {
-                seenIds.add(i);
+                usedOnChainIds.add(i);
+                seenItemIds.add(i);
                 items.push({
                   id: i,
                   onChainId: i,
                   creator: c.creator,
                   state: Number(c.state) as CampaignState,
-                  goalWei: c.goal.toString(),
-                  totalDonatedWei: c.totalDonated.toString(),
-                  totalSanctionedWei: c.totalSanctioned.toString(),
-                  totalAllocatedWei: c.totalAllocated.toString(),
-                  totalClaimedWei: c.totalClaimed.toString(),
+                  goalFtu: parseFtuAmount(c.goal) || 100000,
+                  raisedFtu: parseFtuAmount(c.totalDonated),
+                  sanctionedFtu: parseFtuAmount(c.totalSanctioned),
+                  allocatedFtu: parseFtuAmount(c.totalAllocated),
+                  claimedFtu: parseFtuAmount(c.totalClaimed),
                   title: `Campaign #${i}`,
                   tagline: "Decentralized audited fund initiative",
                   coverImageUrl: "",
@@ -156,27 +238,27 @@ export default function CreatorCampaignsPage() {
         }
       }
 
-      // 4. Merge recently created campaigns from localStorage (in case backend is caching)
+      // 6. Merge recently created campaigns from localStorage (in case backend is caching)
       try {
         const localSaved = JSON.parse(localStorage.getItem("fundtrace_created_campaigns") || "[]");
         for (const local of localSaved) {
-          if (!seenIds.has(local.id) && !items.some(it => it.title.toLowerCase() === local.title?.toLowerCase())) {
+          if (!seenItemIds.has(local.id) && !items.some(it => it.title.toLowerCase() === local.title?.toLowerCase())) {
             items.unshift({
               id: local.id,
               onChainId: null,
               creator: local.creator || currentAddress,
               state: CampaignState.PendingVerification,
-              goalWei: local.goalWei || "10000000000000000000000",
-              totalDonatedWei: "0",
-              totalSanctionedWei: "0",
-              totalAllocatedWei: "0",
-              totalClaimedWei: "0",
+              goalFtu: Number(local.goalFtu) || parseFtuAmount(local.goalWei) || 100000,
+              raisedFtu: 0,
+              sanctionedFtu: 0,
+              allocatedFtu: 0,
+              claimedFtu: 0,
               title: local.title,
               tagline: local.tagline || "",
               coverImageUrl: local.coverImageUrl || "",
               isPendingVerification: true
             });
-            seenIds.add(local.id);
+            seenItemIds.add(local.id);
           }
         }
       } catch (localErr) {
@@ -196,6 +278,9 @@ export default function CreatorCampaignsPage() {
   }, [currentAddress]);
 
   const getStatusBadge = (state: CampaignState, isPending?: boolean) => {
+    if (state === CampaignState.FundingClosed) {
+      return <span className="inline-flex px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full border border-emerald-300">Funding Goal Met</span>;
+    }
     if (isPending || state === CampaignState.PendingVerification) {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full border border-amber-300 shadow-sm">
@@ -206,8 +291,6 @@ export default function CreatorCampaignsPage() {
     switch(state) {
       case CampaignState.Verified:
         return <span className="inline-flex px-2.5 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-full">Verified - Funding</span>;
-      case CampaignState.FundingClosed:
-        return <span className="inline-flex px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full">Funding Goal Met</span>;
       default:
         return <span className="inline-flex px-2.5 py-1 bg-stone-100 text-stone-800 text-xs font-bold rounded-full">Active</span>;
     }
@@ -251,20 +334,20 @@ export default function CreatorCampaignsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6">
-              {campaigns.map(c => {
-                const raised = Number(c.totalDonatedWei);
-                const goal = Number(c.goalWei);
+              {campaigns.map((c, index) => {
+                const raised = Number(c.raisedFtu ?? (c as any).totalDonatedWei ?? 0) || 0;
+                const goal = Number(c.goalFtu ?? (c as any).goalWei ?? 100000) || 100000;
                 const progress = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0;
                 
                 // Financials
-                const allocated = Number(c.totalAllocatedWei);
-                const sanctioned = Number(c.totalSanctionedWei);
-                const claimed = Number(c.totalClaimedWei);
-                const remainingToClaim = sanctioned - claimed;
+                const allocated = Number(c.allocatedFtu ?? (c as any).totalAllocatedWei ?? 0) || 0;
+                const sanctioned = Number(c.sanctionedFtu ?? (c as any).totalSanctionedWei ?? 0) || 0;
+                const claimed = Number(c.claimedFtu ?? (c as any).totalClaimedWei ?? 0) || 0;
+                const remainingToClaim = Math.max(0, sanctioned - claimed);
                 const remainingToAllocate = Math.max(0, raised - allocated);
 
                 return (
-                  <div key={c.id} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
+                  <div key={`creator-campaign-${c.id}-${index}`} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
                     
                     {/* Campaign Image/Info */}
                     <div className="md:w-1/3 border-b md:border-b-0 md:border-r border-stone-100 flex flex-col">
@@ -318,28 +401,28 @@ export default function CreatorCampaignsPage() {
                         <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-4">Fund Flow Distribution</h3>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                           
-                          <div className="bg-stone-50 rounded-xl p-4 border border-stone-100">
-                            <p className="text-xs font-bold text-stone-500 mb-1">Allocated</p>
-                            <p className="text-lg font-black font-mono text-stone-900">{formatFtu(allocated)}</p>
-                            <p className="text-[10px] text-stone-400 uppercase mt-1 font-bold tracking-wide">In Quotations</p>
+                          <div className="bg-stone-50 rounded-xl p-4 border border-stone-100 min-w-0 overflow-hidden">
+                            <p className="text-xs font-bold text-stone-500 mb-1 truncate">Allocated</p>
+                            <p className="text-lg font-black font-mono text-stone-900 truncate" title={formatFtu(allocated)}>{formatFtu(allocated)}</p>
+                            <p className="text-[10px] text-stone-400 uppercase mt-1 font-bold tracking-wide truncate">In Quotations</p>
                           </div>
                           
-                          <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100">
-                            <p className="text-xs font-bold text-blue-600 mb-1">Sanctioned</p>
-                            <p className="text-lg font-black font-mono text-blue-900">{formatFtu(sanctioned)}</p>
-                            <p className="text-[10px] text-blue-500/70 uppercase mt-1 font-bold tracking-wide">Approved by Donors</p>
+                          <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 min-w-0 overflow-hidden">
+                            <p className="text-xs font-bold text-blue-600 mb-1 truncate">Sanctioned</p>
+                            <p className="text-lg font-black font-mono text-blue-900 truncate" title={formatFtu(sanctioned)}>{formatFtu(sanctioned)}</p>
+                            <p className="text-[10px] text-blue-500/70 uppercase mt-1 font-bold tracking-wide truncate">Approved by Donors</p>
                           </div>
 
-                          <div className="bg-purple-50/50 rounded-xl p-4 border border-purple-100">
-                            <p className="text-xs font-bold text-purple-600 mb-1">Claimed</p>
-                            <p className="text-lg font-black font-mono text-purple-900">{formatFtu(claimed)}</p>
-                            <p className="text-[10px] text-purple-500/70 uppercase mt-1 font-bold tracking-wide">Transferred to Wallet</p>
+                          <div className="bg-purple-50/50 rounded-xl p-4 border border-purple-100 min-w-0 overflow-hidden">
+                            <p className="text-xs font-bold text-purple-600 mb-1 truncate">Claimed</p>
+                            <p className="text-lg font-black font-mono text-purple-900 truncate" title={formatFtu(claimed)}>{formatFtu(claimed)}</p>
+                            <p className="text-[10px] text-purple-500/70 uppercase mt-1 font-bold tracking-wide truncate">Transferred to Wallet</p>
                           </div>
 
-                          <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
-                            <p className="text-xs font-bold text-emerald-600 mb-1">Available</p>
-                            <p className="text-lg font-black font-mono text-emerald-900">{formatFtu(remainingToAllocate)}</p>
-                            <p className="text-[10px] text-emerald-500/70 uppercase mt-1 font-bold tracking-wide">To be Requested</p>
+                          <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100 min-w-0 overflow-hidden">
+                            <p className="text-xs font-bold text-emerald-600 mb-1 truncate">Available</p>
+                            <p className="text-lg font-black font-mono text-emerald-900 truncate" title={formatFtu(remainingToAllocate)}>{formatFtu(remainingToAllocate)}</p>
+                            <p className="text-[10px] text-emerald-500/70 uppercase mt-1 font-bold tracking-wide truncate">To be Requested</p>
                           </div>
 
                         </div>

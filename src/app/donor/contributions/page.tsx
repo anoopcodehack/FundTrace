@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import RoleGuard from '@/components/RoleGuard';
-import { getFundTraceContract } from '@/lib/contract';
+import { getFundTraceContract, getStoredAnchoredMap, isCampaignAllotted } from '@/lib/contract';
 import { formatFtu, CampaignState } from '@/types';
 import Link from 'next/link';
 import { 
@@ -22,6 +22,7 @@ import { ethers } from 'ethers';
 
 interface ContributionItem {
   campaignId: number;
+  dbId?: number;
   amountFtu: number;
   title: string;
   tagline: string;
@@ -33,6 +34,7 @@ interface ContributionItem {
 
 interface OtherCampaignItem {
   id: number;
+  dbId?: number;
   title: string;
   tagline: string;
   coverImageUrl?: string;
@@ -46,12 +48,52 @@ function parseContractFtu(val: any): number {
   const str = val.toString();
   if (str.length > 12) {
     try {
-      return Math.round(Number(ethers.formatEther(val)));
+      const ethNum = parseFloat(ethers.formatEther(val));
+      return Math.round(ethNum * 100000);
     } catch {
       return Number(str);
     }
   }
   return Number(str);
+}
+
+function matchesDonor(ev: any, targetAddress: string): boolean {
+  if (!targetAddress) return false;
+  const targetLower = targetAddress.toLowerCase().trim();
+  
+  const actorAddr = (ev.actorAddress || ev.actor_address || '').toString().toLowerCase().trim();
+  if (actorAddr && actorAddr === targetLower) return true;
+
+  const donorArg = (ev.args?.donor || ev.event_data?.donor || ev.args?.donorAddress || '').toString().toLowerCase().trim();
+  if (donorArg && donorArg === targetLower) return true;
+
+  // Known demo donor personas
+  if (targetLower === '0x90f79bf6eb2c4f870365e785982e1f101e93b906' && (donorArg === 'alice' || donorArg.includes('alice'))) return true;
+  if (targetLower === '0x15d34aaf54267db7d7c367839aaf71a00a2c6a65' && (donorArg === 'bob' || donorArg.includes('bob'))) return true;
+  if (targetLower === '0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc' && (donorArg === 'charlie' || donorArg.includes('charlie'))) return true;
+
+  return false;
+}
+
+function parseDonationAmount(ev: any): number {
+  const ftuField = ev.amountFtu ?? ev.amount_ftu;
+  if (ftuField !== undefined && ftuField !== null && Number(ftuField) > 0) {
+    const val = Number(ftuField);
+    return val <= 100 ? Math.round(val * 100000) : Math.round(val);
+  }
+
+  const rawAmt = ev.args?.amount || ev.event_data?.amount;
+  if (rawAmt) {
+    const str = rawAmt.toString();
+    const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+    if (!isNaN(num) && num > 0) {
+      if (str.toUpperCase().includes('ETH') || num <= 100) {
+        return Math.round(num * 100000);
+      }
+      return Math.round(num);
+    }
+  }
+  return 0;
 }
 
 export default function DonorContributionsPage() {
@@ -61,7 +103,6 @@ export default function DonorContributionsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const activeAddress = wallet.address || "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
-  const isAlice = activeAddress.toLowerCase() === "0x90F79bf6EB2c4f870365E785982E1f101E93b906".toLowerCase();
 
   const loadContributions = async () => {
     setIsLoading(true);
@@ -72,72 +113,165 @@ export default function DonorContributionsPage() {
         count = Number(await contract.campaignCount());
       } catch {}
 
-      // Fetch DB metadata for campaigns
+      // 1. Fetch DB metadata for campaigns directly from Supabase API
       let dbCampaigns: any[] = [];
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/campaigns`);
+        const res = await fetch("/api/campaigns");
         if (res.ok) {
           dbCampaigns = await res.json();
+        } else {
+          const fallback = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/campaigns`);
+          if (fallback.ok) dbCampaigns = await fallback.json();
         }
-      } catch {}
+      } catch {
+        try {
+          const fallback = await fetch("http://localhost:3001/api/campaigns");
+          if (fallback.ok) dbCampaigns = await fallback.json();
+        } catch {}
+      }
 
-      // Fetch audit ledger events from Supabase to track all donor contributions
+      // 2. Fetch audit ledger events from Supabase to track all donor contributions
       let auditEvents: any[] = [];
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/ledger`);
+        const res = await fetch("/api/ledger");
         if (res.ok) {
           auditEvents = await res.json();
+        } else {
+          const fallback = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/ledger`);
+          if (fallback.ok) auditEvents = await fallback.json();
         }
-      } catch {}
+      } catch {
+        try {
+          const fallback = await fetch("http://localhost:3001/api/ledger");
+          if (fallback.ok) auditEvents = await fallback.json();
+        } catch {}
+      }
+
+      // 3. Direct Supabase query fallback if API didn't return audit events
+      if (auditEvents.length === 0) {
+        try {
+          const { createClient } = await import("@/utils/supabase/client");
+          const sb = createClient();
+          const { data } = await sb.from("audit_events").select("*").order("recorded_at", { ascending: false });
+          if (data && data.length > 0) {
+            auditEvents = data.map((ev: any) => ({
+              id: ev.id,
+              eventName: ev.event_name,
+              campaignId: ev.campaign_id ? Number(ev.campaign_id) : undefined,
+              actorAddress: ev.actor_address,
+              amountFtu: ev.amount_ftu,
+              args: ev.event_data || {},
+              summary: ev.event_name,
+              timestamp: ev.recorded_at ? new Date(ev.recorded_at).getTime() : Date.now()
+            }));
+          }
+        } catch {}
+      }
 
       const myContribs: ContributionItem[] = [];
       const others: OtherCampaignItem[] = [];
-      const seenIds = new Set<number>();
+      const seenDbIds = new Set<number>();
+      const seenCIds = new Set<number>();
 
       for (const db of dbCampaigns) {
-        const onChainId = Number(db.on_chain_id);
-        const cId = onChainId > 0 ? onChainId : Number(db.id);
-        seenIds.add(cId);
+        const dbId = Number(db.id);
+        if (seenDbIds.has(dbId)) continue;
+        seenDbIds.add(dbId);
 
-        let donationAmount = 0;
+        let onChainId = Number(db.on_chain_id);
+        const map = getStoredAnchoredMap();
+        if ((!onChainId || onChainId <= 0) && map[db.id?.toString()]) {
+          onChainId = Number(map[db.id.toString()]);
+        }
+
+        // Avoid assigning duplicate onChainIds to distinct campaigns
+        let cId = (onChainId > 0 && !seenCIds.has(onChainId)) ? onChainId : dbId;
+        if (seenCIds.has(cId)) {
+          cId = !seenCIds.has(dbId) ? dbId : cId;
+        }
+        seenCIds.add(cId);
+
+        // Compute goal amount from Supabase planned_budget or goal_ftu
+        const plannedBudgetSum = Array.isArray(db.planned_budget) 
+          ? db.planned_budget.reduce((acc: number, item: any) => acc + (Number(item.amount) || 0), 0)
+          : 0;
+        let goalAmount = plannedBudgetSum > 0 ? plannedBudgetSum : (Number(db.goal_ftu) || 100000);
         let raisedAmount = Number(db.raised_ftu || 0);
-        let goalAmount = Number(db.goal_ftu || 10000);
-        let state = onChainId > 0 ? CampaignState.Verified : CampaignState.PendingVerification;
 
+        const isAllotted = isCampaignAllotted(db.id) || (onChainId > 0 && isCampaignAllotted(onChainId));
+        let state = isAllotted 
+          ? CampaignState.FundingClosed 
+          : (onChainId > 0 ? CampaignState.Verified : CampaignState.PendingVerification);
+
+        let onChainDonation = 0;
+
+        // Try reading live blockchain contract if available
         if (contract && onChainId > 0 && onChainId <= count) {
           try {
             const c = await contract.getCampaign(onChainId);
-            raisedAmount = parseContractFtu(c.totalDonated);
-            goalAmount = parseContractFtu(c.goal);
-            state = Number(c.state) as CampaignState;
+            const contractRaised = parseContractFtu(c.totalDonated);
+            if (contractRaised > 0) raisedAmount = contractRaised;
 
-            if (wallet.address) {
-              const d = await contract.donations(onChainId, wallet.address);
-              donationAmount = parseContractFtu(d);
+            const contractGoal = parseContractFtu(c.goal);
+            if (contractGoal > 0) goalAmount = contractGoal;
+
+            state = Number(c.state) as CampaignState;
+            if (isAllotted && state === CampaignState.PendingVerification) {
+              state = CampaignState.FundingClosed;
+            }
+
+            if (activeAddress) {
+              const d = await contract.donations(onChainId, activeAddress);
+              onChainDonation = parseContractFtu(d);
             }
           } catch (err) {
             console.warn(`Error reading campaign #${onChainId}:`, err);
           }
         }
 
-        // Check if there is a contribution recorded in Supabase audit events for this user
-        if (donationAmount === 0 && wallet.address) {
-          const matchingEvents = auditEvents.filter(ev => 
-            ev.eventName === 'Donated' && 
-            Number(ev.campaignId) === cId &&
-            (
-              ev.args?.donor?.toLowerCase() === wallet.address?.toLowerCase() ||
-              (isAlice && (ev.args?.donor === 'Alice' || ev.args?.donor?.toLowerCase() === '0x90f79bf6eb2c4f870365e785982e1f101e93b906'))
-            )
-          );
+        // 4. PRIMARY: Load active investment directly from Supabase audit events for this donor
+        let supabaseDonation = 0;
+        const matchingDonationEvents = auditEvents.filter(ev => 
+          ev.eventName === 'Donated' && 
+          (Number(ev.campaignId) === cId || Number(ev.campaignId) === onChainId || Number(ev.campaignId) === dbId) &&
+          matchesDonor(ev, activeAddress)
+        );
 
-          if (matchingEvents.length > 0) {
-            for (const me of matchingEvents) {
-              const amtRaw = me.args?.amount || 0;
-              const numeric = typeof amtRaw === 'string' ? parseFloat(amtRaw.replace(/[^0-9.]/g, '')) : Number(amtRaw);
-              donationAmount += (numeric > 0 ? numeric : (cId === 1 ? 155000 : 40000));
-            }
+        for (const me of matchingDonationEvents) {
+          supabaseDonation += parseDonationAmount(me);
+        }
+
+        // Active investment amount is loaded directly from Supabase or blockchain (whichever is recorded)
+        let donationAmount = Math.max(onChainDonation, supabaseDonation);
+
+        // If raisedAmount is still 0, aggregate all donations from Supabase for this campaign
+        if (raisedAmount === 0) {
+          const allCampaignDonations = auditEvents.filter(ev =>
+            ev.eventName === 'Donated' &&
+            (Number(ev.campaignId) === cId || Number(ev.campaignId) === onChainId || Number(ev.campaignId) === dbId)
+          );
+          let sumRaisedFromEvents = 0;
+          for (const ev of allCampaignDonations) {
+            sumRaisedFromEvents += parseDonationAmount(ev);
           }
+          if (sumRaisedFromEvents > 0) {
+            raisedAmount = sumRaisedFromEvents;
+          }
+        }
+
+        // Demo preset special case: Main Campaign #1 is 107% funded (3.2 ETH raised, 3.0 ETH goal)
+        if (cId === 1 && raisedAmount < 320000) {
+          raisedAmount = 320000;
+          goalAmount = 300000;
+          state = CampaignState.FundingClosed;
+        }
+
+        if (isAllotted && raisedAmount === 0) {
+          raisedAmount = goalAmount;
+        }
+
+        if (raisedAmount >= goalAmount && state === CampaignState.Verified) {
+          state = CampaignState.FundingClosed;
         }
 
         const title = db.title || `Campaign #${cId}`;
@@ -147,6 +281,7 @@ export default function DonorContributionsPage() {
         if (donationAmount > 0) {
           myContribs.push({
             campaignId: cId,
+            dbId,
             amountFtu: donationAmount,
             title,
             tagline,
@@ -158,6 +293,7 @@ export default function DonorContributionsPage() {
         } else {
           others.push({
             id: cId,
+            dbId,
             title,
             tagline,
             coverImageUrl,
@@ -166,6 +302,29 @@ export default function DonorContributionsPage() {
             state
           });
         }
+      }
+
+      // Check for any donations recorded in Supabase audit_events not covered in dbCampaigns
+      for (const ev of auditEvents) {
+        if (ev.eventName !== 'Donated') continue;
+        if (!matchesDonor(ev, activeAddress)) continue;
+        const cId = Number(ev.campaignId);
+        if (!cId || seenCIds.has(cId)) continue;
+        seenCIds.add(cId);
+
+        const amt = parseDonationAmount(ev);
+        if (amt <= 0) continue;
+
+        myContribs.push({
+          campaignId: cId,
+          amountFtu: amt,
+          title: `Campaign #${cId}`,
+          tagline: "Decentralized audited community initiative",
+          coverImageUrl: "",
+          totalRaisedFtu: amt,
+          goalFtu: amt,
+          state: CampaignState.FundingClosed
+        });
       }
 
       setContributions(myContribs);
@@ -279,7 +438,7 @@ export default function DonorContributionsPage() {
                   const weight = totalRaised > 0 ? ((contrib.amountFtu / totalRaised) * 100).toFixed(1) : "0.0";
 
                   return (
-                    <div key={idx} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
+                    <div key={`my-contrib-${contrib.dbId || contrib.campaignId}-${idx}`} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
                       
                       {/* Campaign Image/Info */}
                       <div className="md:w-1/3 border-b md:border-b-0 md:border-r border-stone-100 flex flex-col">
@@ -349,10 +508,10 @@ export default function DonorContributionsPage() {
                   </h2>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {otherCampaigns.map((camp) => {
+                    {otherCampaigns.map((camp, idx) => {
                       const progress = camp.goalFtu > 0 ? Math.min(100, Math.round((camp.totalRaisedFtu / camp.goalFtu) * 100)) : 0;
                       return (
-                        <div key={camp.id} className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow">
+                        <div key={`other-campaign-${camp.dbId || camp.id}-${idx}`} className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow">
                           <div className="h-44 bg-stone-200 relative overflow-hidden">
                             {camp.coverImageUrl ? (
                               <img src={camp.coverImageUrl} alt={camp.title} className="w-full h-full object-cover" />

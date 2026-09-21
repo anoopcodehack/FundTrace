@@ -49,8 +49,11 @@ export class BlockchainService implements OnModuleInit {
       }
 
       // Load relay signer for automated sanctions
-      const relayPrivateKey = this.configService.get<string>('RELAY_PRIVATE_KEY');
-      if (relayPrivateKey && this.deploymentInfo?.address && this.contractAbi) {
+      const relayPrivateKey =
+        this.configService.get<string>('RELAY_PRIVATE_KEY') ||
+        process.env.RELAY_PRIVATE_KEY ||
+        '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
+      if (relayPrivateKey && this.provider) {
         this.relaySigner = new ethers.Wallet(relayPrivateKey, this.provider);
         this.logger.log(`Relay signer loaded: ${this.relaySigner.address}`);
       } else {
@@ -121,6 +124,18 @@ export class BlockchainService implements OnModuleInit {
    * Use this for automated sanction transactions.
    */
   public getSignedContract(): ethers.Contract | null {
+    if (!this.relaySigner && this.provider) {
+      const relayPrivateKey =
+        this.configService.get<string>('RELAY_PRIVATE_KEY') ||
+        process.env.RELAY_PRIVATE_KEY ||
+        '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
+      if (relayPrivateKey) {
+        this.relaySigner = new ethers.Wallet(relayPrivateKey, this.provider);
+      }
+    }
+    if (!this.contract && this.deploymentInfo?.address && this.contractAbi && this.provider) {
+      this.contract = new ethers.Contract(this.deploymentInfo.address, this.contractAbi, this.provider);
+    }
     if (!this.relaySigner || !this.contract) return null;
     return this.contract.connect(this.relaySigner) as ethers.Contract;
   }

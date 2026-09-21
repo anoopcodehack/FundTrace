@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { getFundTraceContract } from '@/lib/contract';
+import { getFundTraceContract, getStoredAnchoredMap, isCampaignAllotted } from '@/lib/contract';
 import { formatFtu, CampaignState } from '@/types';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
@@ -75,10 +75,28 @@ export default function PublicCampaignsPage() {
         }
 
         // Render Supabase data immediately so there's zero UI loading delay
-        const initialLoaded: PublicCampaign[] = dbCampaigns.map((db: any) => {
-          const onChainId = Number(db.on_chain_id);
-          const cId = onChainId > 0 ? onChainId : Number(db.id);
-          return {
+        const initialLoaded: PublicCampaign[] = [];
+        const seenDbIds = new Set<number>();
+        const seenCIds = new Set<number>();
+
+        for (const db of dbCampaigns) {
+          const dbId = Number(db.id);
+          if (seenDbIds.has(dbId)) continue;
+          seenDbIds.add(dbId);
+
+          let onChainId = Number(db.on_chain_id);
+          const map = getStoredAnchoredMap();
+          if ((!onChainId || onChainId <= 0) && map[db.id?.toString()]) {
+            onChainId = Number(map[db.id.toString()]);
+          }
+          let cId = (onChainId > 0 && !seenCIds.has(onChainId)) ? onChainId : dbId;
+          seenCIds.add(cId);
+          const isAllotted = isCampaignAllotted(db.id) || (onChainId > 0 && isCampaignAllotted(onChainId));
+          const state = isAllotted 
+            ? CampaignState.FundingClosed 
+            : (onChainId > 0 ? CampaignState.Verified : CampaignState.PendingVerification);
+
+          initialLoaded.push({
             id: cId,
             title: db.title || `Campaign #${cId}`,
             tagline: db.tagline || db.story || "Decentralized audited fund initiative",
@@ -86,11 +104,11 @@ export default function PublicCampaignsPage() {
             location: db.location || "Global",
             coverImageUrl: db.cover_image_url || "",
             fundingDeadline: db.funding_deadline || null,
-            raisedFtu: Number(db.raised_ftu || 0),
+            raisedFtu: isAllotted ? Number(db.goal_ftu || 10000) : Number(db.raised_ftu || 0),
             goalFtu: Number(db.goal_ftu || 10000),
-            state: onChainId > 0 ? CampaignState.Verified : CampaignState.PendingVerification
-          };
-        });
+            state
+          });
+        }
 
         setCampaigns(initialLoaded);
         setIsLoading(false);
@@ -107,11 +125,12 @@ export default function PublicCampaignsPage() {
               if (camp.id <= count) {
                 try {
                   const c = await contract.getCampaign(camp.id);
+                  const isAllotted = isCampaignAllotted(camp.id) || Number(c.state) === CampaignState.FundingClosed;
                   return {
                     ...camp,
-                    raisedFtu: parseContractFtu(c.totalDonated),
-                    goalFtu: parseContractFtu(c.goal),
-                    state: Number(c.state) as CampaignState
+                    raisedFtu: isAllotted && parseContractFtu(c.totalDonated) === 0 ? camp.goalFtu : parseContractFtu(c.totalDonated),
+                    goalFtu: parseContractFtu(c.goal) || camp.goalFtu,
+                    state: isAllotted ? CampaignState.FundingClosed : (Number(c.state) as CampaignState)
                   };
                 } catch {
                   return camp;
@@ -226,7 +245,7 @@ export default function PublicCampaignsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredCampaigns.map(c => {
+              {filteredCampaigns.map((c, idx) => {
                 const raised = c.raisedFtu;
                 const goal = c.goalFtu;
                 const progress = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0;
@@ -234,7 +253,7 @@ export default function PublicCampaignsPage() {
                 const isPending = c.state === CampaignState.PendingVerification;
 
                 return (
-                  <Link href={getCampaignLink(c.id)} key={c.id} className="group bg-white rounded-3xl border border-stone-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full hover:-translate-y-1">
+                  <Link href={getCampaignLink(c.id)} key={`public-campaign-${c.id}-${idx}`} className="group bg-white rounded-3xl border border-stone-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full hover:-translate-y-1">
                     
                     {/* Image */}
                     <div className="h-56 bg-stone-200 relative overflow-hidden">

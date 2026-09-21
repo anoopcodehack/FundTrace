@@ -9,7 +9,8 @@ import Navbar from "@/components/Navbar";
 const fontSans = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: "FundTrace - Transparent Crowdfunding & Fund Ledger",
+  // title: "FundTrace - Transparent Crowdfunding & Fund Ledger",
+  title: "researching about 3d",
   description: "A blockchain fund-accountability platform tracking donations from verified campaigns to proof of expenditure.",
 };
 

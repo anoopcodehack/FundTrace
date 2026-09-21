@@ -108,4 +108,9 @@ export class ConfirmCampaignDto {
   @IsString()
   @IsNotEmpty()
   txHash: string;
+
+  @ApiPropertyOptional({ example: 8 })
+  @IsOptional()
+  @IsNumber()
+  onChainId?: number;
 }

@@ -87,3 +87,21 @@ function defaultSetting(campaignId: number, donorAddress: string): DonorAutomati
     autoRejectFraud: true,
   };
 }
+
+/**
+ * Trigger backend AI automation evaluation and auto-sanction relay for a quotation.
+ */
+export async function triggerQuotationAutomation(
+  quotationId: number
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_URL}/automation/process/${quotationId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Failed to trigger automation' }));
+    throw new Error(err.message || 'Failed to trigger automation');
+  }
+  return await res.json();
+}
+

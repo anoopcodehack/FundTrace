@@ -4,7 +4,14 @@ import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useWallet } from "@/context/WalletContext";
-import { getFundTraceContract, parseContractError } from "@/lib/contract";
+import { 
+  getFundTraceContract, 
+  parseContractError,
+  getStoredAnchoredMap,
+  saveStoredAnchoredId,
+  saveStoredAllottedId,
+  isCampaignAllotted
+} from "@/lib/contract";
 import { createQuotation, updateQuotationOnChainId } from "@/services/quotationService";
 import { toast } from "sonner";
 import { QuotationState, CampaignState, formatFtu } from "@/types";
@@ -92,17 +99,74 @@ export default function CreatorQuotationPage() {
         console.warn('Could not fetch DB metadata for campaign:', err);
       }
 
+      if (effectiveCampaignId <= 0 || effectiveCampaignId === rawId) {
+        const anchoredMap = getStoredAnchoredMap();
+        if (anchoredMap[rawId.toString()]) {
+          effectiveCampaignId = Number(anchoredMap[rawId.toString()]);
+        }
+      }
+
       // 2. Validate on-chain state: Donor MUST have allotted/funded the campaign first
       const contract = getFundTraceContract(signer);
       let isEth = false;
+      let c: any = null;
+
       try {
-        const c = await contract.getCampaign(effectiveCampaignId);
-        if (Number(c.state) !== CampaignState.FundingClosed) {
+        const count = Number(await contract.campaignCount());
+
+        if (effectiveCampaignId > 0 && effectiveCampaignId <= count) {
+          try {
+            const fetched = await contract.getCampaign(effectiveCampaignId);
+            if (fetched.creator && fetched.creator !== ethers.ZeroAddress) {
+              c = fetched;
+            }
+          } catch {}
+        }
+
+        // If c is not found or not in FundingClosed, scan backwards across on-chain campaigns for matching creator
+        if (!c || Number(c.state) !== CampaignState.FundingClosed) {
+          for (let i = count; i >= 1; i--) {
+            try {
+              const cand = await contract.getCampaign(i);
+              if (
+                cand.creator &&
+                wallet.address &&
+                cand.creator.toLowerCase() === wallet.address.toLowerCase() &&
+                Number(cand.state) === CampaignState.FundingClosed
+              ) {
+                effectiveCampaignId = i;
+                c = cand;
+                saveStoredAnchoredId(rawId, i);
+                saveStoredAllottedId(rawId);
+                saveStoredAllottedId(i);
+                break;
+              }
+            } catch {}
+          }
+        }
+
+        if (!c || Number(c.state) !== CampaignState.FundingClosed) {
           throw new Error(
             "This campaign is awaiting donor funding allotment. A donor must first approve and fund the campaign before quotation claim requests can be uploaded."
           );
         }
+
         isEth = BigInt(c.goal) > 1_000_000_000_000n;
+
+        // Async sync onChainId to DB if they were different
+        if (rawId !== effectiveCampaignId) {
+          saveStoredAnchoredId(rawId, effectiveCampaignId);
+          saveStoredAllottedId(rawId);
+          saveStoredAllottedId(effectiveCampaignId);
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/campaigns/${rawId}/confirm`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-wallet-address': wallet.address!
+            },
+            body: JSON.stringify({ onChainId: effectiveCampaignId })
+          }).catch(() => {});
+        }
       } catch (validationErr: any) {
         throw new Error(validationErr.message || "Failed to verify campaign on-chain state");
       }
