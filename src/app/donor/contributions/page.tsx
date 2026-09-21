@@ -130,6 +130,15 @@ export default function DonorContributionsPage() {
         } catch {}
       }
 
+      // If database and on-chain state are empty, purge any obsolete localStorage cache
+      if (dbCampaigns.length === 0 && count === 0 && typeof window !== "undefined") {
+        try {
+          localStorage.removeItem('fundtrace_allotted_campaign_ids');
+          localStorage.removeItem('fundtrace_anchored_campaign_map');
+          localStorage.removeItem('fundtrace_created_campaigns');
+        } catch {}
+      }
+
       // 2. Fetch audit ledger events from Supabase to track all donor contributions
       let auditEvents: any[] = [];
       try {
@@ -259,13 +268,6 @@ export default function DonorContributionsPage() {
           }
         }
 
-        // Demo preset special case: Main Campaign #1 is 107% funded (3.2 ETH raised, 3.0 ETH goal)
-        if (cId === 1 && raisedAmount < 320000) {
-          raisedAmount = 320000;
-          goalAmount = 300000;
-          state = CampaignState.FundingClosed;
-        }
-
         if (isAllotted && raisedAmount === 0) {
           raisedAmount = goalAmount;
         }
@@ -302,29 +304,6 @@ export default function DonorContributionsPage() {
             state
           });
         }
-      }
-
-      // Check for any donations recorded in Supabase audit_events not covered in dbCampaigns
-      for (const ev of auditEvents) {
-        if (ev.eventName !== 'Donated') continue;
-        if (!matchesDonor(ev, activeAddress)) continue;
-        const cId = Number(ev.campaignId);
-        if (!cId || seenCIds.has(cId)) continue;
-        seenCIds.add(cId);
-
-        const amt = parseDonationAmount(ev);
-        if (amt <= 0) continue;
-
-        myContribs.push({
-          campaignId: cId,
-          amountFtu: amt,
-          title: `Campaign #${cId}`,
-          tagline: "Decentralized audited community initiative",
-          coverImageUrl: "",
-          totalRaisedFtu: amt,
-          goalFtu: amt,
-          state: CampaignState.FundingClosed
-        });
       }
 
       setContributions(myContribs);

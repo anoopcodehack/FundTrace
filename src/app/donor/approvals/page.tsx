@@ -278,6 +278,20 @@ function DonorApprovalsContent() {
           }
         }
 
+        const campaignKeyId = dbMeta?.id ? Number(dbMeta.id) : onChainId;
+        const isFilteredThis = Boolean(
+          filterCampaignId && (
+            filterCampaignId === campaignKeyId ||
+            filterCampaignId === onChainId ||
+            (dbMeta && (filterCampaignId === Number(dbMeta.id) || filterCampaignId === Number(dbMeta.on_chain_id)))
+          )
+        );
+
+        // Skip if no DB metadata exists (unless specifically targeted via URL filter)
+        if (!dbMeta && !isFilteredThis) {
+          continue;
+        }
+
         // Skip if neither on-chain data nor DB meta exists
         if ((!c || !c.creator || c.creator === ethers.ZeroAddress) && !dbMeta) {
           continue;
@@ -290,7 +304,6 @@ function DonorApprovalsContent() {
             : [];
         const plannedSum = plannedBudget.reduce((acc: number, b: any) => acc + (Number(b.amount) || Number(b.amountFtu) || 0), 0);
 
-        const campaignKeyId = dbMeta?.id ? Number(dbMeta.id) : onChainId;
         const isLocallyAllotted = storedAllotted.has(campaignKeyId) || (onChainId > 0 && storedAllotted.has(onChainId));
         const goalFtu = (c && c.goal && c.goal > 0n) ? parseFtu(c.goal) : (plannedSum > 0 ? plannedSum : 100000);
         const raisedFtu = (c && c.totalDonated && c.totalDonated > 0n) ? parseFtu(c.totalDonated) : (isLocallyAllotted ? goalFtu : 0);
@@ -344,14 +357,6 @@ function DonorApprovalsContent() {
           ? c.creator 
           : (dbMeta?.creator_address || wallet.address);
         const verifierAddress = (c && c.verifier) ? c.verifier : (dbMeta?.verifier_address || '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC');
-
-        const isFilteredThis = Boolean(
-          filterCampaignId && (
-            filterCampaignId === campaignKeyId ||
-            filterCampaignId === onChainId ||
-            (dbMeta && (filterCampaignId === Number(dbMeta.id) || filterCampaignId === Number(dbMeta.on_chain_id)))
-          )
-        );
 
         if (isFilteredThis) {
           setFilteredCampaignMeta({ id: filterCampaignId!, title });

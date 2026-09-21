@@ -101,6 +101,15 @@ export default function CreatorCampaignsPage() {
         console.warn("Could not read contract campaigns (using Supabase records):", chainErr);
       }
 
+      // If database and on-chain state are empty, purge obsolete localStorage cache
+      if (dbCampaigns.length === 0 && count === 0 && typeof window !== "undefined") {
+        try {
+          localStorage.removeItem('fundtrace_created_campaigns');
+          localStorage.removeItem('fundtrace_allotted_campaign_ids');
+          localStorage.removeItem('fundtrace_anchored_campaign_map');
+        } catch {}
+      }
+
       // 4. Map DB campaigns first
       if (dbCampaigns.length > 0) {
         for (const db of dbCampaigns) {
@@ -206,64 +215,12 @@ export default function CreatorCampaignsPage() {
         }
       }
 
-      // 5. Process additional on-chain campaigns if any
-      if (contract && count > 0) {
-        for (let i = 1; i <= count; i++) {
-          if (!usedOnChainIds.has(i) && !seenItemIds.has(i)) {
-            try {
-              const c = await contract.getCampaign(i);
-              if (c.creator.toLowerCase() === currentAddress) {
-                usedOnChainIds.add(i);
-                seenItemIds.add(i);
-                items.push({
-                  id: i,
-                  onChainId: i,
-                  creator: c.creator,
-                  state: Number(c.state) as CampaignState,
-                  goalFtu: parseFtuAmount(c.goal) || 100000,
-                  raisedFtu: parseFtuAmount(c.totalDonated),
-                  sanctionedFtu: parseFtuAmount(c.totalSanctioned),
-                  allocatedFtu: parseFtuAmount(c.totalAllocated),
-                  claimedFtu: parseFtuAmount(c.totalClaimed),
-                  title: `Campaign #${i}`,
-                  tagline: "Decentralized audited fund initiative",
-                  coverImageUrl: "",
-                  isPendingVerification: Number(c.state) === CampaignState.PendingVerification
-                });
-              }
-            } catch (e) {
-              console.error(`Error reading campaign #${i}:`, e);
-            }
-          }
-        }
-      }
+      // 5. Done processing campaigns (only display campaigns with verified database records)
 
-      // 6. Merge recently created campaigns from localStorage (in case backend is caching)
+      // 6. Clean up any obsolete local cache so state always reflects database
       try {
-        const localSaved = JSON.parse(localStorage.getItem("fundtrace_created_campaigns") || "[]");
-        for (const local of localSaved) {
-          if (!seenItemIds.has(local.id) && !items.some(it => it.title.toLowerCase() === local.title?.toLowerCase())) {
-            items.unshift({
-              id: local.id,
-              onChainId: null,
-              creator: local.creator || currentAddress,
-              state: CampaignState.PendingVerification,
-              goalFtu: Number(local.goalFtu) || parseFtuAmount(local.goalWei) || 100000,
-              raisedFtu: 0,
-              sanctionedFtu: 0,
-              allocatedFtu: 0,
-              claimedFtu: 0,
-              title: local.title,
-              tagline: local.tagline || "",
-              coverImageUrl: local.coverImageUrl || "",
-              isPendingVerification: true
-            });
-            seenItemIds.add(local.id);
-          }
-        }
-      } catch (localErr) {
-        console.warn("Could not read local campaigns:", localErr);
-      }
+        localStorage.removeItem("fundtrace_created_campaigns");
+      } catch {}
 
       setCampaigns(items);
     } catch (err) {
