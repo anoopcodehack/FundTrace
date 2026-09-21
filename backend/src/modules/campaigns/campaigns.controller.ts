@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, HttpException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Delete, HttpException, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CampaignsService } from './campaigns.service';
 import { CreateCampaignDto, PrepareCampaignDto, ConfirmCampaignDto } from './dto/create-campaign.dto';
@@ -32,11 +32,11 @@ export class CampaignsController {
   }
 
   @Post(':id/confirm')
-  @Roles('CREATOR')
+  @Roles('CREATOR', 'ADMIN')
   @ApiOperation({ summary: 'Confirm a campaign creation transaction' })
   @ApiResponse({ status: 201, description: 'Campaign confirmed' })
   async confirm(@Param('id') id: string, @Body() confirmDto: ConfirmCampaignDto) {
-    return this.campaignsService.confirmCampaign(id, confirmDto.txHash);
+    return this.campaignsService.confirmCampaign(id, confirmDto.txHash, confirmDto.onChainId);
   }
 
   @Get()
@@ -49,5 +49,13 @@ export class CampaignsController {
   @ApiOperation({ summary: 'Get campaign details by ID or on-chain ID, including tamper-check' })
   async findOne(@Param('id') id: string) {
     return this.campaignsService.findOne(Number(id));
+  }
+
+  @Delete(':id')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Delete a campaign and associated records from database' })
+  @ApiResponse({ status: 200, description: 'Campaign deleted successfully' })
+  async delete(@Param('id') id: string) {
+    return this.campaignsService.delete(Number(id));
   }
 }

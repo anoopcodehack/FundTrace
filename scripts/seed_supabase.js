@@ -1,5 +1,4 @@
 const { Client } = require('pg');
-const { ethers } = require('ethers');
 const crypto = require('crypto');
 
 function computeHash(data) {
@@ -38,7 +37,20 @@ async function main() {
     console.warn("Role constraint note:", cErr.message);
   }
 
-  // Step 2: Seed Users
+  // Step 2: Wipe all seeded campaign, sanction, and audit data
+  console.log("\n--- PURGING EXISTING CAMPAIGN & SANCTION DATA ---");
+  await client.query(`DELETE FROM public.quotations WHERE id != 0;`);
+  await client.query(`DELETE FROM public.audit_events WHERE id != 0;`);
+  await client.query(`DELETE FROM public.spending_requests WHERE id != 0;`);
+  await client.query(`DELETE FROM public.proof_documents WHERE id != 0;`);
+  await client.query(`DELETE FROM public.campaign_updates WHERE id != 0;`);
+  await client.query(`DELETE FROM public.automation_settings WHERE id != 0;`);
+  await client.query(`DELETE FROM public.score_history WHERE id != 0;`);
+  await client.query(`DELETE FROM public.creator_scores WHERE id != 0;`);
+  await client.query(`DELETE FROM public.campaigns WHERE id != 0;`);
+  console.log("✔ Purged all old campaigns, quotations, and audit events.");
+
+  // Step 3: Seed Users
   console.log("\n--- SEEDING USERS ---");
   const users = [
     {
@@ -113,13 +125,14 @@ async function main() {
       ON CONFLICT (wallet_address) DO UPDATE 
       SET name = EXCLUDED.name, role = EXCLUDED.role, avatar_url = EXCLUDED.avatar_url, bio = EXCLUDED.bio
     `, [u.wallet_address, u.name, u.role, u.avatar_url, u.bio]);
-    console.log(`✔ Seeded user: ${u.name} (${u.role}) - ${u.wallet_address}`);
+    console.log(`✔ Seeded user: ${u.name} (${u.role})`);
   }
 
-  // Step 3: Seed Campaigns
-  console.log("\n--- SEEDING CAMPAIGNS ---");
+  // Step 4: Seed Campaigns in NEW FTU FORMAT
+  console.log("\n--- SEEDING CAMPAIGNS IN NEW FTU FORMAT ---");
   const campaigns = [
     {
+      id: 1,
       on_chain_id: 1,
       title: "Build Rural STEM Lab & Robotics Center",
       tagline: "Equipping 10 rural schools with robotics starter kits, sensors, and microcontrollers",
@@ -130,13 +143,14 @@ async function main() {
       cover_image_url: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80",
       story: "Across rural regions, underfunded schools lack access to modern science kits and technology tools. This audited initiative equips 10 rural schools with programmable robotics starter kits, digital microscopes, sensors, and solar power units. Verified milestone spending releases ensure funds directly purchase certified learning equipment.",
       planned_budget: [
-        { category: "Microcontrollers & Robotics Hardware", amount: 120000 },
-        { category: "Sensors, Breadboards & Circuitry", amount: 80000 },
-        { category: "Certified Curriculum & Trainer Workshops", amount: 40000 }
+        { category: "Microcontrollers & Robotics Starter Kits", amount: 120000, amountFtu: 120000 },
+        { category: "Sensors, Breadboards & Circuitry", amount: 100000, amountFtu: 100000 },
+        { category: "Curriculum Manuals & Teacher Workshops", amount: 80000, amountFtu: 80000 }
       ],
       funding_deadline: new Date(Date.now() + 86400000 * 30).toISOString()
     },
     {
+      id: 2,
       on_chain_id: 2,
       title: "Clean Drinking Water Well Initiative",
       tagline: "Solar-powered deep aquifer well and filtration system for 2,500 villagers",
@@ -147,13 +161,14 @@ async function main() {
       cover_image_url: "https://images.unsplash.com/photo-1541544741938-0af808871cc0?auto=format&fit=crop&q=80",
       story: "Over 2,500 villagers in remote arid regions walk more than 8 kilometers every day to collect untreated groundwater. This project constructs a high-capacity solar borewell and multi-stage reverse osmosis filtration facility. All milestone payments require vendor invoices and verified delivery receipts.",
       planned_budget: [
-        { category: "Solar Deep Well Drilling & Submersible Pump", amount: 100000 },
-        { category: "Reverse Osmosis Commercial Filtration Unit", amount: 60000 },
-        { category: "Community Distribution Pipelining", amount: 40000 }
+        { category: "Solar Deep Well Drilling & Submersible Pump", amount: 100000, amountFtu: 100000 },
+        { category: "Reverse Osmosis Commercial Filtration Unit", amount: 60000, amountFtu: 60000 },
+        { category: "Community Distribution Pipelining", amount: 40000, amountFtu: 40000 }
       ],
       funding_deadline: new Date(Date.now() + 86400000 * 45).toISOString()
     },
     {
+      id: 3,
       on_chain_id: 3,
       title: "Rural Solar Microgrid & Health Clinic Power",
       tagline: "Continuous electricity for primary health centers and cold-chain vaccine storage",
@@ -164,9 +179,9 @@ async function main() {
       cover_image_url: "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&q=80",
       story: "Frequent grid power failures in remote healthcare facilities compromise sensitive medicines and infant vaccines. This project provides a dedicated 15kW rooftop solar microgrid with lithium-iron-phosphate battery backup to ensure uninterrupted power for vaccine refrigerators and diagnostic equipment.",
       planned_budget: [
-        { category: "High-Efficiency Monocrystalline Solar Panels", amount: 60000 },
-        { category: "LiFePO4 Cold-Chain Battery Bank", amount: 30000 },
-        { category: "Surge Protection & Installation", amount: 10000 }
+        { category: "High-Efficiency Monocrystalline Solar Panels", amount: 60000, amountFtu: 60000 },
+        { category: "LiFePO4 Cold-Chain Battery Bank", amount: 30000, amountFtu: 30000 },
+        { category: "Surge Protection & Installation Hardware", amount: 10000, amountFtu: 10000 }
       ],
       funding_deadline: new Date(Date.now() + 86400000 * 60).toISOString()
     }
@@ -176,10 +191,11 @@ async function main() {
     const canonical_hash = computeHash(c);
     await client.query(`
       INSERT INTO public.campaigns (
-        on_chain_id, title, tagline, category, location, creator_address, verifier_address, 
+        id, on_chain_id, title, tagline, category, location, creator_address, verifier_address, 
         cover_image_url, story, planned_budget, funding_deadline, canonical_hash
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      ON CONFLICT (on_chain_id) DO UPDATE SET
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ON CONFLICT (id) DO UPDATE SET
+        on_chain_id = EXCLUDED.on_chain_id,
         title = EXCLUDED.title,
         tagline = EXCLUDED.tagline,
         category = EXCLUDED.category,
@@ -193,24 +209,25 @@ async function main() {
         canonical_hash = EXCLUDED.canonical_hash,
         updated_at = NOW()
     `, [
-      c.on_chain_id, c.title, c.tagline, c.category, c.location, c.creator_address, c.verifier_address,
+      c.id, c.on_chain_id, c.title, c.tagline, c.category, c.location, c.creator_address, c.verifier_address,
       c.cover_image_url, c.story, JSON.stringify(c.planned_budget), c.funding_deadline, canonical_hash
     ]);
-    console.log(`✔ Seeded campaign #${c.on_chain_id}: "${c.title}"`);
+    console.log(`✔ Seeded campaign #${c.id}: "${c.title}"`);
   }
 
-  // Step 4: Seed Audit Events
-  console.log("\n--- SEEDING AUDIT EVENTS ---");
+  // Step 5: Seed Audit Events in NEW FTU FORMAT
+  console.log("\n--- SEEDING AUDIT EVENTS IN NEW FTU FORMAT ---");
   const auditEvents = [
+    // Campaign 1 Events
     {
       event_name: "CampaignCreated",
       campaign_id: 1,
       quotation_id: null,
       actor_address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8".toLowerCase(),
-      amount_ftu: 3.0,
+      amount_ftu: 300000,
       tx_hash: "0xa1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef1",
       block_number: 101,
-      event_data: { goal: "3.0 ETH", deadline: "30 days", category: "Education" },
+      event_data: { goal: "₹3.0L (300,000 FTU)", deadline: "30 days", category: "Education" },
       recorded_at: new Date(Date.now() - 86400000 * 5).toISOString()
     },
     {
@@ -229,10 +246,10 @@ async function main() {
       campaign_id: 1,
       quotation_id: null,
       actor_address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906".toLowerCase(),
-      amount_ftu: 1.5,
+      amount_ftu: 150000,
       tx_hash: "0xc3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef123",
       block_number: 110,
-      event_data: { donor: "Alice", amount: "1.5 ETH", totalDonated: "1.5 ETH", votingWeight: "46.9%" },
+      event_data: { donor: "Alice", amount: "₹1.5L (150,000 FTU)", totalDonated: "₹1.5L", votingWeight: "46.9%" },
       recorded_at: new Date(Date.now() - 86400000 * 4.5).toISOString()
     },
     {
@@ -240,32 +257,44 @@ async function main() {
       campaign_id: 1,
       quotation_id: null,
       actor_address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65".toLowerCase(),
-      amount_ftu: 1.0,
+      amount_ftu: 100000,
       tx_hash: "0xd4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef1234",
       block_number: 115,
-      event_data: { donor: "Bob", amount: "1.0 ETH", totalDonated: "2.5 ETH", votingWeight: "31.3%" },
+      event_data: { donor: "Bob", amount: "₹1.0L (100,000 FTU)", totalDonated: "₹2.5L", votingWeight: "31.3%" },
       recorded_at: new Date(Date.now() - 86400000 * 4).toISOString()
+    },
+    {
+      event_name: "Donated",
+      campaign_id: 1,
+      quotation_id: null,
+      actor_address: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc".toLowerCase(),
+      amount_ftu: 70000,
+      tx_hash: "0xd4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef1235",
+      block_number: 118,
+      event_data: { donor: "Charlie", amount: "₹70.0K (70,000 FTU)", totalDonated: "₹3.2L", votingWeight: "21.9%" },
+      recorded_at: new Date(Date.now() - 86400000 * 3.8).toISOString()
     },
     {
       event_name: "FundingClosed",
       campaign_id: 1,
       quotation_id: null,
       actor_address: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc".toLowerCase(),
-      amount_ftu: 3.2,
+      amount_ftu: 320000,
       tx_hash: "0xe5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef12345",
       block_number: 120,
-      event_data: { totalRaised: "3.2 ETH", goal: "3.0 ETH", progressPct: "107%" },
+      event_data: { totalRaised: "₹3.2L (320,000 FTU)", goal: "₹3.0L (300,000 FTU)", progressPct: "107%" },
       recorded_at: new Date(Date.now() - 86400000 * 3.5).toISOString()
     },
+    // Campaign 2 Events
     {
       event_name: "CampaignCreated",
       campaign_id: 2,
       quotation_id: null,
       actor_address: "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f".toLowerCase(),
-      amount_ftu: 2.0,
+      amount_ftu: 200000,
       tx_hash: "0xf60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef123456",
       block_number: 125,
-      event_data: { goal: "2.0 ETH", title: "Clean Drinking Water Well Initiative" },
+      event_data: { goal: "₹2.0L (200,000 FTU)", title: "Clean Drinking Water Well Initiative" },
       recorded_at: new Date(Date.now() - 86400000 * 3).toISOString()
     },
     {
@@ -284,44 +313,34 @@ async function main() {
       campaign_id: 2,
       quotation_id: null,
       actor_address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906".toLowerCase(),
-      amount_ftu: 2.0,
+      amount_ftu: 200000,
       tx_hash: "0x18293a4b5c6d7e8f90123456789abcdef0123456789abcdef12345678",
       block_number: 132,
-      event_data: { donor: "Alice", amount: "2.0 ETH", totalDonated: "2.0 ETH", votingWeight: "100%" },
+      event_data: { donor: "Alice", amount: "₹2.0L (200,000 FTU)", totalDonated: "₹2.0L", votingWeight: "100%" },
       recorded_at: new Date(Date.now() - 86400000 * 2.5).toISOString()
     },
     {
-      event_name: "QuotationRegistered",
-      campaign_id: 2,
-      quotation_id: 1,
-      actor_address: "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f".toLowerCase(),
-      amount_ftu: 0.5,
-      tx_hash: "0x293a4b5c6d7e8f90123456789abcdef0123456789abcdef123456789",
-      block_number: 140,
-      event_data: { purpose: "Solar Deep Well Drilling Equipment", vendor: "AquaTech Borewells" },
-      recorded_at: new Date(Date.now() - 86400000 * 2).toISOString()
-    },
-    {
-      event_name: "AutomationToggled",
+      event_name: "FundingClosed",
       campaign_id: 2,
       quotation_id: null,
       actor_address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906".toLowerCase(),
-      amount_ftu: null,
-      tx_hash: "0x3a4b5c6d7e8f90123456789abcdef0123456789abcdef123456789a",
-      block_number: 145,
-      event_data: { enabled: true, donor: "Alice", policy: "AI Auto-Sanction Active" },
-      recorded_at: new Date(Date.now() - 86400000 * 1.5).toISOString()
+      amount_ftu: 200000,
+      tx_hash: "0x28293a4b5c6d7e8f90123456789abcdef0123456789abcdef12345679",
+      block_number: 135,
+      event_data: { totalRaised: "₹2.0L (200,000 FTU)", goal: "₹2.0L (200,000 FTU)", progressPct: "100%" },
+      recorded_at: new Date(Date.now() - 86400000 * 2.2).toISOString()
     },
+    // Campaign 3 Events
     {
       event_name: "CampaignCreated",
       campaign_id: 3,
       quotation_id: null,
       actor_address: "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720".toLowerCase(),
-      amount_ftu: 1.0,
+      amount_ftu: 100000,
       tx_hash: "0x4b5c6d7e8f90123456789abcdef0123456789abcdef123456789ab",
       block_number: 150,
-      event_data: { goal: "1.0 ETH", title: "Rural Solar Microgrid & Health Clinic Power" },
-      recorded_at: new Date(Date.now() - 86400000 * 1).toISOString()
+      event_data: { goal: "₹1.0L (100,000 FTU)", title: "Rural Solar Microgrid & Health Clinic Power" },
+      recorded_at: new Date(Date.now() - 86400000 * 1.5).toISOString()
     },
     {
       event_name: "CampaignVerified",
@@ -332,18 +351,29 @@ async function main() {
       tx_hash: "0x5c6d7e8f90123456789abcdef0123456789abcdef123456789abc",
       block_number: 152,
       event_data: { verifier: "Global Impact Auditor", status: "VERIFIED" },
-      recorded_at: new Date(Date.now() - 86400000 * 0.8).toISOString()
+      recorded_at: new Date(Date.now() - 86400000 * 1.2).toISOString()
     },
     {
       event_name: "Donated",
       campaign_id: 3,
       quotation_id: null,
       actor_address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906".toLowerCase(),
-      amount_ftu: 1.0,
+      amount_ftu: 100000,
       tx_hash: "0x6d7e8f90123456789abcdef0123456789abcdef123456789abcd",
       block_number: 155,
-      event_data: { donor: "Alice", amount: "1.0 ETH", totalDonated: "1.0 ETH", votingWeight: "100%" },
-      recorded_at: new Date(Date.now() - 86400000 * 0.5).toISOString()
+      event_data: { donor: "Alice", amount: "₹1.0L (100,000 FTU)", totalDonated: "₹1.0L", votingWeight: "100%" },
+      recorded_at: new Date(Date.now() - 86400000 * 0.9).toISOString()
+    },
+    {
+      event_name: "FundingClosed",
+      campaign_id: 3,
+      quotation_id: null,
+      actor_address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906".toLowerCase(),
+      amount_ftu: 100000,
+      tx_hash: "0x7d7e8f90123456789abcdef0123456789abcdef123456789abce",
+      block_number: 158,
+      event_data: { totalRaised: "₹1.0L (100,000 FTU)", goal: "₹1.0L (100,000 FTU)", progressPct: "100%" },
+      recorded_at: new Date(Date.now() - 86400000 * 0.8).toISOString()
     }
   ];
 
@@ -357,58 +387,142 @@ async function main() {
       ev.tx_hash, ev.block_number, JSON.stringify(ev.event_data), ev.recorded_at
     ]);
   }
-  console.log(`✔ Seeded ${auditEvents.length} audit events!`);
+  console.log(`✔ Seeded ${auditEvents.length} audit events in new FTU format.`);
 
-  // Step 5: Seed Quotation for Campaign #2
-  console.log("\n--- SEEDING QUOTATION FOR CAMPAIGN #2 ---");
-  const quotationPayload = {
-    campaign_id: 2,
-    creator_address: "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f".toLowerCase(),
-    purpose: "Solar Deep Aquifer Borewell Drilling & Submersible Pump Installation",
-    vendor_name: "AquaTech Borewells Ltd",
-    vendor_contact: "contact@aquatech-borewells.in",
-    requested_amount_ftu: 0.5,
-    items: [
-      { description: "Deep borehole aquifer drilling (300 ft)", amount: 0.3 },
-      { description: "Solar-powered submersible pump assembly", amount: 0.2 }
-    ],
-    quotation_document_url: "https://example.com/invoices/borewell-invoice-01.pdf",
-    quotation_hash: "0x7777777777777777777777777777777777777777777777777777777777777777",
-    on_chain_quotation_id: 1,
-    state: "AIEvaluated",
-    ai_recommendation: {
-      recommendation: "APPROVE",
-      confidence: 0.94,
-      riskLevel: "Low",
-      creatorReliabilityScore: "High (Score: 92/100)",
-      campaignRelevance: "Essential infrastructure for clean water extraction",
-      priceAssessment: "Standard market price for deep borehole drilling",
-      budgetImpact: "Within planned budget (allocated 0.5 ETH of 2.0 ETH)",
-      reasons: [
-        "Vendor credentials verified with registration certificate",
-        "Cost per foot is consistent with regional standards",
-        "Matches milestone deliverable #1"
-      ]
+  // Step 6: Seed Quotations / Milestones in NEW FTU FORMAT
+  console.log("\n--- SEEDING MILESTONE QUOTATIONS IN NEW FTU FORMAT ---");
+  const quotations = [
+    // Milestone Quotation for Campaign 1
+    {
+      campaign_id: 1,
+      creator_address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8".toLowerCase(),
+      purpose: "Microcontrollers & Robotics Hardware Starter Kits (Batch #1)",
+      vendor_name: "RoboLabs EdTech Solutions Ltd",
+      vendor_contact: "sales@robolabs-edtech.in",
+      requested_amount_ftu: 120000,
+      items: [
+        { description: "Arduino Mega & Uno Compatible Robotics Kits (x50 units)", quantity: 50, unitPriceFtu: 1800, totalFtu: 90000 },
+        { description: "Ultrasonic & Infrared Obstacle Sensor Packs (x50 sets)", quantity: 50, unitPriceFtu: 600, totalFtu: 30000 }
+      ],
+      quotation_document_url: "https://example.com/invoices/robolabs-stem-quote-01.pdf",
+      quotation_hash: "0x4444444444444444444444444444444444444444444444444444444444444444",
+      on_chain_quotation_id: 1,
+      state: "AIEvaluated",
+      ai_recommendation: {
+        recommendation: "APPROVE",
+        confidence: 0.96,
+        riskLevel: "LOW",
+        requestedAmount: 120000,
+        suggestedSanctionAmount: 120000,
+        creatorReliabilityScore: "High (Score: 95/100)",
+        campaignRelevance: "Critical foundational kits for establishing 10 rural school STEM labs",
+        priceAssessment: "Bulk institutional pricing verified (12% lower than open market MSRP)",
+        budgetImpact: "Fits within allocated hardware category (₹1.2L of ₹3.0L total budget)",
+        proofHistory: "Consistent verified proof submission track record across previous initiatives",
+        reasons: [
+          "GST tax registration and authorized ed-tech vendor certificate validated",
+          "Hardware specifications fully align with state STEM lab curricula",
+          "Directly satisfies Milestone #1 deliverable roadmap"
+        ],
+        riskFlags: [],
+        evaluatedAt: new Date().toISOString()
+      },
+      ai_recommendation_hash: "0x5555555555555555555555555555555555555555555555555555555555555555"
     },
-    ai_recommendation_hash: "0x8888888888888888888888888888888888888888888888888888888888888888"
-  };
+    // Milestone Quotation for Campaign 2
+    {
+      campaign_id: 2,
+      creator_address: "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f".toLowerCase(),
+      purpose: "Solar Deep Aquifer Borewell Drilling & Submersible Pump Installation",
+      vendor_name: "AquaTech Borewells Ltd",
+      vendor_contact: "operations@aquatech-borewells.in",
+      requested_amount_ftu: 100000,
+      items: [
+        { description: "Deep aquifer borehole drilling (300 feet depth)", quantity: 300, unitPriceFtu: 200, totalFtu: 60000 },
+        { description: "Heavy-duty solar submersible pump assembly & inverter", quantity: 1, unitPriceFtu: 40000, totalFtu: 40000 }
+      ],
+      quotation_document_url: "https://example.com/invoices/aquatech-borewell-01.pdf",
+      quotation_hash: "0x6666666666666666666666666666666666666666666666666666666666666666",
+      on_chain_quotation_id: 1,
+      state: "AIEvaluated",
+      ai_recommendation: {
+        recommendation: "APPROVE",
+        confidence: 0.94,
+        riskLevel: "LOW",
+        requestedAmount: 100000,
+        suggestedSanctionAmount: 100000,
+        creatorReliabilityScore: "High (Score: 92/100)",
+        campaignRelevance: "Primary capital equipment needed for clean groundwater extraction",
+        priceAssessment: "Cost per foot consistent with regional groundwater authority standards",
+        budgetImpact: "Within planned budget (allocated ₹1.0L of ₹2.0L)",
+        proofHistory: "Verified civil contractor registration on file",
+        reasons: [
+          "AquaTech credentials verified with regional civil infrastructure board",
+          "Geological survey report matches 300ft aquifer depth specification",
+          "Submersible pump includes 3-year manufacturer warranty"
+        ],
+        riskFlags: [],
+        evaluatedAt: new Date().toISOString()
+      },
+      ai_recommendation_hash: "0x7777777777777777777777777777777777777777777777777777777777777777"
+    },
+    // Milestone Quotation for Campaign 3
+    {
+      campaign_id: 3,
+      creator_address: "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720".toLowerCase(),
+      purpose: "15kW Monocrystalline Solar Panel Array & Mounting Racks",
+      vendor_name: "SunPower Solutions Pvt Ltd",
+      vendor_contact: "orders@sunpowersolutions.in",
+      requested_amount_ftu: 60000,
+      items: [
+        { description: "Tier-1 550W Monocrystalline Solar Panels (x30 units)", quantity: 30, unitPriceFtu: 1600, totalFtu: 48000 },
+        { description: "Galvanized rooftop mounting racks & IP67 junction connectors", quantity: 1, unitPriceFtu: 12000, totalFtu: 12000 }
+      ],
+      quotation_document_url: "https://example.com/invoices/sunpower-panels-01.pdf",
+      quotation_hash: "0x8888888888888888888888888888888888888888888888888888888888888888",
+      on_chain_quotation_id: 1,
+      state: "AIEvaluated",
+      ai_recommendation: {
+        recommendation: "APPROVE",
+        confidence: 0.95,
+        riskLevel: "LOW",
+        requestedAmount: 60000,
+        suggestedSanctionAmount: 60000,
+        creatorReliabilityScore: "High (Score: 90/100)",
+        campaignRelevance: "Primary solar harvesting arrays for continuous health clinic operation",
+        priceAssessment: "Direct distributor pricing verified against solar wholesale market",
+        budgetImpact: "Exactly matches ₹60,000 panel budget allocation",
+        proofHistory: "Experienced solar installer with verified community track record",
+        reasons: [
+          "Tier-1 manufacturer warranty of 25 years on photovoltaic output",
+          "Direct factory distribution pricing confirmed",
+          "All junction connectors meet IP67 weather resistance rating"
+        ],
+        riskFlags: [],
+        evaluatedAt: new Date().toISOString()
+      },
+      ai_recommendation_hash: "0x9999999999999999999999999999999999999999999999999999999999999999"
+    }
+  ];
 
-  await client.query(`
-    INSERT INTO public.quotations (
-      campaign_id, creator_address, purpose, vendor_name, vendor_contact,
-      requested_amount_ftu, items, quotation_document_url, quotation_hash,
-      on_chain_quotation_id, state, ai_recommendation, ai_recommendation_hash
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-  `, [
-    quotationPayload.campaign_id, quotationPayload.creator_address, quotationPayload.purpose,
-    quotationPayload.vendor_name, quotationPayload.vendor_contact, quotationPayload.requested_amount_ftu,
-    JSON.stringify(quotationPayload.items), quotationPayload.quotation_document_url,
-    quotationPayload.quotation_hash, quotationPayload.on_chain_quotation_id, quotationPayload.state,
-    JSON.stringify(quotationPayload.ai_recommendation), quotationPayload.ai_recommendation_hash
-  ]);
-  console.log("✔ Seeded quotation for Campaign #2!");
+  for (const q of quotations) {
+    await client.query(`
+      INSERT INTO public.quotations (
+        campaign_id, creator_address, purpose, vendor_name, vendor_contact,
+        requested_amount_ftu, items, quotation_document_url, quotation_hash,
+        on_chain_quotation_id, state, ai_recommendation, ai_recommendation_hash
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    `, [
+      q.campaign_id, q.creator_address, q.purpose,
+      q.vendor_name, q.vendor_contact, q.requested_amount_ftu,
+      JSON.stringify(q.items), q.quotation_document_url,
+      q.quotation_hash, q.on_chain_quotation_id, q.state,
+      JSON.stringify(q.ai_recommendation), q.ai_recommendation_hash
+    ]);
+    console.log(`✔ Seeded quotation for Campaign #${q.campaign_id}: "${q.purpose}" (${q.requested_amount_ftu} FTU)`);
+  }
 
-  // Step 6: Verify row counts
+  // Step 7: Verify final row counts
   console.log("\n--- VERIFYING FINAL SUPABASE ROW COUNTS ---");
   const tables = ['users', 'campaigns', 'audit_events', 'quotations'];
   for (const t of tables) {
@@ -417,7 +531,7 @@ async function main() {
   }
 
   await client.end();
-  console.log("\n✅ Supabase seeded successfully with users, campaigns, audit events, and quotations!");
+  console.log("\n✅ Supabase re-seeded successfully in clean NEW FTU format!");
 }
 
 main().catch(console.error);

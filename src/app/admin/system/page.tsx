@@ -10,21 +10,87 @@ import {
   Cpu,
   RefreshCw,
   Globe,
-  HardDrive
+  HardDrive,
+  Trash2,
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
 import { NETWORKS } from '@/lib/blockchain';
+import { toast } from 'sonner';
 
 export default function AdminSystemPage() {
   const { wallet } = useWallet();
   const { chainId, isConnected } = wallet;
   const networkName = chainId === 31337 ? "Hardhat Local" : "Unknown";
   const [lastPing, setLastPing] = useState<Date | null>(new Date());
+  const [isDbActionLoading, setIsDbActionLoading] = useState(false);
   
   useEffect(() => {
     const interval = setInterval(() => setLastPing(new Date()), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleDatabaseAction = async (mode: 'reset' | 'purge') => {
+    const isPurge = mode === 'purge';
+    const confirmPrompt = isPurge 
+      ? 'DANGER: This will permanently DELETE all campaigns, quotations, proof documents, and audit logs from the database. Type DELETE to confirm:'
+      : 'This will reset the database to clean verified baseline (Campaigns 1, 2, 3 and initial contributions) and remove test data. Proceed?';
+
+    if (isPurge) {
+      const typed = window.prompt(confirmPrompt);
+      if (typed !== 'DELETE') {
+        toast.info('Purge cancelled.');
+        return;
+      }
+    } else {
+      if (!window.confirm(confirmPrompt)) return;
+    }
+
+    const toastId = toast.loading(isPurge ? 'Purging all database records...' : 'Resetting database to verified baseline...');
+    setIsDbActionLoading(true);
+
+    try {
+      const endpoint = isPurge ? '/api/admin/database/purge' : '/api/admin/database/reset';
+      const fallbackUrl = isPurge ? 'http://localhost:3001/api/admin/database/purge' : 'http://localhost:3001/api/admin/database/reset';
+      
+      let res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'x-wallet-address': wallet.address || '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+        }
+      });
+
+      if (!res.ok) {
+        res = await fetch(fallbackUrl, {
+          method: 'POST',
+          headers: {
+            'x-wallet-address': wallet.address || '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+          }
+        });
+      }
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Database operation failed');
+      }
+
+      // Clear local storage cache
+      try {
+        localStorage.removeItem('fundtrace_created_campaigns');
+        localStorage.removeItem('fundtrace_allotted_campaigns');
+        localStorage.removeItem('fundtrace_anchored_campaigns');
+      } catch {}
+
+      toast.success(isPurge ? 'Database completely purged!' : 'Database reset to clean baseline!', { id: toastId });
+      setLastPing(new Date());
+    } catch (err: any) {
+      console.error('Database action error:', err);
+      toast.error(err.message || 'Database action failed', { id: toastId });
+    } finally {
+      setIsDbActionLoading(false);
+    }
+  };
 
   const systemChecks = [
     {
@@ -82,7 +148,7 @@ export default function AdminSystemPage() {
             <div className="flex gap-3">
               <button 
                 onClick={() => setLastPing(new Date())}
-                className="px-6 py-2.5 bg-white border border-stone-200 text-stone-700 font-bold rounded-lg hover:bg-stone-50 transition-colors shadow-sm flex items-center gap-2"
+                className="px-6 py-2.5 bg-white border border-stone-200 text-stone-700 font-bold rounded-lg hover:bg-stone-50 transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" /> Refresh Status
               </button>
@@ -123,6 +189,61 @@ export default function AdminSystemPage() {
               })}
             </div>
 
+          </div>
+
+          {/* Database Administration & Danger Zone */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-rose-200 shadow-sm p-8 space-y-6">
+            <div className="flex items-start gap-4 pb-4 border-b border-rose-100">
+              <div className="p-3 bg-rose-100 text-rose-700 rounded-xl">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black font-display text-stone-900">Database Administration & Danger Zone</h2>
+                <p className="text-stone-600 text-sm mt-1">
+                  Manage database state directly from the admin panel. Clean up test data or completely wipe records.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              <div className="p-6 bg-stone-50 rounded-2xl border border-stone-200 flex flex-col justify-between space-y-4">
+                <div>
+                  <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 text-indigo-600" /> Reset to Clean Demo State
+                  </h3>
+                  <p className="text-xs text-stone-600 mt-2 leading-relaxed">
+                    Removes all user-created test campaigns, quotations, and extra audit logs. Restores the clean verified foundation (Campaigns #1, #2, #3 and initial contributions).
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDatabaseAction('reset')}
+                  disabled={isDbActionLoading}
+                  className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl text-xs transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isDbActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  Reset to Clean Foundation
+                </button>
+              </div>
+
+              <div className="p-6 bg-rose-50/60 rounded-2xl border border-rose-200 flex flex-col justify-between space-y-4">
+                <div>
+                  <h3 className="text-base font-bold text-rose-900 flex items-center gap-2">
+                    <Trash2 className="w-4 h-4 text-rose-600" /> Delete Entire Database
+                  </h3>
+                  <p className="text-xs text-rose-700 mt-2 leading-relaxed">
+                    Permanently purges ALL campaigns, quotations, proof documents, and audit logs from Supabase. Leaves database tables empty.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDatabaseAction('purge')}
+                  disabled={isDbActionLoading}
+                  className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isDbActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Delete All Database Records
+                </button>
+              </div>
+            </div>
           </div>
 
         </div>

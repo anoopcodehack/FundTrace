@@ -47,7 +47,7 @@ export default function HomePage() {
   useEffect(() => {
     if (wallet.isConnected && wallet.appRole) {
       if (wallet.appRole === "ADMIN") router.push("/admin");
-      else if (wallet.appRole === "DONOR") router.push("/donor");
+      else if (wallet.appRole === "DONOR") router.push("/donor/contributions");
       else if (wallet.appRole === "CREATOR") router.push("/creator");
     }
   }, [wallet.isConnected, wallet.appRole, router]);

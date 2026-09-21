@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import RoleGuard from '@/components/RoleGuard';
 import { formatFtu, CampaignState } from '@/types';
+import { isCampaignAllotted } from '@/lib/contract';
 import Link from 'next/link';
 import { 
   BarChart3, 
@@ -10,10 +11,11 @@ import {
   AlertTriangle, 
   ShieldCheck, 
   TrendingUp, 
-  Users,
-  Loader2,
-  RefreshCw,
-  Sparkles
+  Users, 
+  Loader2, 
+  RefreshCw, 
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -59,7 +61,11 @@ export default function AdminDashboardPage() {
   }, []);
 
   const totalCampaigns = campaigns.length;
-  const pendingVerification = campaigns.filter(c => Number(c.state) === CampaignState.PendingVerification || !c.on_chain_id).length;
+  const pendingVerification = campaigns.filter(c => {
+    const isAllotted = isCampaignAllotted(c.id) || (c.on_chain_id && isCampaignAllotted(c.on_chain_id));
+    if (isAllotted) return false;
+    return Number(c.state) === CampaignState.PendingVerification || !c.on_chain_id;
+  }).length;
   const activeCampaigns = campaigns.filter(c => Number(c.state) === CampaignState.Verified || Number(c.state) === CampaignState.FundingClosed).length;
   
   const totalRaised = campaigns.reduce((acc, c) => acc + Number(c.total_donated || c.totalDonatedFtu || 0), 0);
@@ -170,6 +176,10 @@ export default function AdminDashboardPage() {
                       <Link href="/admin/ledger" className="w-full flex justify-between items-center p-3 rounded-xl border border-stone-100 hover:bg-stone-50 font-bold text-sm text-stone-800 transition-colors">
                         <span>Audit Event Log</span>
                         <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-xs">{events.length}</span>
+                      </Link>
+                      <Link href="/admin/system" className="w-full flex justify-between items-center p-3 rounded-xl border border-rose-100 hover:bg-rose-50 font-bold text-sm text-rose-700 transition-colors">
+                        <span className="flex items-center gap-2"><Trash2 className="w-4 h-4 text-rose-500" /> Database Reset & Purge</span>
+                        <span className="bg-rose-100 text-rose-800 px-2 py-0.5 rounded text-xs font-mono font-bold">DANGER</span>
                       </Link>
                     </div>
                   </div>

@@ -293,6 +293,14 @@ export class QuotationsService {
       .single();
 
     if (error) throw new BadRequestException(error.message);
+
+    // Trigger AI automation processing now that on_chain_quotation_id is registered
+    setTimeout(() => {
+      this.automationService.processQuotationAutomation(id).catch((err) => {
+        this.logger.error(`Automation processing failed for quotation ${id}: ${err.message}`);
+      });
+    }, 500);
+
     return data;
   }
 

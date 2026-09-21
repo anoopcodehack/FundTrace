@@ -335,12 +335,14 @@ export function ftuToWei(ftu: number): bigint {
   return BigInt(Math.floor(ftu));
 }
 
-/** Format FTU with ₹ symbol */
-export function formatFtu(ftu: number | string): string {
+/** Format FTU with ₹ symbol safely */
+export function formatFtu(ftu?: number | string | null): string {
+  if (ftu === undefined || ftu === null || ftu === "") return "₹0";
   const n = typeof ftu === "string" ? Number(ftu) : ftu;
+  if (isNaN(n) || !isFinite(n)) return "₹0";
   if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
   if (n >= 1000) return `₹${(n / 1000).toFixed(1)}K`;
-  return `₹${n}`;
+  return `₹${Math.round(n * 100) / 100}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

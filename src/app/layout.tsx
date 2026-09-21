@@ -10,6 +10,7 @@ const fontSans = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
   title: "FundTrace - Transparent Crowdfunding & Fund Ledger",
+  // title: "researching about stc",
   description: "A blockchain fund-accountability platform tracking donations from verified campaigns to proof of expenditure.",
 };
 

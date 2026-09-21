@@ -59,12 +59,13 @@ export default function CampaignDetailPage() {
     const str = val.toString();
     if (str.length > 12) {
       try {
-        return parseFloat(Number(ethers.formatEther(val)).toFixed(4));
+        const ethNum = parseFloat(ethers.formatEther(val));
+        return Math.round(ethNum * 100000); // 1 ETH = 100,000 FTU
       } catch {
-        return Number(str);
+        return Number(str) || 0;
       }
     }
-    return Number(str);
+    return Number(str) || 0;
   }
 
   const loadCampaign = useCallback(async () => {
@@ -83,26 +84,39 @@ export default function CampaignDetailPage() {
         }
       } catch (e) { console.warn('Could not fetch campaign metadata from DB:', e); }
 
-      const contract = getFundTraceContract();
-      const c = await contract.getCampaign(effectiveOnChainId);
+      let contract: any = null;
+      let c: any = null;
+      try {
+        contract = getFundTraceContract();
+        c = await contract.getCampaign(effectiveOnChainId);
+      } catch (err) {
+        console.warn('Could not read campaign from contract:', err);
+      }
+
+      const plannedBudgetSum = Array.isArray(dbMeta?.planned_budget)
+        ? dbMeta.planned_budget.reduce((acc: number, item: any) => acc + (Number(item.amount) || 0), 0)
+        : Array.isArray(dbMeta?.plannedBudget)
+        ? dbMeta.plannedBudget.reduce((acc: number, item: any) => acc + (Number(item.amount) || 0), 0)
+        : 0;
+      const defaultGoalFtu = plannedBudgetSum > 0 ? plannedBudgetSum : (Number(dbMeta?.goal_ftu) || 100000);
 
       setOnchain({
         id: effectiveOnChainId,
-        creator: c.creator,
-        verifier: c.verifier,
-        goalWei: c.goal.toString(),
-        deadline: Number(c.deadline),
-        totalDonatedWei: c.totalDonated.toString(),
-        totalReleasedWei: c.totalReleased.toString(),
-        metadataHash: c.metadataHash,
-        state: Number(c.state) as CampaignState,
-        requestCount: Number(c.requestCount),
-        activeRequestId: Number(c.activeRequestId),
-        beneficiary: c.beneficiary,
-        totalSanctionedWei: c.totalSanctioned.toString(),
-        totalAllocatedWei: c.totalAllocated.toString(),
-        totalClaimedWei: c.totalClaimed.toString(),
-        quotationCount: Number(c.quotationCount),
+        creator: c?.creator || dbMeta?.creator_address || ethers.ZeroAddress,
+        verifier: c?.verifier || dbMeta?.verifier_address || ethers.ZeroAddress,
+        goalWei: c ? c.goal.toString() : defaultGoalFtu.toString(),
+        deadline: c ? Number(c.deadline) : 0,
+        totalDonatedWei: c ? c.totalDonated.toString() : "0",
+        totalReleasedWei: c ? c.totalReleased.toString() : "0",
+        metadataHash: c ? c.metadataHash : (dbMeta?.canonical_hash || "0x"),
+        state: c ? (Number(c.state) as CampaignState) : CampaignState.PendingVerification,
+        requestCount: c ? Number(c.requestCount) : 0,
+        activeRequestId: c ? Number(c.activeRequestId) : 0,
+        beneficiary: c ? c.beneficiary : ethers.ZeroAddress,
+        totalSanctionedWei: c ? c.totalSanctioned.toString() : "0",
+        totalAllocatedWei: c ? c.totalAllocated.toString() : "0",
+        totalClaimedWei: c ? c.totalClaimed.toString() : "0",
+        quotationCount: c ? Number(c.quotationCount) : 0,
       });
 
       setMeta({
@@ -121,7 +135,7 @@ export default function CampaignDetailPage() {
           : Array.isArray(dbMeta?.plannedBudget) ? dbMeta.plannedBudget : [],
       });
 
-      if (address) {
+      if (address && contract && c) {
         try {
           const donated = await contract.donations(effectiveOnChainId, address);
           const donatedNum = parseAmount(donated);
@@ -279,7 +293,7 @@ export default function CampaignDetailPage() {
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {[
-            { label: 'Status', value: CampaignState[onchain.state] },
+            { label: 'Status', value: CampaignState[onchain.state] || 'Active' },
             { label: 'Requests', value: String(onchain.requestCount) },
             { label: 'Quotations', value: String(onchain.quotationCount) },
             { label: 'Raised', value: formatFtu(raised) },

@@ -12,11 +12,13 @@ import {
   ShieldAlert, 
   ShieldCheck, 
   ChevronRight, 
-  Filter,
-  Loader2,
-  RefreshCw
+  Filter, 
+  Loader2, 
+  RefreshCw,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
-import { getFundTraceContract } from '@/lib/contract';
+import { getFundTraceContract, getStoredAnchoredMap, isCampaignAllotted } from '@/lib/contract';
 import { ethers } from 'ethers';
 import { useWallet } from '@/context/WalletContext';
 import { toast } from 'sonner';
@@ -26,21 +28,23 @@ function parseAmount(val: any): number {
   const str = val.toString();
   if (str.length > 12) {
     try {
-      return parseFloat(Number(ethers.formatEther(val)).toFixed(4));
+      const ethNum = parseFloat(ethers.formatEther(val));
+      return Math.round(ethNum * 100000); // 1 ETH = 100,000 FTU
     } catch {
-      return Number(str);
+      return Number(str) || 0;
     }
   }
-  return Number(str);
+  return Number(str) || 0;
 }
 
 export default function AdminCampaignsPage() {
-  const { signer } = useWallet();
+  const { wallet, signer } = useWallet();
   const [filter, setFilter] = useState<string>('ALL');
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   const handleVerify = async (onChainId: number) => {
     if (!signer) {
@@ -87,6 +91,114 @@ export default function AdminCampaignsPage() {
     }
   };
 
+  const handleDelete = async (id: number | string, title: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete "${title}" (ID: #${id}) from the database? This action cannot be undone.`)) {
+      return;
+    }
+
+    const toastId = toast.loading(`Deleting campaign #${id}...`);
+    setActionLoading(Number(id));
+
+    try {
+      let res = await fetch(`/api/campaigns/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'x-wallet-address': wallet.address || '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+        }
+      });
+
+      if (!res.ok) {
+        res = await fetch(`http://localhost:3001/api/campaigns/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'x-wallet-address': wallet.address || '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+          }
+        });
+      }
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Failed to delete campaign from database');
+      }
+
+      // Clean local storage cache if present
+      try {
+        const local = JSON.parse(localStorage.getItem('fundtrace_created_campaigns') || '[]');
+        localStorage.setItem('fundtrace_created_campaigns', JSON.stringify(local.filter((c: any) => c.id !== id && c.id !== Number(id))));
+      } catch {}
+
+      setCampaigns(prev => prev.filter(c => c.id !== id && c.id !== Number(id)));
+      toast.success(`Campaign "${title}" successfully deleted from database.`, { id: toastId });
+    } catch (err: any) {
+      console.error('Delete campaign error:', err);
+      toast.error(err.message || 'Failed to delete campaign', { id: toastId });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResetDatabase = async (mode: 'reset' | 'purge') => {
+    const isPurge = mode === 'purge';
+    const confirmPrompt = isPurge 
+      ? 'DANGER: This will completely WIPE ALL campaigns, quotations, proof documents, and audit logs from the database. Type DELETE to confirm:'
+      : 'This will reset the database to the clean verified initial foundation (Campaigns 1, 2, 3 and initial contributions), purging test records. Proceed?';
+    
+    if (isPurge) {
+      const typed = window.prompt(confirmPrompt);
+      if (typed !== 'DELETE') {
+        toast.info('Purge cancelled.');
+        return;
+      }
+    } else {
+      if (!window.confirm(confirmPrompt)) return;
+    }
+
+    const toastId = toast.loading(isPurge ? 'Purging all database records...' : 'Resetting database to verified baseline...');
+    setIsLoading(true);
+
+    try {
+      const endpoint = isPurge ? '/api/admin/database/purge' : '/api/admin/database/reset';
+      const fallbackUrl = isPurge ? 'http://localhost:3001/api/admin/database/purge' : 'http://localhost:3001/api/admin/database/reset';
+      
+      let res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'x-wallet-address': wallet.address || '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+        }
+      });
+
+      if (!res.ok) {
+        res = await fetch(fallbackUrl, {
+          method: 'POST',
+          headers: {
+            'x-wallet-address': wallet.address || '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+          }
+        });
+      }
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Database operation failed');
+      }
+
+      // Clear local storage cache
+      try {
+        localStorage.removeItem('fundtrace_created_campaigns');
+        localStorage.removeItem('fundtrace_allotted_campaigns');
+        localStorage.removeItem('fundtrace_anchored_campaigns');
+      } catch {}
+
+      toast.success(isPurge ? 'Database completely purged!' : 'Database reset to verified baseline!', { id: toastId });
+      setShowResetModal(false);
+      await loadCampaigns();
+    } catch (err: any) {
+      console.error('Database reset error:', err);
+      toast.error(err.message || 'Database operation failed', { id: toastId });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const loadCampaigns = async () => {
     setIsLoading(true);
     try {
@@ -129,8 +241,13 @@ export default function AdminCampaignsPage() {
 
       // Add any pending Supabase campaigns not yet on-chain
       for (const db of dbCampaigns) {
-        const oId = Number(db.on_chain_id || 0);
+        let oId = Number(db.on_chain_id || 0);
+        const map = getStoredAnchoredMap();
+        if ((!oId || oId <= 0) && map[db.id?.toString()]) {
+          oId = Number(map[db.id.toString()]);
+        }
         if (!seenOnChainIds.has(oId)) {
+          const isAllotted = isCampaignAllotted(db.id) || (oId > 0 && isCampaignAllotted(oId));
           items.push({
             id: db.id,
             onChainId: oId,
@@ -139,8 +256,8 @@ export default function AdminCampaignsPage() {
             creator: db.creator_address || 'Pending',
             verifier: db.verifier_address || 'Pending',
             goalFtu: db.goal_ftu || 10000,
-            raisedFtu: 0,
-            state: CampaignState.PendingVerification,
+            raisedFtu: isAllotted ? (db.goal_ftu || 10000) : 0,
+            state: isAllotted ? CampaignState.FundingClosed : CampaignState.PendingVerification,
             coverImageUrl: db.cover_image_url || ''
           });
         }
@@ -200,13 +317,22 @@ export default function AdminCampaignsPage() {
                 Live campaign records fetched directly from Supabase and verified on-chain.
               </p>
             </div>
-            <button
-              onClick={loadCampaigns}
-              disabled={isLoading}
-              className="px-5 py-2.5 bg-white border border-stone-300 text-stone-700 font-bold rounded-xl hover:bg-stone-50 transition-colors shadow-sm flex items-center gap-2 text-sm"
-            >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} /> Refresh
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowResetModal(true)}
+                disabled={isLoading}
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-colors shadow-sm flex items-center gap-2 text-sm cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" /> Reset / Purge DB
+              </button>
+              <button
+                onClick={loadCampaigns}
+                disabled={isLoading}
+                className="px-5 py-2.5 bg-white border border-stone-300 text-stone-700 font-bold rounded-xl hover:bg-stone-50 transition-colors shadow-sm flex items-center gap-2 text-sm cursor-pointer"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} /> Refresh
+              </button>
+            </div>
           </header>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
@@ -298,19 +424,27 @@ export default function AdminCampaignsPage() {
                                 <button
                                   onClick={() => handleVerify(c.onChainId)}
                                   disabled={actionLoading === c.onChainId}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
                                 >
                                   <ShieldCheck className="w-3.5 h-3.5" /> Verify
                                 </button>
                                 <button
                                   onClick={() => handleReject(c.onChainId)}
                                   disabled={actionLoading === c.onChainId}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
                                 >
                                   <XCircle className="w-3.5 h-3.5" /> Reject
                                 </button>
                               </>
                             )}
+                            <button
+                              onClick={() => handleDelete(c.id, c.title)}
+                              disabled={actionLoading === c.id}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                              title="Delete this campaign from the database"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Delete
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -327,6 +461,72 @@ export default function AdminCampaignsPage() {
               </div>
             )}
           </div>
+
+          {/* Database Reset & Purge Modal */}
+          {showResetModal && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl border border-stone-200 max-w-lg w-full p-8 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-rose-100 text-rose-700 rounded-2xl flex-shrink-0">
+                    <AlertTriangle className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black font-display text-stone-900">Database Administration</h3>
+                    <p className="text-stone-500 text-sm mt-1">
+                      Perform database maintenance, reset test data, or purge all records from Supabase.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 flex flex-col justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-stone-900 text-sm flex items-center gap-2">
+                        <RefreshCw className="w-4 h-4 text-indigo-600" /> Reset to Verified Demo Foundation
+                      </h4>
+                      <p className="text-xs text-stone-600 mt-1 leading-relaxed">
+                        Removes all user-created test campaigns, quotations, and audit logs. Restores the clean verified starter foundation (Campaigns #1, #2, #3, seeded users, and baseline ledger).
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleResetDatabase('reset')}
+                      disabled={isLoading}
+                      className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl text-xs transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                    >
+                      Reset to Clean Foundation
+                    </button>
+                  </div>
+
+                  <div className="p-4 bg-rose-50/70 rounded-2xl border border-rose-200 flex flex-col justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-rose-900 text-sm flex items-center gap-2">
+                        <Trash2 className="w-4 h-4 text-rose-600" /> Complete Database Purge
+                      </h4>
+                      <p className="text-xs text-rose-700 mt-1 leading-relaxed">
+                        Permanently deletes ALL campaigns, quotations, proof documents, and audit logs from the database. Leaves tables empty for a clean slate.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleResetDatabase('purge')}
+                      disabled={isLoading}
+                      className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                    >
+                      Purge All Database Records
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-stone-100 pt-4 flex justify-end">
+                  <button
+                    onClick={() => setShowResetModal(false)}
+                    className="px-5 py-2.5 bg-white border border-stone-200 text-stone-700 font-bold rounded-xl hover:bg-stone-50 text-xs transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

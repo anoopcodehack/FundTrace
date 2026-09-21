@@ -52,7 +52,7 @@ export default function Navbar() {
     ];
   } else if (userRole === "DONOR") {
     links = [
-      { name: "My Contributions", href: "/donor/contributions" },
+      { name: "Portfolio", href: "/donor/contributions" },
       { name: "Explore", href: "/donor/campaigns" },
       { name: "Approvals", href: "/donor/approvals" },
       { name: "Fund Tracking", href: "/donor/tracking" },
@@ -75,7 +75,7 @@ export default function Navbar() {
     if (roleStr === "VERIFIER" || roleStr === "ADMIN") {
       router.push("/admin");
     } else if (roleStr.includes("DONOR") || preset.appRole === "DONOR") {
-      router.push("/donor");
+      router.push("/donor/contributions");
     } else if (roleStr.includes("CREATOR") || preset.appRole === "CREATOR") {
       router.push("/creator");
     }

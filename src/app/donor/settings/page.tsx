@@ -321,11 +321,11 @@ export default function DonorSettingsPage() {
                 </p>
                 
                 <div className="space-y-3">
-                  {backedCampaigns.map((camp) => {
+                  {backedCampaigns.map((camp, idx) => {
                     const isSelected = camp.id === selectedCampaign?.id;
                     return (
                       <div 
-                        key={camp.id}
+                        key={`settings-camp-${camp.id}-${idx}`}
                         onClick={() => setSelectedCampaignId(camp.id)}
                         className={`p-4 rounded-2xl border transition-all cursor-pointer ${
                           isSelected 

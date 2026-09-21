@@ -125,30 +125,6 @@ export default function CreateCampaignPage() {
         body: JSON.stringify({ txHash: receipt?.hash })
       });
 
-      try {
-        const localCampaign = {
-          id: offChainId,
-          title,
-          tagline: shortDescription,
-          category,
-          story,
-          location,
-          coverImageUrl: coverImage,
-          goalWei: (Number(goalFtu) * 1e18).toString(),
-          totalDonatedWei: "0",
-          totalSanctionedWei: "0",
-          totalAllocatedWei: "0",
-          totalClaimedWei: "0",
-          state: 0, // PendingVerification
-          creator: wallet.address || "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-          createdAt: new Date().toISOString()
-        };
-        const existing = JSON.parse(localStorage.getItem("fundtrace_created_campaigns") || "[]");
-        localStorage.setItem("fundtrace_created_campaigns", JSON.stringify([localCampaign, ...existing.filter((e: any) => e.id !== offChainId)]));
-      } catch (storageErr) {
-        console.warn("Could not save to localStorage:", storageErr);
-      }
-
       toast.success(`Campaign successfully registered! Redirecting to your campaigns...`, { id: toastId });
       setSubmittedId(offChainId);
       

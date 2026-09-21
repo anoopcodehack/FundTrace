@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, Query, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Put, Post, Body, Query, Param, ParseIntPipe } from '@nestjs/common';
 import { AutomationService, DonorAutomationSetting } from './automation.service';
 
 @Controller('automation')
@@ -35,4 +35,15 @@ export class AutomationController {
   async upsertSetting(@Body() body: DonorAutomationSetting) {
     return this.automationService.upsertSetting(body);
   }
+
+  /**
+   * POST /automation/process/:quotationId
+   * Manually or programmatically trigger AI automation for a quotation.
+   */
+  @Post('process/:quotationId')
+  async processQuotation(@Param('quotationId', ParseIntPipe) quotationId: number) {
+    await this.automationService.processQuotationAutomation(quotationId);
+    return { success: true, message: `Automation processed for quotation #${quotationId}` };
+  }
 }
+
