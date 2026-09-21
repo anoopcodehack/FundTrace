@@ -323,20 +323,43 @@ function DonorTrackingContent() {
                           
                           <div className="border-t border-stone-100 pt-4 flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
                             <div className="flex flex-col gap-1">
-                              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Blockchain Trace</span>
-                              {q.proofHash || q.proof_hash ? (
-                                <span className="text-xs font-mono text-stone-500 bg-stone-100 px-2 py-1 rounded flex items-center gap-1 max-w-[200px] truncate">
-                                  <LinkIcon className="w-3 h-3 flex-shrink-0" /> {q.proofHash || q.proof_hash}
+                              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Blockchain Audit Trace</span>
+                              {(q.proofHash || q.proof_hash) ? (
+                                <span className="text-xs font-mono text-stone-600 bg-stone-100 px-2.5 py-1 rounded-lg flex items-center gap-1.5 max-w-[240px] truncate" title={q.proofHash || q.proof_hash}>
+                                  <LinkIcon className="w-3 h-3 flex-shrink-0 text-emerald-600" /> {q.proofHash || q.proof_hash}
                                 </span>
                               ) : (
-                                <span className="text-xs italic text-stone-400">Proof hash pending</span>
+                                <span className="text-xs italic text-stone-400">Proof hash pending creator invoice</span>
                               )}
                             </div>
-                            {q.proofDocumentUrl && (
-                              <Link href={q.proofDocumentUrl} target="_blank" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">
-                                View Receipt &rarr;
-                              </Link>
-                            )}
+                            
+                            <div className="flex flex-wrap items-center gap-2.5">
+                              {/* Initial Quotation Estimate */}
+                              {(q.quotationDocumentUrl || q.quotation_document_url) && (
+                                <Link 
+                                  href={q.quotationDocumentUrl || q.quotation_document_url} 
+                                  target="_blank" 
+                                  className="text-xs font-bold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
+                                >
+                                  Quotation Estimate &rarr;
+                                </Link>
+                              )}
+
+                              {/* Official Verified Vendor Invoice */}
+                              {(q.proofDocumentUrl || q.proof_document_url) ? (
+                                <Link 
+                                  href={q.proofDocumentUrl || q.proof_document_url} 
+                                  target="_blank" 
+                                  className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3.5 py-1.5 rounded-lg transition-colors shadow-xs inline-flex items-center gap-1.5"
+                                >
+                                  <FileBadge className="w-3.5 h-3.5" /> View Verified Vendor Invoice &rarr;
+                                </Link>
+                              ) : (q.state === QuotationState.Claimed || q.state === "Claimed" || q.state === QuotationState.ProofPending || q.state === "ProofPending") && (
+                                <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                                  Awaiting Vendor Invoice from Creator
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 

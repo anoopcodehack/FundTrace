@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ClipboardList, CheckCircle2, Hourglass, Trophy } from "lucide-react";
+import { ClipboardList, CheckCircle2, Hourglass, Trophy, UploadCloud, ArrowDownToLine, Eye, FileBadge } from "lucide-react";
 import { useWallet } from "@/context/WalletContext";
 import RoleGuard from "@/components/RoleGuard";
 import { getCreatorScore, getScoreHistory } from "@/services/scoreService";
@@ -154,6 +154,39 @@ export default function CreatorPortfolioPage() {
               My Profile
             </button>
           )}
+        </div>
+
+        {/* Quick Action Navigation */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <Link href="/creator/proof" className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3 hover:bg-emerald-100/70 transition-colors shadow-xs group">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <UploadCloud className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-emerald-950">Upload Invoices</p>
+              <p className="text-xs text-emerald-700 mt-0.5">Submit expenditure proof to boost CIBIL score</p>
+            </div>
+          </Link>
+
+          <Link href="/creator/claims" className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center gap-3 hover:bg-indigo-100/70 transition-colors shadow-xs group">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <ArrowDownToLine className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-indigo-950">Execute Claims</p>
+              <p className="text-xs text-indigo-700 mt-0.5">Withdraw sanctioned milestone funds</p>
+            </div>
+          </Link>
+
+          <Link href="/creator/campaigns" className="bg-white border border-stone-200 rounded-2xl p-4 flex items-center gap-3 hover:bg-stone-50 transition-colors shadow-xs group">
+            <div className="w-10 h-10 rounded-xl bg-stone-900 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Eye className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-stone-900">My Campaigns</p>
+              <p className="text-xs text-stone-500 mt-0.5">Track funding & submit quotations</p>
+            </div>
+          </Link>
         </div>
 
         {!addressToShow ? (

@@ -340,6 +340,29 @@ export class QuotationsService {
 
     if (error) throw new BadRequestException(error.message);
 
+    // Record in public.audit_events
+    try {
+      await this.supabase.from('audit_events').insert({
+        event_name: 'AllocationClaimed',
+        campaign_id: quotation.campaign_id,
+        quotation_id: id,
+        actor_address: quotation.creator_address.toLowerCase(),
+        amount_ftu: claimAmountFtu,
+        tx_hash: txHash,
+        event_data: {
+          allocatedAmountFtu: quotation.allocated_amount_ftu,
+          claimedAmountFtu: claimAmountFtu,
+          newClaimedAmountFtu: newClaimed,
+          vendorName: quotation.vendor_name,
+          purpose: quotation.purpose,
+          claimedAt: new Date().toISOString(),
+        },
+        recorded_at: new Date().toISOString(),
+      });
+    } catch (auditErr) {
+      this.logger.warn(`Could not insert AllocationClaimed into audit_events: ${auditErr}`);
+    }
+
     // Trigger score recompute
     await this.scoresService.recomputeAndSaveScore(quotation.creator_address);
 
@@ -388,9 +411,55 @@ export class QuotationsService {
 
     if (error) throw new BadRequestException(error.message);
 
-    // Recompute score
-    await this.scoresService.recomputeAndSaveScore(quotation.creator_address);
+    // Record in public.audit_events
+    try {
+      await this.supabase.from('audit_events').insert({
+        event_name: 'ProofSubmitted',
+        campaign_id: quotation.campaign_id,
+        quotation_id: id,
+        actor_address: quotation.creator_address.toLowerCase(),
+        amount_ftu: quotation.claimed_amount_ftu || quotation.allocated_amount_ftu || quotation.requested_amount_ftu,
+        tx_hash: quotation.claim_tx_hash || null,
+        event_data: {
+          documentType: 'vendor_invoice',
+          invoiceUrl: finalDocumentUrl,
+          invoiceHash: finalProofHash,
+          vendorName: quotation.vendor_name,
+          purpose: quotation.purpose,
+          proofTiming,
+          submittedAt: new Date().toISOString(),
+        },
+        recorded_at: new Date().toISOString(),
+      });
+    } catch (auditErr) {
+      this.logger.warn(`Could not insert ProofSubmitted into audit_events: ${auditErr}`);
+    }
 
-    return data;
+    // Record in public.proof_documents if file was uploaded
+    if (file) {
+      try {
+        await this.supabase.from('proof_documents').upsert({
+          campaign_id: quotation.campaign_id,
+          request_id: id,
+          document_type: 'invoice_original',
+          file_name: file.originalname,
+          mime_type: file.mimetype,
+          file_size_bytes: file.size,
+          file_hash: finalProofHash,
+          storage_path: finalDocumentUrl || `proofs/${quotation.campaign_id}/${id}_${file.originalname}`,
+          uploaded_at: new Date().toISOString(),
+        }, { onConflict: 'campaign_id,request_id,document_type' });
+      } catch (docErr) {
+        this.logger.warn(`Could not insert into proof_documents: ${docErr}`);
+      }
+    }
+
+    // Recompute score
+    const newScore = await this.scoresService.recomputeAndSaveScore(quotation.creator_address);
+
+    return {
+      ...data,
+      newScore,
+    };
   }
 }

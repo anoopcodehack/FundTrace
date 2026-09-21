@@ -138,8 +138,11 @@ export class LedgerService {
         return `Request #${args.requestId || ''} reached consensus approval (Total Weight: ${args.totalApprovalWeight || ''})`;
       case 'Released':
         return `Funds released: ${args.amount || ''} transferred to ${args.recipient?.slice(0, 8) || ''}...`;
+      case 'AllocationClaimed':
+        return `Disbursement claimed: ₹${args.newClaimedAmountFtu || args.claimedAmountFtu || args.claimedAmount || ''} FTU transferred to creator for ${args.purpose || 'milestone'}`;
       case 'ProofSubmitted':
-        return `Expenditure proof receipt submitted on-chain (Hash: ${args.receiptHash?.slice(0, 10) || ''}...)`;
+      case 'QuotationProofSubmitted':
+        return `Official vendor invoice & expenditure proof verified for ${args.purpose || 'disbursement'} (Vendor: ${args.vendorName || 'Vendor'}, Hash: ${(args.invoiceHash || args.proofHash || args.receiptHash || '').slice(0, 10)}...)`;
       case 'Refunded':
         return `Refund of ${args.amount || ''} withdrawn by donor ${args.donor?.slice(0, 8) || ''}...`;
       default:

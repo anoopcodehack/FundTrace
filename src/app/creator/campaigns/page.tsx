@@ -23,7 +23,8 @@ import {
   FileText,
   Loader2,
   RefreshCw,
-  Clock
+  Clock,
+  UploadCloud
 } from 'lucide-react';
 
 interface CreatorCampaign {
@@ -268,7 +269,7 @@ export default function CreatorCampaignsPage() {
               <h1 className="text-5xl font-black font-bebas uppercase tracking-tight text-stone-900">My Campaigns</h1>
               <p className="text-stone-600 font-medium mt-2">Manage your campaigns, track funding progress, and request funds.</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2.5">
               <button
                 onClick={loadCreatorCampaigns}
                 disabled={isLoading}
@@ -278,7 +279,10 @@ export default function CreatorCampaignsPage() {
                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
-              <Link href="/creator/create" className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2 text-sm">
+              <Link href="/creator/proof" className="px-4 py-2.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm flex items-center gap-2 text-sm">
+                <UploadCloud className="w-4 h-4" /> Upload Proof
+              </Link>
+              <Link href="/creator/create" className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2 text-sm">
                 <Plus className="w-4 h-4" /> New Campaign
               </Link>
             </div>
@@ -325,15 +329,18 @@ export default function CreatorCampaignsPage() {
                           </Link>
                           <p className="text-sm text-stone-500 font-medium line-clamp-2">{c.tagline}</p>
                         </div>
-                        <div className="mt-4 pt-4 border-t border-stone-100 flex gap-2">
-                          <Link href={`/creator/campaigns/${c.id}`} className="flex-1 flex justify-center items-center gap-2 text-xs font-bold text-stone-700 bg-stone-100 px-4 py-2 rounded-lg hover:bg-stone-200 transition-colors">
-                            <Eye className="w-4 h-4" /> Manage Campaign
+                        <div className="mt-4 pt-4 border-t border-stone-100 flex flex-wrap gap-2">
+                          <Link href={`/creator/campaigns/${c.id}`} className="flex-1 min-w-[100px] flex justify-center items-center gap-1.5 text-xs font-bold text-stone-700 bg-stone-100 px-3 py-2 rounded-lg hover:bg-stone-200 transition-colors">
+                            <Eye className="w-3.5 h-3.5" /> Manage
                           </Link>
                           {c.state === CampaignState.FundingClosed && (
-                            <Link href={`/creator/campaigns/${c.id}/quotation`} className="flex-1 flex justify-center items-center gap-2 text-xs font-bold text-white bg-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
-                              <FileText className="w-4 h-4" /> Submit Quotation
+                            <Link href={`/creator/campaigns/${c.id}/quotation`} className="flex-1 min-w-[100px] flex justify-center items-center gap-1.5 text-xs font-bold text-white bg-indigo-600 px-3 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                              <FileText className="w-3.5 h-3.5" /> Quotation
                             </Link>
                           )}
+                          <Link href={`/creator/proof`} className="flex-1 min-w-[110px] flex justify-center items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-lg transition-colors" title="Upload official vendor invoice proof">
+                            <UploadCloud className="w-3.5 h-3.5 text-emerald-600" /> Upload Proof
+                          </Link>
                         </div>
                       </div>
                     </div>
