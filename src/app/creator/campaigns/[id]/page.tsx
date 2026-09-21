@@ -28,6 +28,7 @@ import {
   RefreshCw,
   ExternalLink,
   Lock,
+  Upload,
 } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
 import { getFundTraceContract } from '@/lib/contract';
@@ -226,23 +227,28 @@ export default function CampaignDetailPage() {
       <div className="space-y-3">
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
           <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> Campaign Funded
+            <CheckCircle2 className="w-3 h-3" /> Campaign Funded & Active
           </p>
           <p className="text-sm font-bold text-emerald-900">
-            You may now submit quotations.
+            Submit milestone quotations or upload vendor invoice proofs for claimed funds.
           </p>
         </div>
-        <Link href={`/creator/campaigns/${onchain.id}/quotation`}
-          className="w-full py-4 bg-stone-900 text-white font-black font-display text-base rounded-xl hover:bg-stone-800 transition-colors flex items-center justify-center gap-2 group">
-          <FileText className="w-5 h-5" /> Submit Quotation <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <Link href={`/creator/campaigns/${onchain.id}/quotation`}
+            className="flex-1 py-3.5 px-4 bg-stone-900 text-white font-bold text-sm rounded-xl hover:bg-stone-800 transition-colors flex items-center justify-center gap-2 group">
+            <FileText className="w-4 h-4" /> Submit Quotation <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+          </Link>
+          <Link href={`/creator/proof`}
+            className="flex-1 py-3.5 px-4 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 shadow-xs">
+            <Upload className="w-4 h-4" /> Upload Proof
+          </Link>
+        </div>
       </div>
     );
- }
+  }
 
-  // ── Donor-specific extra sections ──
+  // ── Creator extra sections ──
   function renderCreatorSections() {
-    if (false) return null;
     return (
       <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
@@ -270,8 +276,12 @@ export default function CampaignDetailPage() {
               <FileText className="w-4 h-4" /> Submit Quotation
             </Link>
             <Link href="/creator/proof"
-              className="px-5 py-2.5 border border-stone-200 text-stone-600 font-bold text-sm rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4" /> Upload Proof
+              className="px-5 py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-xs">
+              <Upload className="w-4 h-4" /> Upload Proof
+            </Link>
+            <Link href="/creator/claims"
+              className="px-5 py-2.5 border border-stone-200 text-stone-700 font-bold text-sm rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Execute Claims
             </Link>
             <Link href="/creator/score"
               className="px-5 py-2.5 border border-stone-200 text-stone-600 font-bold text-sm rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2">
@@ -581,14 +591,26 @@ export default function CampaignDetailPage() {
                               )}
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Cryptographic Proof</p>
-                              {q.proofDocumentUrl ? (
-                                <Link href={q.proofDocumentUrl} target="_blank" className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-100">
-                                  <FileText className="w-4 h-4" /> View Verified Receipt
-                                </Link>
+                              <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Cryptographic Proof / Vendor Invoice</p>
+                              {q.proofDocumentUrl || q.proof_document_url ? (
+                                <div className="space-y-1.5">
+                                  <Link href={q.proofDocumentUrl || q.proof_document_url} target="_blank" className="inline-flex items-center gap-2 text-sm font-bold text-emerald-700 bg-emerald-50 px-4 py-2 rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200">
+                                    <FileText className="w-4 h-4 text-emerald-600" /> View Verified Vendor Invoice &rarr;
+                                  </Link>
+                                  {(q.proofHash || q.proof_hash || q.proofDocumentHash) && (
+                                    <p className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 truncate max-w-xs" title={q.proofHash || q.proof_hash || q.proofDocumentHash}>
+                                      Hash: {q.proofHash || q.proof_hash || q.proofDocumentHash}
+                                    </p>
+                                  )}
+                                </div>
                               ) : (
-                                <div className="inline-flex items-center gap-2 text-sm font-bold text-stone-400 bg-stone-100/50 px-4 py-2 rounded-lg border border-stone-200/50 cursor-not-allowed">
-                                  <Clock className="w-4 h-4" /> Receipt Pending
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div className="inline-flex items-center gap-2 text-xs font-bold text-stone-400 bg-stone-100/60 px-3 py-2 rounded-lg border border-stone-200/60">
+                                    <Clock className="w-3.5 h-3.5" /> Invoice Pending
+                                  </div>
+                                  <Link href={`/creator/proof?quotationId=${q.id}`} className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-lg transition-colors">
+                                    <Upload className="w-3.5 h-3.5" /> Upload Proof &rarr;
+                                  </Link>
                                 </div>
                               )}
                             </div>

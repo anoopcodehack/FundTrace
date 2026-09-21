@@ -161,18 +161,27 @@ export async function recordClaim(
 
 export async function submitQuotationProof(
   id: number,
-  proofData: { proofHash?: string; proofDocumentUrl?: string; file?: File }
+  proofData: { proofHash?: string; proofDocumentUrl?: string; file?: File; creatorAddress?: string }
 ): Promise<QuotationMetadata> {
   const formData = new FormData();
   if (proofData.proofHash) formData.append('proofHash', proofData.proofHash);
   if (proofData.proofDocumentUrl) formData.append('proofDocumentUrl', proofData.proofDocumentUrl);
   if (proofData.file) formData.append('file', proofData.file);
 
+  const headers: Record<string, string> = {};
+  if (proofData.creatorAddress) {
+    headers['x-wallet-address'] = proofData.creatorAddress;
+  }
+
   const response = await fetch(`${API_URL}/quotations/${id}/proof`, {
     method: 'POST',
+    headers,
     body: formData,
   });
-  if (!response.ok) throw new Error('Failed to submit proof');
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to submit proof');
+  }
   return mapQuotation(await response.json());
 }
 

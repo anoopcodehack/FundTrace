@@ -26,7 +26,8 @@ import {
   ArrowRight,
   Shield,
   Layers,
-  Check
+  Check,
+  FileBadge
 } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
 import { 
@@ -141,6 +142,7 @@ function DonorApprovalsContent() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [milestoneFilter, setMilestoneFilter] = useState<'ALL' | 'PENDING' | 'VERIFIED'>('ALL');
   
   // Action processing state
   const [processingId, setProcessingId] = useState<number | null>(null);
@@ -422,11 +424,8 @@ function DonorApprovalsContent() {
 
           try {
             const quotes = await getQuotationsByCampaign(effectiveQuotationCampaignId);
-            const needsDonorAction = quotes.filter(
-              q => q.state === QuotationState.AIEvaluated || q.state === QuotationState.Pending
-            );
 
-            needsDonorAction.forEach(q => {
+            quotes.forEach(q => {
               pendingQuotations.push({
                 ...q,
                 campaignTitle: title,
@@ -1405,8 +1404,58 @@ function DonorApprovalsContent() {
                     </div>
                   )}
 
+                  {/* Sub-Filter Tabs for Milestone Quotations */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-stone-200 shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setMilestoneFilter('ALL')}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                          milestoneFilter === 'ALL'
+                            ? 'bg-stone-900 text-white shadow-xs'
+                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
+                      >
+                        All Requests ({quotationApprovals.length})
+                      </button>
+                      <button
+                        onClick={() => setMilestoneFilter('PENDING')}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                          milestoneFilter === 'PENDING'
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
+                      >
+                        <Clock className="w-3 h-3" />
+                        Awaiting Sanction ({quotationApprovals.filter(q => q.state === QuotationState.Pending || q.state === QuotationState.AIEvaluated).length})
+                      </button>
+                      <button
+                        onClick={() => setMilestoneFilter('VERIFIED')}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                          milestoneFilter === 'VERIFIED'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
+                      >
+                        <FileBadge className="w-3 h-3" />
+                        Verified Invoices ({quotationApprovals.filter(q => q.state === QuotationState.ProofSubmitted || q.state === QuotationState.Completed).length})
+                      </button>
+                    </div>
+
+                    <span className="text-[11px] text-stone-400 font-medium px-2">
+                      Audited with Smart Contracts & Keccak-256 Hashes
+                    </span>
+                  </div>
+
                   <div className="grid grid-cols-1 gap-8">
-                    {quotationApprovals.map((q) => {
+                    {quotationApprovals
+                      .filter(q => {
+                        const isPending = q.state === QuotationState.Pending || q.state === QuotationState.AIEvaluated;
+                        const isVerified = q.state === QuotationState.ProofSubmitted || q.state === QuotationState.Completed;
+                        if (milestoneFilter === 'PENDING') return isPending;
+                        if (milestoneFilter === 'VERIFIED') return isVerified;
+                        return true;
+                      })
+                      .map((q) => {
                       let ai: AIRecommendation | undefined = typeof q.aiRecommendation === 'string'
                         ? JSON.parse(q.aiRecommendation)
                         : q.aiRecommendation;
@@ -1414,21 +1463,55 @@ function DonorApprovalsContent() {
                       if (!ai) return null;
 
                       const isProcessing = processingId === q.id;
+                      const isPending = q.state === QuotationState.Pending || q.state === QuotationState.AIEvaluated;
+                      const isSanctioned = q.state === QuotationState.Sanctioned || q.state === QuotationState.Claimable;
+                      const isClaimedPending = q.state === QuotationState.Claimed || q.state === QuotationState.ProofPending;
+                      const isVerifiedProof = q.state === QuotationState.ProofSubmitted || q.state === QuotationState.Completed;
 
                       return (
                         <div
                           key={q.id}
-                          className={`bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden flex flex-col xl:flex-row transition-all ${
+                          className={`bg-white rounded-3xl border ${
+                            isVerifiedProof
+                              ? 'border-emerald-200 shadow-sm'
+                              : isPending
+                                ? 'border-indigo-200 shadow-sm'
+                                : 'border-stone-200 shadow-sm'
+                          } overflow-hidden flex flex-col xl:flex-row transition-all ${
                             isProcessing ? 'opacity-50 pointer-events-none' : 'hover:shadow-md'
                           }`}
                         >
                           {/* Left Column: Request Details & Donor Authority */}
-                          <div className="xl:w-1/3 p-6 xl:p-8 border-b xl:border-b-0 xl:border-r border-stone-100 flex flex-col justify-between bg-stone-50/50">
+                          <div className={`xl:w-1/3 p-6 xl:p-8 border-b xl:border-b-0 xl:border-r ${
+                            isVerifiedProof 
+                              ? 'border-emerald-100 bg-emerald-50/20' 
+                              : isPending 
+                                ? 'border-stone-100 bg-stone-50/50'
+                                : 'border-stone-100 bg-stone-50/40'
+                          } flex flex-col justify-between`}>
                             <div>
                               <div className="flex flex-wrap items-center gap-2 mb-4">
-                                <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full flex items-center gap-1">
-                                  <Clock className="w-3 h-3" /> Awaiting Sanction
-                                </span>
+                                {isVerifiedProof && (
+                                  <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full flex items-center gap-1.5 shadow-2xs">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Expenditure Verified (Invoice Uploaded)
+                                  </span>
+                                )}
+                                {isClaimedPending && (
+                                  <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> Claimed (Awaiting Invoice Proof)
+                                  </span>
+                                )}
+                                {isSanctioned && (
+                                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-full flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Sanctioned (Unclaimed)
+                                  </span>
+                                )}
+                                {isPending && (
+                                  <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> Awaiting Sanction
+                                  </span>
+                                )}
+
                                 <span className="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-bold rounded-full flex items-center gap-1">
                                   Your Share: {q.donorVotingWeight}%
                                 </span>
@@ -1448,10 +1531,10 @@ function DonorApprovalsContent() {
 
                               <div className="mb-6">
                                 <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">
-                                  Requested Disbursement
+                                  {isSanctioned || isVerifiedProof ? 'Disbursed / Sanctioned' : 'Requested Disbursement'}
                                 </p>
                                 <p className="text-4xl font-black font-bebas text-stone-900">
-                                  {formatFtu(q.requestedAmountFtu)}
+                                  {formatFtu(q.allocatedAmountFtu || q.requestedAmountFtu)}
                                 </p>
                               </div>
 
@@ -1469,14 +1552,38 @@ function DonorApprovalsContent() {
                               </div>
                             </div>
 
-                            <div className="mt-8 pt-6 border-t border-stone-200">
-                              <Link
-                                href={q.quotationDocumentUrl || '#'}
-                                target="_blank"
-                                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-stone-300 text-stone-700 font-bold rounded-lg hover:bg-stone-50 transition-colors shadow-sm text-sm"
-                              >
-                                <FileText className="w-4 h-4" /> View Original Invoice PDF
-                              </Link>
+                            {/* Documents Audit Trail */}
+                            <div className="mt-8 pt-6 border-t border-stone-200/80 space-y-2.5">
+                              {q.quotationDocumentUrl && (
+                                <Link
+                                  href={q.quotationDocumentUrl}
+                                  target="_blank"
+                                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-white border border-stone-300 text-stone-700 font-bold rounded-xl hover:bg-stone-50 transition-colors shadow-xs text-xs"
+                                >
+                                  <FileText className="w-3.5 h-3.5 text-stone-500" /> View Initial Quotation Estimate &rarr;
+                                </Link>
+                              )}
+
+                              {q.proofDocumentUrl ? (
+                                <div className="space-y-1.5 pt-1">
+                                  <Link
+                                    href={q.proofDocumentUrl}
+                                    target="_blank"
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors shadow-xs text-xs"
+                                  >
+                                    <FileBadge className="w-4 h-4" /> View Verified Vendor Invoice &rarr;
+                                  </Link>
+                                  {q.proofHash && (
+                                    <p className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 truncate" title={q.proofHash}>
+                                      Invoice Proof Hash: {q.proofHash}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : isClaimedPending ? (
+                                <p className="text-[11px] text-amber-800 font-medium bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center">
+                                  Funds disbursed. Awaiting official vendor invoice from creator within 30-day window.
+                                </p>
+                              ) : null}
                             </div>
                           </div>
 
@@ -1551,51 +1658,89 @@ function DonorApprovalsContent() {
                               )}
                             </div>
 
-                            {/* Action Bar */}
-                            <div className="p-6 bg-stone-50/50 border-t border-stone-200 flex flex-col sm:flex-row justify-end items-center gap-4">
-                              <button
-                                onClick={async () => {
-                                  if (!q.id) return;
-                                  setProcessingId(q.id);
-                                  const toastId = toast.loading(`Running AI Auto-Sanction relay for "${q.purpose}"...`);
-                                  try {
-                                    const res = await triggerQuotationAutomation(q.id);
-                                    toast.success(res.message || '⚡ AI Automation evaluated & processed successfully!', { id: toastId });
-                                    await loadApprovals();
-                                  } catch (err: any) {
-                                    toast.error(err.message || 'AI Automation execution failed', { id: toastId });
-                                  } finally {
-                                    setProcessingId(null);
-                                  }
-                                }}
-                                disabled={isProcessing}
-                                className="w-full sm:w-auto px-5 py-3 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-xl hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-xs"
-                                title="Run AI policy evaluation and automated sanction relay on behalf of eligible donors"
-                              >
-                                <Sparkles className="w-4 h-4 text-indigo-600" /> Run AI Auto-Sanction
-                              </button>
-                              <button
-                                onClick={() => handleRejectQuotation(q)}
-                                disabled={isProcessing}
-                                className="w-full sm:w-auto px-6 py-3 bg-white border border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-                              >
-                                <XCircle className="w-5 h-5" /> Reject
-                              </button>
-                              <button
-                                onClick={() => handleReviewQuotation(q)}
-                                disabled={isProcessing}
-                                className="w-full sm:w-auto px-6 py-3 bg-white border border-amber-200 text-amber-600 font-bold rounded-xl hover:bg-amber-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-                              >
-                                <AlertTriangle className="w-5 h-5" /> Flag for Review
-                              </button>
-                              <button
-                                onClick={() => handleSanctionQuotation(q)}
-                                disabled={isProcessing}
-                                className="w-full sm:w-auto px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-                              >
-                                <CheckCircle2 className="w-5 h-5" /> Sanction {formatFtu(q.requestedAmountFtu)}
-                              </button>
-                            </div>
+                            {/* Action Bar / Status Footer */}
+                            {isVerifiedProof ? (
+                              <div className="p-6 bg-emerald-50/50 border-t border-emerald-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <div className="flex items-center gap-2 text-emerald-900 text-xs font-bold">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                  <span>Expenditure Verified & Stored on Ledger &bull; Creator CIBIL Score Boosted (+25 pts)</span>
+                                </div>
+                                {q.proofDocumentUrl && (
+                                  <Link 
+                                    href={q.proofDocumentUrl} 
+                                    target="_blank" 
+                                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors inline-flex items-center gap-1.5 shadow-xs"
+                                  >
+                                    <FileBadge className="w-3.5 h-3.5" /> View Verified Vendor Invoice
+                                  </Link>
+                                )}
+                              </div>
+                            ) : isClaimedPending ? (
+                              <div className="p-6 bg-amber-50/40 border-t border-amber-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <div className="flex items-center gap-2 text-amber-900 text-xs font-bold">
+                                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                  <span>Disbursed: {formatFtu(q.claimedAmountFtu || q.allocatedAmountFtu)} &bull; Creator invoice upload in progress</span>
+                                </div>
+                                <span className="text-xs font-mono font-bold text-amber-800 bg-amber-100 px-3 py-1 rounded-lg">
+                                  Proof Pending
+                                </span>
+                              </div>
+                            ) : isSanctioned ? (
+                              <div className="p-6 bg-blue-50/40 border-t border-blue-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <div className="flex items-center gap-2 text-blue-900 text-xs font-bold">
+                                  <Check className="w-4 h-4 text-blue-600 shrink-0" />
+                                  <span>Sanctioned on Blockchain &bull; Ready for creator claim at /creator/claims</span>
+                                </div>
+                                <span className="text-xs font-mono font-bold text-blue-800 bg-blue-100 px-3 py-1 rounded-lg">
+                                  Allocated: {formatFtu(q.allocatedAmountFtu || q.requestedAmountFtu)}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="p-6 bg-stone-50/50 border-t border-stone-200 flex flex-col sm:flex-row justify-end items-center gap-4">
+                                <button
+                                  onClick={async () => {
+                                    if (!q.id) return;
+                                    setProcessingId(q.id);
+                                    const toastId = toast.loading(`Running AI Auto-Sanction relay for "${q.purpose}"...`);
+                                    try {
+                                      const res = await triggerQuotationAutomation(q.id);
+                                      toast.success(res.message || '⚡ AI Automation evaluated & processed successfully!', { id: toastId });
+                                      await loadApprovals();
+                                    } catch (err: any) {
+                                      toast.error(err.message || 'AI Automation execution failed', { id: toastId });
+                                    } finally {
+                                      setProcessingId(null);
+                                    }
+                                  }}
+                                  disabled={isProcessing}
+                                  className="w-full sm:w-auto px-5 py-3 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-xl hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-xs"
+                                  title="Run AI policy evaluation and automated sanction relay on behalf of eligible donors"
+                                >
+                                  <Sparkles className="w-4 h-4 text-indigo-600" /> Run AI Auto-Sanction
+                                </button>
+                                <button
+                                  onClick={() => handleRejectQuotation(q)}
+                                  disabled={isProcessing}
+                                  className="w-full sm:w-auto px-6 py-3 bg-white border border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                                >
+                                  <XCircle className="w-5 h-5" /> Reject
+                                </button>
+                                <button
+                                  onClick={() => handleReviewQuotation(q)}
+                                  disabled={isProcessing}
+                                  className="w-full sm:w-auto px-6 py-3 bg-white border border-amber-200 text-amber-600 font-bold rounded-xl hover:bg-amber-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                                >
+                                  <AlertTriangle className="w-5 h-5" /> Flag for Review
+                                </button>
+                                <button
+                                  onClick={() => handleSanctionQuotation(q)}
+                                  disabled={isProcessing}
+                                  className="w-full sm:w-auto px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-5 h-5" /> Sanction {formatFtu(q.requestedAmountFtu)}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );

@@ -1479,11 +1479,25 @@ export default function CampaignDetailPage() {
                             <p className="text-4xl font-black font-bebas text-stone-900">{formatFtu(q.requestedAmountFtu)}</p>
                             <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1 mt-4">Vendor</p>
                             <p className="text-sm font-bold text-stone-800">{q.vendorName}</p>
-                            {q.quotationDocumentUrl && (
-                              <Link href={q.quotationDocumentUrl} target="_blank" className="mt-6 w-full flex items-center justify-center gap-2 py-2 px-4 bg-white border border-stone-300 text-stone-700 font-bold rounded-lg hover:bg-stone-50 transition-colors shadow-sm text-xs">
-                                <FileText className="w-4 h-4" /> View Invoice
-                              </Link>
-                            )}
+                            <div className="mt-6 space-y-2">
+                              {q.quotationDocumentUrl && (
+                                <Link href={q.quotationDocumentUrl} target="_blank" className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-white border border-stone-300 text-stone-700 font-bold rounded-xl hover:bg-stone-50 transition-colors shadow-xs text-xs">
+                                  <FileText className="w-3.5 h-3.5 text-stone-500" /> View Quotation Estimate &rarr;
+                                </Link>
+                              )}
+                              {(q.proofDocumentUrl || q.proof_document_url) && (
+                                <div className="space-y-1 pt-1">
+                                  <Link href={q.proofDocumentUrl || q.proof_document_url} target="_blank" className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors shadow-xs text-xs">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> View Verified Vendor Invoice &rarr;
+                                  </Link>
+                                  {(q.proofHash || q.proof_hash) && (
+                                    <p className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 truncate" title={q.proofHash || q.proof_hash}>
+                                      Proof Hash: {q.proofHash || q.proof_hash}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           
                           <div className="xl:w-2/3 flex flex-col bg-white">

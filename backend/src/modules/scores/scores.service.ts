@@ -175,6 +175,22 @@ export class ScoresService {
       });
     }
 
+    // Also attempt updating on-chain creator profile score
+    try {
+      const signedContract = this.blockchainService.getSignedContract();
+      if (signedContract) {
+        const tx = await signedContract.updateCreatorScore(
+          addr,
+          score,
+          `Score recomputed: ${score}/100 (Proofs on-time: ${onTimeProofs})`
+        );
+        await tx.wait();
+        this.logger.log(`On-chain score synced for ${addr}: ${score}`);
+      }
+    } catch (chainErr: any) {
+      this.logger.warn(`Could not sync on-chain score: ${chainErr?.message || chainErr}`);
+    }
+
     this.logger.log(`Score recomputed for ${addr}: ${oldScore} → ${score}`);
     return score;
   }
