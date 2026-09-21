@@ -849,7 +849,7 @@ export default function CampaignDetailPage() {
             </p>
           </div>
 
-          <Link href="/donor/approvals"
+          <Link href={`/donor/approvals?campaignId=${id}&tab=milestones`}
             className="w-full py-3.5 border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-sm rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm">
             Review & Sanction Quotations ({campaignQuotations.length}) <ArrowRight className="w-4 h-4" />
           </Link>
@@ -919,7 +919,7 @@ export default function CampaignDetailPage() {
             <p className="font-bold text-stone-700">Contribution Share</p>
             <p className="text-sm text-stone-400 mt-1">Your contribution of {formatFtu(myContribution)} gives you proportional governance over spending.</p>
           </div>
-          <Link href="/donor/approvals"
+          <Link href={`/donor/approvals?campaignId=${id}&tab=milestones`}
             className="mt-4 w-full py-3 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
             Review & Sanction Quotations <ArrowRight className="w-4 h-4" />
           </Link>
@@ -1043,7 +1043,7 @@ export default function CampaignDetailPage() {
                 </div>
               ))}
             </div>
-            <Link href="/donor/approvals"
+            <Link href={`/donor/approvals?campaignId=${id}&tab=milestones`}
               className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:underline">
               View all quotations <ExternalLink className="w-3 h-3" />
             </Link>

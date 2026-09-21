@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import RoleGuard from '@/components/RoleGuard';
 import { formatFtu, CampaignState, QuotationState, QuotationMetadata, AIRecommendation } from '@/types';
 import Link from 'next/link';
@@ -98,13 +99,24 @@ function parseFtu(val: any): number {
 // Main Component
 // ─────────────────────────────────────────────────────────
 
-export default function DonorApprovalsPage() {
+function DonorApprovalsContent() {
+  const searchParams = useSearchParams();
+  const campaignIdParam = searchParams.get('campaignId');
+  const tabParam = searchParams.get('tab');
+  const filterCampaignId = campaignIdParam ? parseInt(campaignIdParam, 10) : null;
+
   const { wallet, signer, selectDemoRole } = useWallet();
-  const [activeTab, setActiveTab] = useState<'CAMPAIGN_FUNDING' | 'MILESTONE_QUOTATIONS'>('CAMPAIGN_FUNDING');
+  const initialTab = (tabParam === 'milestones' || tabParam === 'MILESTONE_QUOTATIONS' || filterCampaignId)
+    ? 'MILESTONE_QUOTATIONS'
+    : (tabParam === 'funding' || tabParam === 'CAMPAIGN_FUNDING')
+      ? 'CAMPAIGN_FUNDING'
+      : 'CAMPAIGN_FUNDING';
+  const [activeTab, setActiveTab] = useState<'CAMPAIGN_FUNDING' | 'MILESTONE_QUOTATIONS'>(initialTab);
   
   const [campaignApprovals, setCampaignApprovals] = useState<CampaignApprovalItem[]>([]);
   const [quotationApprovals, setQuotationApprovals] = useState<QuotationApprovalItem[]>([]);
   const [backedCampaigns, setBackedCampaigns] = useState<BackedCampaignGovernance[]>([]);
+  const [filteredCampaignMeta, setFilteredCampaignMeta] = useState<{ id: number; title: string } | null>(null);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -150,10 +162,18 @@ export default function DonorApprovalsPage() {
       const pendingCampaigns: CampaignApprovalItem[] = [];
       const pendingQuotations: QuotationApprovalItem[] = [];
       const backedCamps: BackedCampaignGovernance[] = [];
-      const seenCampaignIds = new Set<number>();
 
-      for (let i = 1; i <= count; i++) {
-        seenCampaignIds.add(i);
+      // Determine which campaign IDs to scan
+      let idsToScan: number[] = [];
+      if (filterCampaignId && filterCampaignId > 0) {
+        idsToScan = [filterCampaignId];
+      } else {
+        for (let i = 1; i <= count; i++) {
+          idsToScan.push(i);
+        }
+      }
+
+      for (const i of idsToScan) {
         try {
           const c = await contract.getCampaign(i);
           if (!c.creator || c.creator === ethers.ZeroAddress) continue;
@@ -174,7 +194,7 @@ export default function DonorApprovalsPage() {
             ? Math.min(100, Math.round((myDonationFtu / raisedFtu) * 100))
             : 0;
 
-          const dbMeta = dbCampaigns.find((db: any) => Number(db.on_chain_id) === i);
+          const dbMeta = dbCampaigns.find((db: any) => Number(db.on_chain_id) === i || Number(db.id) === i);
           const title = dbMeta?.title || `Campaign #${i}`;
           const tagline = dbMeta?.tagline || '';
           const category = dbMeta?.category || 'Community';
@@ -186,6 +206,10 @@ export default function DonorApprovalsPage() {
             : Array.isArray(dbMeta?.plannedBudget)
               ? dbMeta.plannedBudget
               : [];
+
+          if (filterCampaignId === i) {
+            setFilteredCampaignMeta({ id: i, title });
+          }
 
           // 1. Check if campaign requires Donor Funding Approval
           // Verified campaigns that have not yet met their full funding goal
@@ -214,8 +238,8 @@ export default function DonorApprovalsPage() {
           }
 
           // 2. Check for Milestone Quotation Sanctions
-          // "ONLY FOR CERTAIN DONOR": Only show quotation sanction requests & auto-sanction for campaigns THIS donor has backed
-          if (myDonationFtu > 0) {
+          // Show for campaigns this donor backed, or if scoped to this campaign
+          if (myDonationFtu > 0 || filterCampaignId === i) {
             let isAuto = false;
             try {
               isAuto = await contract.automationEnabled(i);
@@ -265,11 +289,23 @@ export default function DonorApprovalsPage() {
       setQuotationApprovals(pendingQuotations);
       setBackedCampaigns(backedCamps);
 
-      // Auto-focus the tab with active pending approvals if one is empty
-      if (pendingCampaigns.length === 0 && pendingQuotations.length > 0) {
+      // Auto-focus the tab:
+      if (tabParam === 'milestones' || tabParam === 'MILESTONE_QUOTATIONS') {
         setActiveTab('MILESTONE_QUOTATIONS');
-      } else if (pendingCampaigns.length > 0 && pendingQuotations.length === 0) {
+      } else if (tabParam === 'funding' || tabParam === 'CAMPAIGN_FUNDING') {
         setActiveTab('CAMPAIGN_FUNDING');
+      } else if (filterCampaignId) {
+        if (pendingCampaigns.length > 0 && pendingQuotations.length === 0) {
+          setActiveTab('CAMPAIGN_FUNDING');
+        } else {
+          setActiveTab('MILESTONE_QUOTATIONS');
+        }
+      } else {
+        if (pendingCampaigns.length === 0 && pendingQuotations.length > 0) {
+          setActiveTab('MILESTONE_QUOTATIONS');
+        } else if (pendingCampaigns.length > 0 && pendingQuotations.length === 0) {
+          setActiveTab('CAMPAIGN_FUNDING');
+        }
       }
     } catch (err) {
       console.error('Failed to load approvals:', err);
@@ -278,7 +314,7 @@ export default function DonorApprovalsPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [wallet.isConnected, wallet.address]);
+  }, [wallet.isConnected, wallet.address, filterCampaignId, tabParam]);
 
   useEffect(() => {
     loadApprovals();
@@ -519,14 +555,25 @@ export default function DonorApprovalsPage() {
                 <Link href="/donor" className="text-stone-500 hover:text-stone-900 text-sm font-bold transition-colors">
                   Donor Portfolio
                 </Link>
+                {filterCampaignId && (
+                  <>
+                    <ChevronRight className="w-4 h-4 text-stone-400" />
+                    <Link href={`/donor/campaigns/${filterCampaignId}`} className="text-stone-500 hover:text-stone-900 text-sm font-bold transition-colors">
+                      Campaign #{filterCampaignId}
+                    </Link>
+                  </>
+                )}
                 <ChevronRight className="w-4 h-4 text-stone-400" />
                 <span className="text-stone-900 text-sm font-bold">Approvals & Governance</span>
               </div>
               <h1 className="text-4xl sm:text-6xl font-black font-bebas uppercase tracking-tight text-stone-900">
-                Donor Approvals
+                {filterCampaignId ? `Campaign #${filterCampaignId} Approvals` : 'Donor Approvals'}
               </h1>
               <p className="text-stone-600 font-medium text-sm sm:text-base mt-1 max-w-2xl">
-                Review and approve campaign funding proposals, and sanction part-by-part milestone spending requests with AI audit verification.
+                {filterCampaignId
+                  ? `Reviewing funding approvals and milestone disbursement quotations exclusively for Campaign #${filterCampaignId}.`
+                  : 'Review and approve campaign funding proposals, and sanction part-by-part milestone spending requests with AI audit verification.'
+                }
               </p>
             </div>
 
@@ -543,6 +590,41 @@ export default function DonorApprovalsPage() {
               Refresh Approvals
             </button>
           </header>
+
+          {/* Campaign Filter Context Banner */}
+          {filterCampaignId && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold font-mono text-sm shrink-0 shadow-xs">
+                  #{filterCampaignId}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded">
+                      Filtered Campaign View
+                    </span>
+                  </div>
+                  <p className="font-bold text-stone-900 text-sm sm:text-base mt-0.5">
+                    {filteredCampaignMeta?.title || `Campaign #${filterCampaignId}`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/donor/campaigns/${filterCampaignId}`}
+                  className="px-4 py-2 bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-xs"
+                >
+                  <ArrowRight className="w-3.5 h-3.5 rotate-180" /> Back to Campaign
+                </Link>
+                <Link
+                  href="/donor/approvals"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-xs"
+                >
+                  View All Campaigns
+                </Link>
+              </div>
+            </div>
+          )}
 
           {/* Persona Governance Context Banner */}
           <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -851,29 +933,50 @@ export default function DonorApprovalsPage() {
                     })}
 
                     {campaignApprovals.length === 0 && (
-                      <div className="bg-white rounded-3xl border border-stone-200 p-16 text-center shadow-sm">
+                      <div className="bg-white rounded-3xl border border-stone-200 p-12 sm:p-16 text-center shadow-sm">
                         <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-600">
                           <CheckCircle2 className="w-8 h-8" />
                         </div>
                         <h3 className="text-2xl font-black font-display text-stone-900 mb-2">
-                          All Open Campaigns Funded!
+                          {filterCampaignId
+                            ? `Campaign #${filterCampaignId} Has No Pending Funding Approvals`
+                            : 'All Open Campaigns Funded!'}
                         </h3>
                         <p className="text-stone-500 max-w-md mx-auto mb-6 text-sm">
-                          There are no verified campaign proposals currently awaiting donor acceptance. Explore your portfolio or review ongoing milestone disbursements.
+                          {filterCampaignId
+                            ? 'This specific campaign is either fully funded or not awaiting initial funding approval. You can review its milestone disbursement quotations below.'
+                            : 'There are no verified campaign proposals currently awaiting donor acceptance. Explore your portfolio or review ongoing milestone disbursements.'}
                         </p>
-                        <div className="flex justify-center gap-3">
+                        <div className="flex flex-wrap justify-center gap-3">
                           <button
                             onClick={() => setActiveTab('MILESTONE_QUOTATIONS')}
-                            className="px-5 py-2.5 bg-stone-900 text-white font-bold text-xs rounded-xl hover:bg-stone-800 transition-colors"
+                            className="px-5 py-2.5 bg-stone-900 text-white font-bold text-xs rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-1.5"
                           >
-                            Check Milestone Sanctions
+                            Check Milestone Sanctions {filterCampaignId ? `(${quotationApprovals.length})` : ''} <ArrowRight className="w-3.5 h-3.5" />
                           </button>
-                          <Link
-                            href="/donor"
-                            className="px-5 py-2.5 bg-white border border-stone-300 text-stone-700 font-bold text-xs rounded-xl hover:bg-stone-50 transition-colors"
-                          >
-                            Back to Portfolio
-                          </Link>
+                          {filterCampaignId ? (
+                            <>
+                              <Link
+                                href={`/donor/campaigns/${filterCampaignId}`}
+                                className="px-5 py-2.5 bg-white border border-stone-300 text-stone-700 font-bold text-xs rounded-xl hover:bg-stone-50 transition-colors"
+                              >
+                                Back to Campaign Details
+                              </Link>
+                              <Link
+                                href="/donor/approvals"
+                                className="px-5 py-2.5 bg-stone-100 text-stone-700 font-bold text-xs rounded-xl hover:bg-stone-200 transition-colors"
+                              >
+                                View All Campaigns
+                              </Link>
+                            </>
+                          ) : (
+                            <Link
+                              href="/donor"
+                              className="px-5 py-2.5 bg-white border border-stone-300 text-stone-700 font-bold text-xs rounded-xl hover:bg-stone-50 transition-colors"
+                            >
+                              Back to Portfolio
+                            </Link>
+                          )}
                         </div>
                       </div>
                     )}
@@ -890,7 +993,10 @@ export default function DonorApprovalsPage() {
                     <div className="flex items-center gap-2.5 text-indigo-900">
                       <BrainCircuit className="w-4 h-4 text-indigo-600 shrink-0" />
                       <p className="text-xs sm:text-sm font-medium">
-                        Showing pending milestone spending requests from campaigns where <strong>you are an active contributor</strong> ({formatAddress(wallet.address)}).
+                        {filterCampaignId
+                          ? <>Showing pending milestone spending requests for <strong>Campaign #{filterCampaignId}</strong> with your contributor governance authority ({formatAddress(wallet.address)}).</>
+                          : <>Showing pending milestone spending requests from campaigns where <strong>you are an active contributor</strong> ({formatAddress(wallet.address)}).</>
+                        }
                       </p>
                     </div>
                   </div>
@@ -903,7 +1009,10 @@ export default function DonorApprovalsPage() {
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                         <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
                           <Sparkles className="w-4 h-4 text-indigo-500" />
-                          Campaign-Specific AI Auto-Sanction Controls ({backedCampaigns.length} Backed)
+                          {filterCampaignId
+                            ? `Campaign #${filterCampaignId} AI Auto-Sanction Controls`
+                            : `Campaign-Specific AI Auto-Sanction Controls (${backedCampaigns.length} Backed)`
+                          }
                         </h3>
                         <span className="text-[11px] text-stone-400 font-medium">
                           Auto-sanction approve/reject policies are scoped to each campaign you backed
@@ -1161,29 +1270,52 @@ export default function DonorApprovalsPage() {
                     })}
 
                     {quotationApprovals.length === 0 && (
-                      <div className="bg-white rounded-3xl border border-stone-200 p-16 text-center shadow-sm">
+                      <div className="bg-white rounded-3xl border border-stone-200 p-12 sm:p-16 text-center shadow-sm">
                         <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-4 text-stone-400">
                           <CheckCircle2 className="w-8 h-8 text-emerald-500" />
                         </div>
                         <h3 className="text-2xl font-black font-display text-stone-900 mb-2">
-                          No Pending Milestone Requests
+                          {filterCampaignId
+                            ? `No Pending Milestone Requests for Campaign #${filterCampaignId}`
+                            : 'No Pending Milestone Requests'}
                         </h3>
                         <p className="text-stone-500 max-w-md mx-auto mb-6 text-sm leading-relaxed">
-                          There are no quotation disbursements awaiting your sanction for campaigns you have funded. As a contributor, governance sanction rights are granted for campaigns you back.
+                          {filterCampaignId
+                            ? `There are currently no quotation disbursements awaiting your sanction for Campaign #${filterCampaignId}. All submitted requests have been processed or none have been submitted yet.`
+                            : 'There are no quotation disbursements awaiting your sanction for campaigns you have funded. As a contributor, governance sanction rights are granted for campaigns you back.'}
                         </p>
-                        <div className="flex justify-center gap-3">
-                          <button
-                            onClick={() => setActiveTab('CAMPAIGN_FUNDING')}
-                            className="px-5 py-2.5 bg-stone-900 text-white font-bold text-xs rounded-xl hover:bg-stone-800 transition-colors"
-                          >
-                            Explore Campaign Proposals
-                          </button>
-                          <Link
-                            href="/donor"
-                            className="px-5 py-2.5 bg-white border border-stone-300 text-stone-700 font-bold text-xs rounded-xl hover:bg-stone-50 transition-colors"
-                          >
-                            Back to Portfolio
-                          </Link>
+                        <div className="flex flex-wrap justify-center gap-3">
+                          {filterCampaignId ? (
+                            <>
+                              <Link
+                                href={`/donor/campaigns/${filterCampaignId}`}
+                                className="px-5 py-2.5 bg-stone-900 text-white font-bold text-xs rounded-xl hover:bg-stone-800 transition-colors"
+                              >
+                                Return to Campaign #{filterCampaignId}
+                              </Link>
+                              <Link
+                                href="/donor/approvals"
+                                className="px-5 py-2.5 bg-white border border-stone-300 text-stone-700 font-bold text-xs rounded-xl hover:bg-stone-50 transition-colors"
+                              >
+                                View All Approvals
+                              </Link>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setActiveTab('CAMPAIGN_FUNDING')}
+                                className="px-5 py-2.5 bg-stone-900 text-white font-bold text-xs rounded-xl hover:bg-stone-800 transition-colors"
+                              >
+                                Explore Campaign Proposals
+                              </button>
+                              <Link
+                                href="/donor"
+                                className="px-5 py-2.5 bg-white border border-stone-300 text-stone-700 font-bold text-xs rounded-xl hover:bg-stone-50 transition-colors"
+                              >
+                                Back to Portfolio
+                              </Link>
+                            </>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1196,5 +1328,20 @@ export default function DonorApprovalsPage() {
         </div>
       </div>
     </RoleGuard>
+  );
+}
+
+export default function DonorApprovalsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen p-12 bg-[#F7F4ED] flex flex-col items-center justify-center space-y-4">
+          <Loader2 className="w-10 h-10 animate-spin text-stone-900" />
+          <p className="text-sm font-mono text-stone-500 font-bold uppercase tracking-wider">Loading approvals & governance...</p>
+        </div>
+      }
+    >
+      <DonorApprovalsContent />
+    </Suspense>
   );
 }

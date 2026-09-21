@@ -322,7 +322,7 @@ export default function DonorContributionsPage() {
                           <Link href={`/donor/tracking?campaignId=${contrib.campaignId}`} className="px-5 py-2.5 bg-stone-900 text-white text-sm font-bold rounded-lg hover:bg-stone-800 transition-colors shadow-sm flex items-center gap-2">
                             <BarChart3 className="w-4 h-4" /> Track Fund Flow
                           </Link>
-                          <Link href={`/donor/approvals`} className="px-5 py-2.5 bg-white border border-stone-200 text-stone-700 text-sm font-bold rounded-lg hover:bg-stone-50 transition-colors shadow-sm flex items-center gap-2">
+                          <Link href={`/donor/approvals?campaignId=${contrib.campaignId}&tab=milestones`} className="px-5 py-2.5 bg-white border border-stone-200 text-stone-700 text-sm font-bold rounded-lg hover:bg-stone-50 transition-colors shadow-sm flex items-center gap-2">
                             View Pending Requests
                           </Link>
                         </div>
